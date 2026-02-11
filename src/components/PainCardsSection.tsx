@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { GraduationCap, Users, TrendingDown, Clock, AlertTriangle, Bot, HelpCircle } from "lucide-react";
+import { GraduationCap, Users, TrendingDown, Clock, AlertTriangle, Bot, HelpCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRef } from "react";
 
 const pains = [
   {
@@ -47,16 +48,17 @@ const pains = [
   },
 ];
 
-const FlipCard = ({ pain, index }: { pain: typeof pains[0]; index: number }) => {
+const FlipCard = ({ pain }: { pain: typeof pains[0] }) => {
   const [flipped, setFlipped] = useState(false);
   const Icon = pain.icon;
 
   return (
     <div
-      className="w-[220px] h-[200px] flex-shrink-0 cursor-pointer"
+      className="w-[220px] h-[200px] flex-shrink-0 cursor-pointer select-none"
       style={{ perspective: "800px" }}
       onMouseEnter={() => setFlipped(true)}
       onMouseLeave={() => setFlipped(false)}
+      onClick={() => setFlipped((f) => !f)}
     >
       <motion.div
         className="relative w-full h-full"
@@ -65,26 +67,29 @@ const FlipCard = ({ pain, index }: { pain: typeof pains[0]; index: number }) => 
         style={{ transformStyle: "preserve-3d" }}
       >
         {/* Front */}
-        <div className="absolute inset-0 hologram-panel cyber-border rounded-sm p-5 flex flex-col items-center justify-center gap-3 backface-hidden">
+        <div className="absolute inset-0 hologram-panel cyber-border rounded-sm p-5 flex flex-col items-center justify-center gap-3" style={{ backfaceVisibility: "hidden" }}>
           <Icon size={32} className="text-primary" />
           <h3 className="font-display text-sm font-bold text-foreground text-center">{pain.title}</h3>
           <p className="text-xs text-muted-foreground text-center font-body">{pain.subtitle}</p>
         </div>
         {/* Back */}
         <div
-          className="absolute inset-0 hologram-panel rounded-sm p-5 flex items-center justify-center backface-hidden border border-accent/30"
+          className="absolute inset-0 hologram-panel rounded-sm p-5 flex items-center justify-center border border-accent/30"
           style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
         >
           <p className="text-xs text-foreground/90 text-center font-body leading-relaxed">{pain.back}</p>
         </div>
       </motion.div>
-      <style>{`.backface-hidden { backface-visibility: hidden; }`}</style>
     </div>
   );
 };
 
 const PainCardsSection = () => {
-  const doubled = [...pains, ...pains];
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (dir: number) => {
+    scrollRef.current?.scrollBy({ left: dir * 250, behavior: "smooth" });
+  };
 
   return (
     <section id="dores" className="py-20 bg-secondary/30 overflow-hidden">
@@ -102,11 +107,28 @@ const PainCardsSection = () => {
         </p>
       </div>
 
-      {/* Infinite scroll */}
-      <div className="relative">
-        <div className="flex gap-6 animate-scroll-x w-max">
-          {doubled.map((pain, i) => (
-            <FlipCard key={i} pain={pain} index={i} />
+      {/* Draggable scroll with buttons */}
+      <div className="relative px-4">
+        <button
+          onClick={() => scroll(-1)}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-secondary/80 border border-border flex items-center justify-center text-foreground hover:text-primary hover:border-primary/40 transition"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <button
+          onClick={() => scroll(1)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-secondary/80 border border-border flex items-center justify-center text-foreground hover:text-primary hover:border-primary/40 transition"
+        >
+          <ChevronRight size={20} />
+        </button>
+
+        <div
+          ref={scrollRef}
+          className="flex gap-6 overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing px-8"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
+        >
+          {pains.map((pain, i) => (
+            <FlipCard key={i} pain={pain} />
           ))}
         </div>
       </div>

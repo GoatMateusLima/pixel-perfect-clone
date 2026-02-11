@@ -67,11 +67,11 @@
 
 @layer utilities {
   .text-glow {
-    text-shadow: 0 0 10px hsl(155 60% 45% / 0.6), 0 0 30px hsl(155 60% 45% / 0.3);
+    text-shadow: 0 0 6px hsl(155 60% 45% / 0.3), 0 0 15px hsl(155 60% 45% / 0.1);
   }
 
   .text-glow-accent {
-    text-shadow: 0 0 10px hsl(25 90% 55% / 0.6), 0 0 30px hsl(25 90% 55% / 0.3);
+    text-shadow: 0 0 6px hsl(25 90% 55% / 0.3), 0 0 15px hsl(25 90% 55% / 0.1);
   }
 
   .box-glow {

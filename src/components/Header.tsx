@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
   { label: "Início", href: "#hero" },
@@ -12,33 +14,53 @@ const navLinks = [
 
 const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-4">
-        {/* Top row: logo + buttons */}
         <div className="flex items-center justify-between h-16">
           <div className="flex-1" />
-          <motion.div
-            className="font-display text-2xl font-bold text-primary text-glow tracking-widest"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            UPJOBS
-          </motion.div>
+          <Link to="/">
+            <motion.div
+              className="font-display text-2xl font-bold text-primary tracking-widest"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              UPJOBS
+            </motion.div>
+          </Link>
           <div className="flex-1 flex justify-end gap-3 items-center">
-            <a
-              href="#cta"
-              className="hidden sm:inline-flex px-4 py-1.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold hover:bg-primary/10 transition-colors"
-            >
-              Login
-            </a>
-            <a
-              href="#cta"
-              className="hidden sm:inline-flex px-4 py-1.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-semibold hover:brightness-110 transition box-glow-accent"
-            >
-              Cadastre-se
-            </a>
+            {user ? (
+              <>
+                <span className="hidden sm:inline text-sm text-muted-foreground font-body">
+                  <User size={14} className="inline mr-1" />
+                  {user.name}
+                </span>
+                <button
+                  onClick={logout}
+                  className="hidden sm:inline-flex items-center gap-1 px-4 py-1.5 rounded-sm border border-border text-muted-foreground text-sm font-accent font-semibold hover:text-primary hover:border-primary/40 transition-colors"
+                >
+                  <LogOut size={14} />
+                  Sair
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="hidden sm:inline-flex px-4 py-1.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold hover:bg-primary/10 transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/cadastro"
+                  className="hidden sm:inline-flex px-4 py-1.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-semibold hover:brightness-110 transition box-glow-accent"
+                >
+                  Cadastre-se
+                </Link>
+              </>
+            )}
             <button
               className="sm:hidden text-foreground"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -48,7 +70,6 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Nav row */}
         <nav className="hidden sm:flex items-center justify-center gap-8 pb-2">
           {navLinks.map((link) => (
             <a
@@ -62,7 +83,6 @@ const Header = () => {
         </nav>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -80,12 +100,20 @@ const Header = () => {
             </a>
           ))}
           <div className="flex gap-3 mt-3">
-            <a href="#cta" className="px-4 py-1.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold">
-              Login
-            </a>
-            <a href="#cta" className="px-4 py-1.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-semibold">
-              Cadastre-se
-            </a>
+            {user ? (
+              <button onClick={logout} className="px-4 py-1.5 rounded-sm border border-border text-muted-foreground text-sm font-accent font-semibold">
+                Sair
+              </button>
+            ) : (
+              <>
+                <Link to="/login" className="px-4 py-1.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold">
+                  Login
+                </Link>
+                <Link to="/cadastro" className="px-4 py-1.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-semibold">
+                  Cadastre-se
+                </Link>
+              </>
+            )}
           </div>
         </motion.div>
       )}
