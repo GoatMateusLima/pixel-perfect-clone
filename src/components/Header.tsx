@@ -23,7 +23,7 @@ const Header = () => {
           <div className="flex-1" />
           <Link to="/">
             <motion.div
-              className="font-display text-2xl font-bold text-primary tracking-widest"
+              className="font-display text-3xl font-bold text-primary tracking-widest"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
             >
@@ -75,7 +75,7 @@ const Header = () => {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-accent font-medium text-muted-foreground hover:text-primary transition-colors"
+              className="text-sm sm:text-[20px] font-accent font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               {link.label}
             </a>

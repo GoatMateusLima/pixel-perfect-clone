@@ -28,7 +28,7 @@ const HeroSection = () => {
               <span className="text-primary">desaparecendo?</span>
             </h1>
 
-            <p className=" text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-4 font-body leading-relaxed">
+            <p className=" text-xl sm:text-[25px] text-muted-foreground max-w-2xl mx-auto mb-4 font-body leading-relaxed">
               O mercado está mudando mais rápido do que nunca. Profissões inteiras estão sendo substituídas por IA e automação.
               A pergunta não é <em>se</em> vai acontecer — é <em>quando</em>.
             </p>
