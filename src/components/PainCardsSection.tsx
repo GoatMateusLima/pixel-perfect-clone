@@ -88,7 +88,7 @@ const FlipCard = ({ pain }: { pain: typeof pains[0] }) => {
 const PainCardsSection = () => {
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, dragFree: true, align: "start" },
-    [AutoScroll({ speed: 0.5, stopOnInteraction: false, stopOnMouseEnter: true })]
+    [AutoScroll({ speed: 0.5, stopOnInteraction: false, stopOnMouseEnter: true, playOnInit: true, startDelay: 0 })]
   );
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
