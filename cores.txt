@@ -1,0 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 60% 10%;
+    --foreground: 180 10% 90%;
+
+    --card: 216 50% 13%;
+    --card-foreground: 180 10% 90%;
+
+    --popover: 216 50% 13%;
+    --popover-foreground: 180 10% 90%;
+
+    --primary: 153 100% 50%;
+    --primary-foreground: 216 60% 5%;
+
+    --secondary: 216 40% 18%;
+    --secondary-foreground: 180 10% 90%;
+
+    --muted: 216 30% 20%;
+    --muted-foreground: 200 15% 55%;
+
+    --accent: 190 100% 50%;
+    --accent-foreground: 216 60% 5%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 216 30% 22%;
+    --input: 216 30% 22%;
+    --ring: 153 100% 50%;
+
+    --radius: 0.5rem;
+
+    --neon: 153 100% 50%;
+    --neon-glow: 153 100% 50%;
+    --cyan: 190 100% 50%;
+
+    --sidebar-background: 216 60% 8%;
+    --sidebar-foreground: 180 10% 90%;
+    --sidebar-primary: 153 100% 50%;
+    --sidebar-primary-foreground: 216 60% 5%;
+    --sidebar-accent: 216 40% 18%;
+    --sidebar-accent-foreground: 180 10% 90%;
+    --sidebar-border: 216 30% 22%;
+    --sidebar-ring: 153 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Orbitron', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  .text-neon {
+    color: hsl(var(--neon));
+  }
+
+  .text-cyan {
+    color: hsl(var(--cyan));
+  }
+
+  .bg-neon {
+    background-color: hsl(var(--neon));
+  }
+
+  .glow-neon {
+    box-shadow: 0 0 10px hsl(153 100% 50% / 0.3),
+                0 0 30px hsl(153 100% 50% / 0.15),
+                0 0 60px hsl(153 100% 50% / 0.05);
+  }
+
+  .glow-neon-strong {
+    box-shadow: 0 0 15px hsl(153 100% 50% / 0.5),
+                0 0 40px hsl(153 100% 50% / 0.25),
+                0 0 80px hsl(153 100% 50% / 0.1);
+  }
+
+  .text-glow-neon {
+    text-shadow: 0 0 10px hsl(153 100% 50% / 0.5),
+                 0 0 30px hsl(153 100% 50% / 0.3);
+  }
+
+  .text-glow-cyan {
+    text-shadow: 0 0 10px hsl(190 100% 50% / 0.5),
+                 0 0 30px hsl(190 100% 50% / 0.3);
+  }
+
+  .holo-card {
+    position: relative;
+    background: linear-gradient(135deg, hsl(216 50% 13% / 0.8), hsl(216 50% 16% / 0.6));
+    backdrop-filter: blur(10px);
+    border: 1px solid hsl(153 100% 50% / 0.15);
+  }
+
+  .holo-card::before,
+  .holo-card::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-color: hsl(153 100% 50% / 0.5);
+  }
+
+  .holo-card::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+    border-color: inherit;
+    border-color: hsl(153 100% 50% / 0.5);
+  }
+
+  .holo-card::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 2px solid;
+    border-right: 2px solid;
+    border-color: hsl(153 100% 50% / 0.5);
+  }
+
+  .flip-card {
+    perspective: 1000px;
+  }
+
+  .flip-card-inner {
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
+
+  .flip-card:hover .flip-card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flip-card-front,
+  .flip-card-back {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    height: 200px;
+  }
+
+  .flip-card-back {
+    transform: rotateY(180deg);
+    margin-top: -200px;
+  }
+
+  .scanline {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(153 100% 50% / 0.03) 2px,
+      hsl(153 100% 50% / 0.03) 4px
+    );
+  }
+}
+
+@keyframes glitch {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px hsl(153 100% 50% / 0.3),
+                0 0 30px hsl(153 100% 50% / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px hsl(153 100% 50% / 0.5),
+                0 0 50px hsl(153 100% 50% / 0.25);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
