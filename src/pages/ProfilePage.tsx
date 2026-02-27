@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import {
-  User, Award, BookOpen, TrendingUp, Clock, ArrowLeft, LogOut
+  User, Award, BookOpen, TrendingUp, Clock, ArrowLeft, LogOut, Camera,
 } from "lucide-react";
 import dominanciaImg from "@/assets/disc/Dominancia.webp";
 import influenciaImg from "@/assets/disc/Influencia.webp";
@@ -31,9 +31,16 @@ const MOCK_COURSES = [
   { title: "Cibersegurança Ofensiva", progress: 10 },
 ];
 
+const STORAGE_KEY = "upjobs_profile_photo";
+
 const ProfilePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoSrc, setPhotoSrc] = useState<string | null>(() => {
+    return localStorage.getItem(STORAGE_KEY) ?? null;
+  });
+  const [isHoveringPhoto, setIsHoveringPhoto] = useState(false);
 
   useEffect(() => {
     if (!user) navigate("/login");
@@ -43,6 +50,23 @@ const ProfilePage = () => {
 
   const a = user.assessment;
   const discProfile = a?.discProfile;
+  const ringColor = discProfile ? DISC_COLORS[discProfile] : "hsl(155 60% 35%)";
+
+  const handlePhotoClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setPhotoSrc(result);
+      localStorage.setItem(STORAGE_KEY, result);
+    };
+    reader.readAsDataURL(file);
+    // Reset input so the same file can be re-selected later
+    e.target.value = "";
+  };
 
   return (
     <div className="min-h-screen gradient-hero scanline px-4 pt-24 pb-12">
@@ -66,30 +90,97 @@ const ProfilePage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="hologram-panel rounded-sm p-6 flex flex-col sm:flex-row items-center gap-6"
         >
-          <div className="relative">
+          {/* Avatar area — outer ring + badge outside the photo circle */}
+          <div className="relative flex-shrink-0">
+
+            {/* Outer decorative ring (DISC color) */}
             <div
-              className="w-24 h-24 rounded-full bg-secondary flex items-center justify-center border-2"
+              className="absolute inset-0 rounded-full pointer-events-none"
               style={{
-                borderColor: discProfile ? DISC_COLORS[discProfile] : "hsl(155 60% 35%)",
-                boxShadow: discProfile ? `0 0 15px ${DISC_COLORS[discProfile]}30` : undefined,
+                border: `2.5px solid ${ringColor}`,
+                boxShadow: `0 0 18px ${ringColor}40, inset 0 0 6px ${ringColor}15`,
+                borderRadius: "50%",
+                // Slightly larger than the avatar so it sits outside
+                top: "-5px",
+                left: "-5px",
+                right: "-5px",
+                bottom: "-5px",
+                width: "calc(100% + 10px)",
+                height: "calc(100% + 10px)",
               }}
+            />
+
+            {/* Avatar circle — clickable for upload */}
+            <button
+              type="button"
+              onClick={handlePhotoClick}
+              onMouseEnter={() => setIsHoveringPhoto(true)}
+              onMouseLeave={() => setIsHoveringPhoto(false)}
+              className="relative w-24 h-24 rounded-full overflow-hidden bg-secondary flex items-center justify-center focus:outline-none"
+              title="Alterar foto de perfil"
+              style={{ display: "block" }}
             >
-              {discProfile ? (
-                <img src={DISC_IMGS[discProfile]} alt="DISC" className="w-full h-full rounded-full object-cover" />
+              {/* User photo or DISC image or fallback icon */}
+              {photoSrc ? (
+                <img
+                  src={photoSrc}
+                  alt="Foto de perfil"
+                  className="w-full h-full object-cover"
+                />
+              ) : discProfile ? (
+                <img
+                  src={DISC_IMGS[discProfile]}
+                  alt="DISC"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <User size={32} className="text-muted-foreground" />
               )}
-            </div>
+
+              {/* Camera overlay on hover */}
+              <motion.div
+                initial={false}
+                animate={{ opacity: isHoveringPhoto ? 1 : 0 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full"
+                style={{ background: "rgba(0,0,0,0.52)" }}
+                aria-hidden="true"
+              >
+                <Camera size={18} className="text-white" />
+                <span className="text-[9px] text-white font-accent leading-none">Alterar</span>
+              </motion.div>
+            </button>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {/* DISC badge — anchored OUTSIDE the ring, bottom-right */}
             {discProfile && (
               <span
-                className="absolute -bottom-1 -right-1 text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground"
-                style={{ backgroundColor: DISC_COLORS[discProfile] }}
+                className="absolute text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground whitespace-nowrap"
+                style={{
+                  backgroundColor: DISC_COLORS[discProfile],
+                  bottom: "-18px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  zIndex: 10,
+                }}
               >
                 {DISC_LABELS[discProfile]}
               </span>
+              
             )}
+            
           </div>
-          <div className="text-center sm:text-left">
+
+          {/* Name / email — extra top margin to clear the badge */}
+          <div className={`text-center sm:text-left ${discProfile ? "mt-4 sm:mt-0" : ""}`}>
             <h1 className="font-display text-xl font-bold text-foreground">{user.name}</h1>
             <p className="text-sm text-muted-foreground font-body">{user.email}</p>
             {!a?.completed && (

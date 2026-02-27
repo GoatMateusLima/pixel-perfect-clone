@@ -110,7 +110,7 @@ const FlipCard = ({ pain }: { pain: typeof pains[0] }) => {
         style={{ transformStyle: "preserve-3d" }}
       >
         {/* Front */}
-        <div className="absolute inset-0 hologram-panel cyber-border rounded-sm p-5 flex flex-col items-center justify-center gap-3" style={{ backfaceVisibility: "hidden" }}>
+        <div className="absolute inset-0 hologram-panel-carosel cyber-border rounded-sm p-5 flex flex-col items-center justify-center gap-3" style={{ backfaceVisibility: "hidden" }}>
           <Icon size={32} className="text-primary" />
           <h3 className="font-display text-sm font-bold text-foreground text-center">{pain.title}</h3>
           <p className="text-xs text-muted-foreground text-center font-body">{pain.subtitle}</p>
