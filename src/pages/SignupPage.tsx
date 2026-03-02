@@ -99,6 +99,7 @@ const SignupPage = () => {
           <Link to="/login" className="text-primary hover:underline">Faça login</Link>
         </p>
       </motion.div>
+      
       <motion.div
           className="w-full text-center"
           initial={{ opacity: 0, y: 20 }}
