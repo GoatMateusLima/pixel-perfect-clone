@@ -138,7 +138,7 @@ const RoadmapSection = () => {
             </div>
 
             <a
-              href="/signup"
+              href="/roadMap"
               className="inline-flex items-center gap-2 mt-8 px-6 py-3 rounded-sm bg-accent text-accent-foreground font-accent font-bold box-glow-accent hover:brightness-110 transition"
             >
               Começar Meu Roadmap
