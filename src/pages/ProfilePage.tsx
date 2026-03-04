@@ -27,29 +27,29 @@ const DISC_COLORS: Record<string, string> = {
 /* ─── Social ─── */
 type SocialKey = "linkedin" | "github" | "facebook" | "twitter" | "instagram" | "email" | "website";
 const SOCIAL_META: Record<SocialKey, { label: string; Icon: React.ElementType; placeholder: string; prefix?: string }> = {
-  linkedin:  { label: "LinkedIn",  Icon: Linkedin,  placeholder: "https://linkedin.com/in/usuario", prefix: "https://" },
-  github:    { label: "GitHub",    Icon: Github,    placeholder: "https://github.com/usuario",      prefix: "https://" },
-  facebook:  { label: "Facebook",  Icon: Facebook,  placeholder: "https://facebook.com/usuario",   prefix: "https://" },
-  twitter:   { label: "Twitter/X", Icon: Twitter,   placeholder: "https://x.com/usuario",          prefix: "https://" },
-  instagram: { label: "Instagram", Icon: Instagram, placeholder: "https://instagram.com/usuario",  prefix: "https://" },
-  email:     { label: "E-mail",    Icon: Mail,      placeholder: "seu@email.com",                  prefix: "mailto:" },
-  website:   { label: "Website",   Icon: Globe,     placeholder: "https://seusite.com",            prefix: "https://" },
+  linkedin: { label: "LinkedIn", Icon: Linkedin, placeholder: "https://linkedin.com/in/usuario", prefix: "https://" },
+  github: { label: "GitHub", Icon: Github, placeholder: "https://github.com/usuario", prefix: "https://" },
+  facebook: { label: "Facebook", Icon: Facebook, placeholder: "https://facebook.com/usuario", prefix: "https://" },
+  twitter: { label: "Twitter/X", Icon: Twitter, placeholder: "https://x.com/usuario", prefix: "https://" },
+  instagram: { label: "Instagram", Icon: Instagram, placeholder: "https://instagram.com/usuario", prefix: "https://" },
+  email: { label: "E-mail", Icon: Mail, placeholder: "seu@email.com", prefix: "mailto:" },
+  website: { label: "Website", Icon: Globe, placeholder: "https://seusite.com", prefix: "https://" },
 };
 const ALL_SOCIAL_KEYS = Object.keys(SOCIAL_META) as SocialKey[];
 
 /* ─── Mock ─── */
 const MOCK_CERTIFICATES = [
-  { title: "Fundamentos de IA",        date: "2025-01", provider: "UpJobs Academy" },
+  { title: "Fundamentos de IA", date: "2025-01", provider: "UpJobs Academy" },
   { title: "Python para Data Science", date: "2025-03", provider: "UpJobs Academy" },
 ];
 const MOCK_COURSES = [
   { title: "Machine Learning Avançado", progress: 65 },
-  { title: "Cloud Computing AWS",       progress: 30 },
-  { title: "Cibersegurança Ofensiva",  progress: 10 },
+  { title: "Cloud Computing AWS", progress: 30 },
+  { title: "Cibersegurança Ofensiva", progress: 10 },
 ];
 
 /* ─── Storage ─── */
-const KEY_PHOTO  = "upjobs_profile_photo_v2";
+const KEY_PHOTO = "upjobs_profile_photo_v2";
 const KEY_BANNER = "upjobs_profile_banner_v1";
 const KEY_SOCIAL = "upjobs_profile_social_v1";
 if (typeof window !== "undefined") localStorage.removeItem("upjobs_profile_photo");
@@ -59,30 +59,30 @@ const ProfilePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const photoInputRef  = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   /* persisted */
-  const [photoSrc,  setPhotoSrc]  = useState<string | null>(() => localStorage.getItem(KEY_PHOTO));
+  const [photoSrc, setPhotoSrc] = useState<string | null>(() => localStorage.getItem(KEY_PHOTO));
   const [bannerSrc, setBannerSrc] = useState<string | null>(() => localStorage.getItem(KEY_BANNER));
   const [socialLinks, setSocialLinks] = useState<Partial<Record<SocialKey, string>>>(() => {
     try { return JSON.parse(localStorage.getItem(KEY_SOCIAL) ?? "{}"); } catch { return {}; }
   });
 
   /* edit mode draft */
-  const [isEditing,   setIsEditing]   = useState(false);
-  const [draftPhoto,  setDraftPhoto]  = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftPhoto, setDraftPhoto] = useState<string | null>(null);
   const [draftBanner, setDraftBanner] = useState<string | null>(null);
   const [draftSocial, setDraftSocial] = useState<Partial<Record<SocialKey, string>>>({});
 
   /* crop modal */
-  const [cropSrc,  setCropSrc]  = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropType, setCropType] = useState<"photo" | "banner" | null>(null);
 
   /* social modal */
   const [socialModal, setSocialModal] = useState<SocialKey | null>(null);
   const [socialInput, setSocialInput] = useState("");
-  const [hoverPhoto,  setHoverPhoto]  = useState(false);
+  const [hoverPhoto, setHoverPhoto] = useState(false);
 
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
   if (!user) return null;
@@ -92,7 +92,7 @@ const ProfilePage = () => {
   const ringColor = discProfile ? DISC_COLORS[discProfile] : "hsl(155 60% 35%)";
 
   /* displayed values */
-  const displayPhoto  = isEditing ? (draftPhoto  !== null ? (draftPhoto  || null) : photoSrc)  : photoSrc;
+  const displayPhoto = isEditing ? (draftPhoto !== null ? (draftPhoto || null) : photoSrc) : photoSrc;
   const displayBanner = isEditing ? (draftBanner !== null ? (draftBanner || null) : bannerSrc) : bannerSrc;
   const displaySocial: Partial<Record<SocialKey, string>> = isEditing
     ? Object.fromEntries(ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : socialLinks[k]]))
@@ -104,7 +104,7 @@ const ProfilePage = () => {
     setIsEditing(true);
   };
   const handleConfirmEdit = () => {
-    const fp = draftPhoto  !== null ? (draftPhoto  || null) : photoSrc;
+    const fp = draftPhoto !== null ? (draftPhoto || null) : photoSrc;
     const fb = draftBanner !== null ? (draftBanner || null) : bannerSrc;
     const fs: Partial<Record<SocialKey, string>> = {};
     ALL_SOCIAL_KEYS.forEach(k => { const v = k in draftSocial ? draftSocial[k] : socialLinks[k]; if (v) fs[k] = v; });
@@ -127,8 +127,8 @@ const ProfilePage = () => {
     reader.onload = (e) => { setCropSrc(e.target?.result as string); setCropType(type); };
     reader.readAsDataURL(file);
   };
-  const handlePhotoFile  = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo");  e.target.value = "";
+  const handlePhotoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo"); e.target.value = "";
   };
   const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "banner"); e.target.value = "";
@@ -136,7 +136,7 @@ const ProfilePage = () => {
 
   /* ── Crop confirm ── */
   const handleCropConfirm = (dataUrl: string) => {
-    if (cropType === "photo")  setDraftPhoto(dataUrl);
+    if (cropType === "photo") setDraftPhoto(dataUrl);
     if (cropType === "banner") setDraftBanner(dataUrl);
     setCropSrc(null); setCropType(null);
   };
@@ -144,7 +144,7 @@ const ProfilePage = () => {
 
   /* ── Social ── */
   const openSocialModal = (key: SocialKey) => { setSocialInput(displaySocial[key] ?? ""); setSocialModal(key); };
-  const saveSocialLink  = () => {
+  const saveSocialLink = () => {
     if (!socialModal) return;
     setDraftSocial(p => ({ ...p, [socialModal]: socialInput.trim() }));
     setSocialModal(null); setSocialInput("");
@@ -152,7 +152,7 @@ const ProfilePage = () => {
   const removeSocialLink = (key: SocialKey) => setDraftSocial(p => ({ ...p, [key]: "" }));
 
   const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
-  const emptySocials  = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
+  const emptySocials = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
 
   return (
     <div className="min-h-screen gradient-hero scanline pb-12">
@@ -352,10 +352,10 @@ const ProfilePage = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { icon: Clock,      label: "Horas Estudadas", value: "42h",                                                             color: "text-primary" },
-              { icon: TrendingUp, label: "Valor/Hora",       value: a.valorHoraLiquida ? `R$ ${a.valorHoraLiquida.toFixed(2)}` : "—", color: "text-accent"  },
-              { icon: Award,      label: "Certificados",     value: String(MOCK_CERTIFICATES.length),                                  color: "text-primary" },
-              { icon: BookOpen,   label: "Cursos Ativos",    value: String(MOCK_COURSES.length),                                       color: "text-accent"  },
+              { icon: Clock, label: "Horas Estudadas", value: "42h", color: "text-primary" },
+              { icon: TrendingUp, label: "Valor/Hora", value: a.valorHoraLiquida ? `R$ ${a.valorHoraLiquida.toFixed(2)}` : "—", color: "text-accent" },
+              { icon: Award, label: "Certificados", value: String(MOCK_CERTIFICATES.length), color: "text-primary" },
+              { icon: BookOpen, label: "Cursos Ativos", value: String(MOCK_COURSES.length), color: "text-accent" },
             ].map((stat, i) => (
               <div key={i} className="hologram-panel rounded-sm p-4 text-center">
                 <stat.icon size={18} className={`mx-auto mb-1 ${stat.color}`} />
@@ -388,6 +388,11 @@ const ProfilePage = () => {
               </div>
             ))}
           </div>
+
+          <a href="/courses"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-foreground border border-border hover:border-primary hover:text-primary transition-colors">
+            Cursos
+          </a>
         </motion.div>
 
         {/* Certificates */}
@@ -413,8 +418,8 @@ const ProfilePage = () => {
           <ImageCropModal
             src={cropSrc}
             shape={cropType === "photo" ? "circle" : "rect"}
-            outputWidth={cropType  === "photo" ? 400  : 1200}
-            outputHeight={cropType === "photo" ? 400  : 320}
+            outputWidth={cropType === "photo" ? 400 : 1200}
+            outputHeight={cropType === "photo" ? 400 : 320}
             onConfirm={handleCropConfirm}
             onCancel={handleCropCancel}
           />
