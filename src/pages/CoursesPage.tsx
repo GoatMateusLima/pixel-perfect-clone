@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   PlayCircle,
   ClipboardList,
@@ -79,6 +80,28 @@ const QUESTIONS: Question[] = [
       "Executar o programa mais rápido",
       "Encontrar e corrigir erros no código",
       "Publicar o software na internet",
+    ],
+    correct: 2,
+  },
+  {
+    id: 4,
+    text: "O que é uma variável em programação?",
+    options: [
+      "Um tipo de loop que se repete infinitamente",
+      "Um espaço na memória para armazenar e manipular dados",
+      "Uma função que retorna sempre o mesmo valor",
+      "Um arquivo de configuração do sistema",
+    ],
+    correct: 1,
+  },
+  {
+    id: 5,
+    text: "Qual das opções abaixo é uma estrutura de controle de fluxo?",
+    options: [
+      "Variável",
+      "Função pura",
+      "Condicional if/else",
+      "Comentário de código",
     ],
     correct: 2,
   },
@@ -272,14 +295,27 @@ const AulaTab = () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
+const PASS_THRESHOLD = 0.75;
+
 const QuestionarioTab = () => {
+  const [queue, setQueue] = useState<Question[]>(QUESTIONS);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [attempt, setAttempt] = useState(1);
 
-  const q = QUESTIONS[current];
+  const q = queue[current];
 
   const handleSelect = (idx: number) => {
     if (!confirmed) setSelected(idx);
@@ -292,7 +328,7 @@ const QuestionarioTab = () => {
   };
 
   const handleNext = () => {
-    if (current + 1 >= QUESTIONS.length) {
+    if (current + 1 >= queue.length) {
       setFinished(true);
     } else {
       setCurrent((c) => c + 1);
@@ -301,48 +337,148 @@ const QuestionarioTab = () => {
     }
   };
 
-  const handleRestart = () => {
+  const handleRetry = () => {
+    setQueue(shuffleArray(QUESTIONS));
     setCurrent(0);
     setSelected(null);
     setConfirmed(false);
     setScore(0);
     setFinished(false);
+    setAttempt((a) => a + 1);
   };
 
   if (finished) {
-    const pct = Math.round((score / QUESTIONS.length) * 100);
+    const pct = Math.round((score / queue.length) * 100);
+    const passed = score / queue.length >= PASS_THRESHOLD;
+
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center"
       >
-        <CheckCircle2
-          size={48}
-          className="mx-auto mb-4"
-          style={{ color: pct >= 70 ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)", filter: `drop-shadow(0 0 12px currentColor)` }}
-        />
-        <h2 className="font-display text-xl font-bold text-foreground mb-2">Questionário Concluído!</h2>
-        <p className="text-muted-foreground font-body text-sm mb-6">
+        {/* Icon */}
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 18 }}
+          className="mb-5"
+        >
+          {passed ? (
+            <CheckCircle2
+              size={56}
+              className="mx-auto"
+              style={{ color: "hsl(155 60% 45%)", filter: "drop-shadow(0 0 16px hsl(155 60% 45% / 0.7))" }}
+            />
+          ) : (
+            <motion.div
+              animate={{ rotate: [0, -8, 8, -6, 6, 0] }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <ClipboardList
+                size={56}
+                className="mx-auto"
+                style={{ color: "hsl(25 90% 55%)", filter: "drop-shadow(0 0 16px hsl(25 90% 55% / 0.6))" }}
+              />
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Title */}
+        <h2 className="font-display text-xl font-bold text-foreground mb-2">
+          {passed ? "Parabéns! Você passou! 🎉" : "Quase lá! Tente novamente"}
+        </h2>
+
+        {/* Score */}
+        <p className="text-muted-foreground font-body text-sm mb-2">
           Você acertou{" "}
           <span className="text-primary font-semibold">{score}</span> de{" "}
-          <span className="font-semibold">{QUESTIONS.length}</span> questões —{" "}
-          <span className={pct >= 70 ? "text-primary font-semibold" : "text-accent font-semibold"}>{pct}%</span>
+          <span className="font-semibold">{queue.length}</span> questões —{" "}
+          <span
+            className="font-bold text-base"
+            style={{ color: passed ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)" }}
+          >
+            {pct}%
+          </span>
         </p>
-        <div className="flex justify-center gap-3">
-          <button
-            onClick={handleRestart}
-            className="px-6 py-2.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold hover:bg-primary/10 transition"
-          >
-            Tentar Novamente
-          </button>
-          <Link
-            to="/perfil"
-            className="px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold box-glow-accent hover:brightness-110 transition"
-          >
-            Ver Perfil
-          </Link>
+
+        {/* Threshold hint */}
+        <p className="text-xs text-muted-foreground font-accent mb-1">
+          Mínimo para aprovação:{" "}
+          <span className={passed ? "text-primary" : "text-accent"}>75%</span>
+        </p>
+
+        {attempt > 1 && !passed && (
+          <p className="text-xs text-muted-foreground font-body mb-1">
+            Tentativa <span className="text-accent font-semibold">#{attempt}</span> — As questões foram embaralhadas para você.
+          </p>
+        )}
+
+        {/* Score bar */}
+        <div className="my-5 h-2 rounded-full bg-secondary overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="h-full rounded-full"
+            style={{
+              background: passed
+                ? "hsl(155 60% 45%)"
+                : "hsl(25 90% 55%)",
+              boxShadow: passed
+                ? "0 0 10px hsl(155 60% 45% / 0.6)"
+                : "0 0 10px hsl(25 90% 55% / 0.6)",
+            }}
+          />
         </div>
+
+        {/* Threshold marker */}
+        <div className="relative h-0 mb-4">
+          <div
+            className="absolute top-0 bottom-0 w-px bg-primary/50"
+            style={{ left: "75%", transform: "translateY(-10px)", height: "20px" }}
+          />
+          <span
+            className="absolute text-[9px] font-accent text-primary/70"
+            style={{ left: "75%", transform: "translateX(-50%) translateY(-22px)" }}
+          >
+            75%
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-center gap-3 mt-6">
+          {passed ? (
+            <>
+              <button
+                onClick={handleRetry}
+                className="px-5 py-2.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold hover:bg-primary/10 transition"
+              >
+                Refazer
+              </button>
+              <Link
+                to="/perfil"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+                style={{ boxShadow: "0 0 14px hsl(155 60% 45% / 0.5)" }}
+              >
+                Próxima Parte <ChevronRight size={14} />
+              </Link>
+            </>
+          ) : (
+            <button
+              onClick={handleRetry}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold box-glow-accent hover:brightness-110 transition"
+            >
+              Tentar Novamente <ChevronRight size={14} />
+            </button>
+          )}
+        </div>
+
+        {!passed && (
+          <p className="text-xs text-muted-foreground font-body mt-4">
+            As questões serão apresentadas em ordem aleatória na próxima tentativa.
+          </p>
+        )}
       </motion.div>
     );
   }
@@ -352,7 +488,10 @@ const QuestionarioTab = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-accent text-muted-foreground">
-          Questão <span className="text-primary font-semibold">{current + 1}</span> / {QUESTIONS.length}
+          Questão <span className="text-primary font-semibold">{current + 1}</span> / {queue.length}
+          {attempt > 1 && (
+            <span className="ml-2 text-accent">· Tentativa #{attempt}</span>
+          )}
         </span>
         <span className="text-xs font-accent text-muted-foreground">
           Acertos: <span className="text-primary font-semibold">{score}</span>
@@ -362,7 +501,7 @@ const QuestionarioTab = () => {
       {/* Progress */}
       <div className="h-1 rounded-full bg-secondary overflow-hidden">
         <motion.div
-          animate={{ width: `${((current) / QUESTIONS.length) * 100}%` }}
+          animate={{ width: `${((current) / queue.length) * 100}%` }}
           transition={{ duration: 0.4 }}
           className="h-full rounded-full bg-primary"
           style={{ boxShadow: "0 0 8px hsl(155 60% 45% / 0.5)" }}
@@ -430,7 +569,7 @@ const QuestionarioTab = () => {
                 onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold box-glow-accent hover:brightness-110 transition"
               >
-                {current + 1 >= QUESTIONS.length ? "Ver Resultado" : "Próxima"} <ChevronRight size={14} />
+                {current + 1 >= queue.length ? "Ver Resultado" : "Próxima"} <ChevronRight size={14} />
               </button>
             )}
           </div>
