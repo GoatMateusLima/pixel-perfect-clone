@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 import {
   PlayCircle,
   ClipboardList,
@@ -41,6 +40,15 @@ interface Doubt {
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
 const LESSONS = [
   { id: 1, title: "Introdução ao Mercado Tech", duration: "12min", done: true },
   { id: 2, title: "Fundamentos de Programação", duration: "18min", done: true },
@@ -49,7 +57,7 @@ const LESSONS = [
   { id: 5, title: "Deploy na Nuvem", duration: "20min", done: false, locked: true },
 ];
 
-const QUESTIONS: Question[] = [
+const ALL_QUESTIONS: Question[] = [
   {
     id: 1,
     text: "Qual das alternativas descreve melhor um algoritmo?",
@@ -105,7 +113,232 @@ const QUESTIONS: Question[] = [
     ],
     correct: 2,
   },
+  {
+    id: 6,
+    text: "O que é front-end no desenvolvimento web?",
+    options: [
+      "A parte do sistema que gerencia o banco de dados",
+      "A interface visual com a qual o usuário interage",
+      "O servidor que processa as requisições",
+      "O sistema de autenticação de usuários",
+    ],
+    correct: 1,
+  },
+  {
+    id: 7,
+    text: "O que significa a sigla HTML?",
+    options: [
+      "HyperText Markup Language",
+      "High Text Machine Learning",
+      "HyperText Management Logic",
+      "Hosted Terminal Markup Layer",
+    ],
+    correct: 0,
+  },
+  {
+    id: 8,
+    text: "Para que serve o CSS em desenvolvimento web?",
+    options: [
+      "Criar lógica de negócios no servidor",
+      "Conectar o front-end ao banco de dados",
+      "Estilizar a aparência visual das páginas",
+      "Gerenciar requisições HTTP",
+    ],
+    correct: 2,
+  },
+  {
+    id: 9,
+    text: "O que é uma função em programação?",
+    options: [
+      "Um tipo de dado que armazena números",
+      "Um bloco de código reutilizável que realiza uma tarefa específica",
+      "Uma estrutura de repetição infinita",
+      "Um arquivo de configuração externo",
+    ],
+    correct: 1,
+  },
+  {
+    id: 10,
+    text: "O que é um loop (laço de repetição)?",
+    options: [
+      "Um erro que trava o programa",
+      "Uma estrutura que executa um bloco de código várias vezes",
+      "Um tipo especial de variável numérica",
+      "Uma função que retorna valores booleanos",
+    ],
+    correct: 1,
+  },
+  {
+    id: 11,
+    text: "Qual é a principal função do back-end em uma aplicação web?",
+    options: [
+      "Criar animações e transições visuais",
+      "Gerenciar a lógica, dados e regras de negócio no servidor",
+      "Definir o layout responsivo das páginas",
+      "Compilar o código JavaScript no navegador",
+    ],
+    correct: 1,
+  },
+  {
+    id: 12,
+    text: "O que é um banco de dados?",
+    options: [
+      "Um editor de código para desenvolvedores",
+      "Um sistema para organizar e armazenar informações de forma estruturada",
+      "Uma linguagem de programação orientada a objetos",
+      "Um protocolo de comunicação entre servidores",
+    ],
+    correct: 1,
+  },
+  {
+    id: 13,
+    text: "Qual ferramenta é amplamente usada para versionamento de código?",
+    options: [
+      "Docker",
+      "Figma",
+      "Git",
+      "Postman",
+    ],
+    correct: 2,
+  },
+  {
+    id: 14,
+    text: "O que é um repositório no contexto do Git?",
+    options: [
+      "Um servidor de banco de dados",
+      "Um local onde o histórico e os arquivos do projeto são armazenados",
+      "Um ambiente de execução virtual",
+      "Uma branch protegida de produção",
+    ],
+    correct: 1,
+  },
+  {
+    id: 15,
+    text: "O que significa API?",
+    options: [
+      "Advanced Programming Interface",
+      "Application Protocol Integration",
+      "Application Programming Interface",
+      "Automated Process Instruction",
+    ],
+    correct: 2,
+  },
+  {
+    id: 16,
+    text: "Qual das seguintes linguagens é mais usada para estilização de páginas web?",
+    options: [
+      "Python",
+      "CSS",
+      "SQL",
+      "Java",
+    ],
+    correct: 1,
+  },
+  {
+    id: 17,
+    text: "O que é pseudocódigo?",
+    options: [
+      "Um código escrito em uma linguagem desconhecida",
+      "Uma representação textual informal de um algoritmo, sem sintaxe rígida",
+      "Um código que só funciona em ambiente de testes",
+      "Um arquivo de configuração de servidor",
+    ],
+    correct: 1,
+  },
+  {
+    id: 18,
+    text: "O que é deploy em desenvolvimento de software?",
+    options: [
+      "Criar testes automatizados para o código",
+      "Publicar e disponibilizar uma aplicação para uso em produção",
+      "Refatorar o código para melhorar a performance",
+      "Realizar uma revisão de código em equipe",
+    ],
+    correct: 1,
+  },
+  {
+    id: 19,
+    text: "O que é um operador lógico em programação?",
+    options: [
+      "Um símbolo matemático usado em cálculos financeiros",
+      "Um símbolo que realiza operações entre valores booleanos, como AND, OR e NOT",
+      "Uma função que converte tipos de dados",
+      "Um tipo de variável que armazena texto",
+    ],
+    correct: 1,
+  },
+  {
+    id: 20,
+    text: "O que faz o comando 'git commit'?",
+    options: [
+      "Envia as alterações para o repositório remoto",
+      "Cria uma nova branch no projeto",
+      "Registra um ponto de salvamento das alterações no histórico local",
+      "Mescla duas branches diferentes",
+    ],
+    correct: 2,
+  },
+  {
+    id: 21,
+    text: "O que é programação orientada a objetos (POO)?",
+    options: [
+      "Um paradigma que organiza o código em torno de objetos com atributos e métodos",
+      "Uma técnica de otimização de banco de dados",
+      "Um método de deploy contínuo em nuvem",
+      "Uma forma de escrever código sem usar funções",
+    ],
+    correct: 0,
+  },
+  {
+    id: 22,
+    text: "Qual das opções abaixo descreve uma estrutura de dados do tipo array?",
+    options: [
+      "Uma coleção de pares chave-valor sem ordem definida",
+      "Uma sequência ordenada de elementos acessados por índice",
+      "Um único valor armazenado na memória",
+      "Uma estrutura que conecta nós em forma de árvore",
+    ],
+    correct: 1,
+  },
+  {
+    id: 23,
+    text: "O que é responsividade em desenvolvimento web?",
+    options: [
+      "A velocidade de resposta do servidor às requisições",
+      "A capacidade de um site se adaptar a diferentes tamanhos de tela",
+      "O tempo de carregamento de imagens pesadas",
+      "A compatibilidade do código com múltiplas linguagens",
+    ],
+    correct: 1,
+  },
+  {
+    id: 24,
+    text: "Qual é a diferença entre compilação e interpretação de código?",
+    options: [
+      "Compilação é mais lenta; interpretação gera binários otimizados",
+      "Compilação transforma todo o código em binário antes da execução; interpretação executa linha a linha",
+      "Ambas fazem exatamente a mesma coisa, só diferem no nome",
+      "Interpretação exige mais memória RAM do que compilação",
+    ],
+    correct: 1,
+  },
+  {
+    id: 25,
+    text: "O que é um pull request (PR) no fluxo de trabalho com Git?",
+    options: [
+      "Um comando para baixar atualizações do repositório remoto",
+      "Uma solicitação para que as alterações de uma branch sejam revisadas e mescladas",
+      "Uma forma de reverter commits anteriores",
+      "Um arquivo de configuração automático do projeto",
+    ],
+    correct: 1,
+  },
 ];
+
+const QUESTIONS_PER_QUIZ = 5;
+
+const pickRandomQuestions = (): Question[] =>
+  shuffleArray(ALL_QUESTIONS).slice(0, QUESTIONS_PER_QUIZ);
 
 const DOUBTS: Doubt[] = [
   {
@@ -143,150 +376,125 @@ const DOUBTS: Doubt[] = [
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-const AulaTab = () => {
-  const [activeLesson, setActiveLesson] = useState(3);
+const LESSON_INFO: Record<number, { title: string; description: string; duration: string; module: string; num: number }> = {
+  1: { title: "Introdução ao Mercado Tech", description: "Uma visão geral do ecossistema tech, oportunidades de carreira e como se posicionar no mercado atual.", duration: "12:00", module: "Módulo 1", num: 1 },
+  2: { title: "Fundamentos de Programação", description: "Os pilares essenciais que todo dev precisa dominar: variáveis, tipos, operadores e estruturas básicas.", duration: "18:00", module: "Módulo 1", num: 2 },
+  3: { title: "Lógica e Algoritmos", description: "Aprenda a estruturar o raciocínio lógico para resolver qualquer problema com código — do pseudocódigo à implementação real.", duration: "22:00", module: "Módulo 1", num: 3 },
+};
+
+const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
   const [playing, setPlaying] = useState(false);
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Video Player */}
-      <div className="lg:col-span-2 space-y-4">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="hologram-panel rounded-sm overflow-hidden"
-        >
-          {/* Fake video area */}
-          <div
-            className="relative w-full bg-[hsl(200_30%_5%)] flex items-center justify-center cursor-pointer group"
-            style={{ aspectRatio: "16/9" }}
-            onClick={() => setPlaying(!playing)}
-          >
-            {/* scanlines overlay */}
-            <div className="absolute inset-0 scanline pointer-events-none opacity-40" />
-            {/* corner decorators */}
-            <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/60" />
-            <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/60" />
-            <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/60" />
-            <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/60" />
+  const lesson = LESSON_INFO[activeLesson] ?? LESSON_INFO[3];
+  const lessonData = LESSONS.find(l => l.id === activeLesson);
+  const isLocked = lessonData?.locked;
 
-            {/* gradient bg */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[hsl(155_60%_35%/0.07)] via-transparent to-[hsl(200_70%_50%/0.05)]" />
-
-            {/* play button */}
-            <motion.div
-              animate={playing ? { scale: 0.85, opacity: 0.5 } : { scale: 1, opacity: 1 }}
-              whileHover={{ scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <PlayCircle
-                size={64}
-                className={`transition-colors ${
-                  playing ? "text-primary/40" : "text-primary group-hover:text-primary/80"
-                }`}
-                style={{ filter: playing ? "none" : "drop-shadow(0 0 14px hsl(155 60% 45% / 0.7))" }}
-              />
-            </motion.div>
-
-            {/* status badge */}
-            <div className="absolute bottom-3 left-3 flex items-center gap-2">
-              <span className="text-[10px] font-accent font-semibold text-muted-foreground px-2 py-0.5 rounded-sm bg-secondary/80 border border-border">
-                AULA 3 DE {LESSONS.length}
-              </span>
-              {playing && (
-                <span className="flex items-center gap-1 text-[10px] font-accent text-primary px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  AO VIVO
-                </span>
-              )}
-            </div>
-
-            {/* duration */}
-            <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[10px] text-muted-foreground font-accent">
-              <Clock size={10} />
-              22:00
-            </div>
-          </div>
-
-          {/* Lesson info */}
-          <div className="p-5">
-            <h2 className="font-display text-lg font-bold text-foreground mb-1">
-              Lógica e Algoritmos
-            </h2>
-            <p className="text-sm text-muted-foreground font-body leading-relaxed">
-              Nesta aula você vai entender como estruturar o raciocínio lógico para resolver qualquer
-              problema com código — desde pseudocódigo até implementação real.
-            </p>
-            <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground font-accent">
-              <span className="flex items-center gap-1"><BookOpen size={12} /> Módulo 1</span>
-              <span className="flex items-center gap-1"><Clock size={12} /> 22 min</span>
-              <span className="flex items-center gap-1 text-accent">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} size={10} className="fill-accent" />
-                ))}
-                4.9
-              </span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Lesson list */}
+  if (isLocked) {
+    return (
       <motion.div
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.1 }}
-        className="hologram-panel rounded-sm p-4 space-y-1 h-fit"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="hologram-panel rounded-sm p-12 flex flex-col items-center justify-center text-center max-w-lg mx-auto"
+      >
+        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4"
+          style={{ boxShadow: "0 0 20px hsl(215 20% 20%)" }}>
+          <Lock size={28} className="text-muted-foreground" />
+        </div>
+        <h3 className="font-display text-lg font-bold text-foreground mb-2">Aula Bloqueada</h3>
+        <p className="text-sm text-muted-foreground font-body">Complete as aulas anteriores para desbloquear este conteúdo.</p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <motion.div
+        key={activeLesson}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="hologram-panel rounded-sm overflow-hidden"
+      >
+        {/* Video area */}
+        <div
+          className="relative w-full bg-[hsl(200_30%_5%)] flex items-center justify-center cursor-pointer group"
+          style={{ aspectRatio: "16/9" }}
+          onClick={() => setPlaying(!playing)}
+        >
+          <div className="absolute inset-0 scanline pointer-events-none opacity-40" />
+          <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/60" />
+          <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/60" />
+          <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/60" />
+          <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/60" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(155_60%_35%/0.07)] via-transparent to-[hsl(200_70%_50%/0.05)]" />
+
+          <motion.div
+            animate={playing ? { scale: 0.85, opacity: 0.5 } : { scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.1 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            <PlayCircle
+              size={72}
+              className={`transition-colors ${playing ? "text-primary/40" : "text-primary group-hover:text-primary/80"}`}
+              style={{ filter: playing ? "none" : "drop-shadow(0 0 14px hsl(155 60% 45% / 0.7))" }}
+            />
+          </motion.div>
+
+          <div className="absolute bottom-3 left-3 flex items-center gap-2">
+            <span className="text-[10px] font-accent font-semibold text-muted-foreground px-2 py-0.5 rounded-sm bg-secondary/80 border border-border">
+              AULA {lesson.num} DE {LESSONS.length}
+            </span>
+            {playing && (
+              <span className="flex items-center gap-1 text-[10px] font-accent text-primary px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                REPRODUZINDO
+              </span>
+            )}
+          </div>
+          <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[10px] text-muted-foreground font-accent">
+            <Clock size={10} />
+            {lesson.duration}
+          </div>
+        </div>
+
+        {/* Lesson info */}
+        <div className="p-5">
+          <h2 className="font-display text-lg font-bold text-foreground mb-1">{lesson.title}</h2>
+          <p className="text-sm text-muted-foreground font-body leading-relaxed">{lesson.description}</p>
+          <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground font-accent">
+            <span className="flex items-center gap-1"><BookOpen size={12} /> {lesson.module}</span>
+            <span className="flex items-center gap-1"><Clock size={12} /> {lesson.duration}</span>
+            <span className="flex items-center gap-1 text-accent">
+              {[1, 2, 3, 4, 5].map((s) => <Star key={s} size={10} className="fill-accent" />)}
+              4.9
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Mini lesson list for mobile (roadmap hidden on mobile) */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="hologram-panel rounded-sm p-4 lg:hidden"
       >
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-          <BookOpen size={14} className="text-primary" />
-          Conteúdo do Curso
+          <BookOpen size={14} className="text-primary" /> Aulas do Módulo
         </h3>
-        {LESSONS.map((lesson) => (
-          <button
-            key={lesson.id}
-            disabled={!!lesson.locked}
-            onClick={() => !lesson.locked && setActiveLesson(lesson.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all text-left group
-              ${lesson.locked ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-primary/5"}
-              ${activeLesson === lesson.id ? "bg-primary/10 border border-primary/30" : "border border-transparent"}
-            `}
-          >
-            <div className="shrink-0">
-              {lesson.done ? (
-                <CheckCircle2 size={16} className="text-primary" />
-              ) : lesson.locked ? (
-                <Lock size={16} className="text-muted-foreground" />
-              ) : activeLesson === lesson.id ? (
-                <PlayCircle size={16} className="text-accent" style={{ filter: "drop-shadow(0 0 6px hsl(25 90% 55% / 0.6))" }} />
-              ) : (
-                <PlayCircle size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
-              )}
+        <div className="space-y-1">
+          {LESSONS.map((l) => (
+            <div key={l.id}
+              className={`flex items-center gap-3 px-3 py-2 rounded-sm border transition-all
+                ${l.id === activeLesson ? "border-primary/40 bg-primary/10" : "border-transparent"}
+                ${l.locked ? "opacity-40" : ""}
+              `}>
+              {l.done ? <CheckCircle2 size={14} className="text-primary shrink-0" /> :
+               l.locked ? <Lock size={14} className="text-muted-foreground shrink-0" /> :
+               <PlayCircle size={14} className="text-accent shrink-0" />}
+              <span className={`text-xs font-body flex-1 truncate ${l.id === activeLesson ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{l.title}</span>
+              <span className="text-[10px] font-accent text-muted-foreground">{l.duration}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className={`text-xs font-body truncate ${activeLesson === lesson.id ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
-                {lesson.title}
-              </p>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-accent shrink-0">{lesson.duration}</span>
-          </button>
-        ))}
-
-        {/* progress */}
-        <div className="pt-3 mt-2 border-t border-border">
-          <div className="flex justify-between text-[10px] font-accent text-muted-foreground mb-1">
-            <span>Progresso</span>
-            <span className="text-primary">40%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: "40%" }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="h-full rounded-full bg-primary"
-              style={{ boxShadow: "0 0 8px hsl(155 60% 45% / 0.6)" }}
-            />
-          </div>
+          ))}
         </div>
       </motion.div>
     </div>
@@ -295,19 +503,10 @@ const AulaTab = () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const shuffleArray = <T,>(arr: T[]): T[] => {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
-
 const PASS_THRESHOLD = 0.75;
 
 const QuestionarioTab = () => {
-  const [queue, setQueue] = useState<Question[]>(QUESTIONS);
+  const [queue, setQueue] = useState<Question[]>(() => pickRandomQuestions());
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -338,7 +537,7 @@ const QuestionarioTab = () => {
   };
 
   const handleRetry = () => {
-    setQueue(shuffleArray(QUESTIONS));
+    setQueue(pickRandomQuestions());
     setCurrent(0);
     setSelected(null);
     setConfirmed(false);
@@ -716,89 +915,1068 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "duvidas", label: "Dúvidas", icon: <MessageCircleQuestion size={15} /> },
 ];
 
-const CoursesPage = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("aula");
+// ─── Roadmap Data ─────────────────────────────────────────────────────────────
+
+interface RoadmapNode {
+  id: number;
+  title: string;
+  subtitle: string;
+  icon: string;
+  status: "done" | "active" | "locked";
+  xOffset: number; // zigzag offset: -1 | 0 | 1
+  module: number;
+}
+
+const ROADMAP_NODES: RoadmapNode[] = [
+  { id: 1, title: "Mercado Tech",       subtitle: "Introdução",        icon: "🌐", status: "done",   xOffset: 0,  module: 1 },
+  { id: 2, title: "Fundamentos",        subtitle: "Programação",       icon: "💡", status: "done",   xOffset: 1,  module: 1 },
+  { id: 3, title: "Lógica",             subtitle: "Algoritmos",        icon: "🧠", status: "active", xOffset: -1, module: 1 },
+  { id: 4, title: "Git",                subtitle: "Versionamento",     icon: "🔀", status: "locked", xOffset: 0,  module: 2 },
+  { id: 5, title: "Deploy",             subtitle: "Nuvem",             icon: "☁️", status: "locked", xOffset: 1,  module: 2 },
+  { id: 6, title: "Front-end",          subtitle: "HTML & CSS",        icon: "🎨", status: "locked", xOffset: -1, module: 2 },
+  { id: 7, title: "JavaScript",         subtitle: "ES6+",              icon: "⚡", status: "locked", xOffset: 0,  module: 3 },
+  { id: 8, title: "React",              subtitle: "Componentes",       icon: "⚛️", status: "locked", xOffset: 1,  module: 3 },
+  { id: 9, title: "Back-end",           subtitle: "Node.js & APIs",    icon: "🔧", status: "locked", xOffset: -1, module: 3 },
+  { id: 10, title: "Banco de Dados",    subtitle: "SQL & NoSQL",       icon: "🗄️", status: "locked", xOffset: 0,  module: 4 },
+  { id: 11, title: "DevOps",            subtitle: "CI/CD & Docker",    icon: "🐳", status: "locked", xOffset: 1,  module: 4 },
+  { id: 12, title: "Certificado",       subtitle: "Full Stack Dev",    icon: "🏆", status: "locked", xOffset: 0,  module: 5 },
+];
+
+// ─── Roadmap Component ────────────────────────────────────────────────────────
+
+// Zigzag pattern: each node alternates left → right → left ...
+// "left" = 15% from left edge, "right" = 85% from left edge, "center" = 50% (cert)
+const getNodeX = (index: number, isCert: boolean): number => {
+  if (isCert) return 50;
+  return index % 2 === 0 ? 20 : 80;
+};
+
+const NODE_ROW_HEIGHT = 88; // px per row
+const NODE_R = 26;          // circle radius
+
+const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { activeNodeId: number; onSelectNode: (id: number) => void; horizontal?: boolean }) => {
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [panelW, setPanelW] = useState(220);
+  const [panelH, setPanelH] = useState(600);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => { setPanelW(el.clientWidth); setPanelH(el.clientHeight); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const isCertificate = (node: RoadmapNode) => node.id === 12;
+
+  // ── HORIZONTAL MODE — Road style ─────────────────────────────────────────
+  if (horizontal) {
+    const HEADER_H = 72;
+    const canvasH = panelH - HEADER_H;
+
+    // Road geometry — sinusoidal path through the canvas
+    // Each node sits on the road. We define control points manually for a natural S-road.
+    const N = ROADMAP_NODES.length;
+    const stepX = Math.max(110, panelW / (N - 1 + 1.5));
+    const totalW = Math.max(panelW, stepX * (N + 0.5));
+
+    // Mid-Y of road canvas, amplitude of waves
+    const midY = canvasH * 0.5;
+    const amp  = Math.min(canvasH * 0.28, 90);
+
+    // Each node's x,y position on the road
+    const nodePos = ROADMAP_NODES.map((node, i) => {
+      const isCert = isCertificate(node);
+      const x = 60 + i * stepX;
+      // Sine wave: node 0 at mid, alternates up/down, cert at center
+      const y = isCert ? midY : midY + (i % 2 === 0 ? -amp : amp);
+      return { x, y };
+    });
+
+    // Build a single continuous road path through all node positions
+    const buildRoadPath = () => {
+      if (nodePos.length === 0) return "";
+      let d = `M ${nodePos[0].x} ${nodePos[0].y}`;
+      for (let i = 1; i < nodePos.length; i++) {
+        const p0 = nodePos[i - 1];
+        const p1 = nodePos[i];
+        const dx = (p1.x - p0.x) * 0.5;
+        d += ` C ${p0.x + dx} ${p0.y}, ${p1.x - dx} ${p1.y}, ${p1.x} ${p1.y}`;
+      }
+      return d;
+    };
+
+    // Per-segment path (for color: done/active vs locked)
+    const segmentPaths = ROADMAP_NODES.slice(1).map((node, i) => {
+      const p0 = nodePos[i];
+      const p1 = nodePos[i + 1];
+      const dx = (p1.x - p0.x) * 0.5;
+      const d = `M ${p0.x} ${p0.y} C ${p0.x + dx} ${p0.y}, ${p1.x - dx} ${p1.y}, ${p1.x} ${p1.y}`;
+      const prev = ROADMAP_NODES[i];
+      const lit = prev.status === "done" || prev.status === "active";
+      return { d, lit, key: node.id };
+    });
+
+    const roadPath = buildRoadPath();
+
+    // Pin colors per node
+    const PIN_COLORS: Record<string, string> = {
+      done:   "hsl(155 60% 45%)",
+      active: "hsl(25 90% 55%)",
+      locked: "hsl(215 20% 35%)",
+    };
+    const PIN_GLOW: Record<string, string> = {
+      done:   "hsl(155 60% 45% / 0.6)",
+      active: "hsl(25 90% 55% / 0.6)",
+      locked: "transparent",
+    };
+
+    return (
+      <div ref={containerRef} className="relative w-full h-full overflow-hidden flex flex-col">
+        {/* Header */}
+        <div
+          className="shrink-0 px-6 pt-4 pb-2 border-b border-border/30 bg-background/60 backdrop-blur-sm flex items-center justify-between"
+          style={{ height: HEADER_H }}
+        >
+          <div>
+            <p className="text-[9px] font-accent font-semibold text-muted-foreground tracking-widest uppercase mb-0.5">Sua Jornada</p>
+            <h2 className="font-display text-sm font-bold text-foreground leading-tight">
+              Trilha <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>Dev Full Stack</span>
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] font-accent text-muted-foreground">Progresso <span className="text-primary font-bold">2 / 11</span></span>
+            <div className="w-28 h-0.5 rounded-full bg-secondary overflow-hidden">
+              <motion.div initial={{ width: 0 }} animate={{ width: "18%" }} transition={{ delay: 0.5, duration: 1 }}
+                className="h-full rounded-full bg-primary" style={{ boxShadow: "0 0 6px hsl(155 60% 45% / 0.8)" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Road canvas */}
+        <div
+          className="flex-1 overflow-x-auto overflow-y-hidden"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}
+        >
+          <div className="relative" style={{ width: totalW, height: canvasH }}>
+
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              width={totalW}
+              height={canvasH}
+              style={{ overflow: "visible" }}
+            >
+              <defs>
+                {/* Road done gradient */}
+                <linearGradient id="roadDone" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="hsl(155, 55%, 30%)" />
+                  <stop offset="100%" stopColor="hsl(155, 55%, 25%)" />
+                </linearGradient>
+                {/* Road locked gradient */}
+                <linearGradient id="roadLocked" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="hsl(215, 20%, 16%)" />
+                  <stop offset="100%" stopColor="hsl(215, 20%, 13%)" />
+                </linearGradient>
+                {/* Glow filter */}
+                <filter id="roadGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="pinGlow" x="-40%" y="-40%" width="180%" height="180%">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+
+              {/* === ROAD LAYERS === */}
+              {segmentPaths.map(({ d, lit, key }) => (
+                <g key={key}>
+                  {/* Road shadow */}
+                  <path d={d} fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
+                  {/* Road surface */}
+                  <path d={d} fill="none"
+                    stroke={lit ? "hsl(155, 45%, 22%)" : "hsl(215, 18%, 14%)"}
+                    strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
+                  {/* Road edge lines */}
+                  <path d={d} fill="none"
+                    stroke={lit ? "hsl(155, 60%, 35% / 0.5)" : "hsl(215, 20%, 28% / 0.4)"}
+                    strokeWidth="22" strokeLinecap="round" strokeLinejoin="round"
+                    strokeDasharray="0"
+                    style={{ paintOrder: "stroke" }}
+                  />
+                  {/* Outer border of road */}
+                  <path d={d} fill="none"
+                    stroke={lit ? "hsl(155, 55%, 40%)" : "hsl(215, 20%, 28%)"}
+                    strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ mixBlendMode: "screen", opacity: 0.15 }}
+                  />
+                </g>
+              ))}
+
+              {/* === CENTER DASHED LINE === */}
+              <path
+                d={roadPath}
+                fill="none"
+                stroke="hsl(215, 15%, 50%)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeDasharray="10 8"
+                opacity="0.45"
+              />
+
+              {/* Lit dashed line (green for completed segments) */}
+              {segmentPaths.filter(s => s.lit).map(({ d, key }) => (
+                <path key={`dash-${key}`}
+                  d={d} fill="none"
+                  stroke="hsl(155, 60%, 50%)"
+                  strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8"
+                  opacity="0.6"
+                />
+              ))}
+
+              {/* === ANIMATED PARTICLE on active segment === */}
+              {segmentPaths.filter(s => s.lit).map(({ d, key }) => (
+                <circle key={`dot-${key}`} r="3" fill="hsl(155, 70%, 60%)" filter="url(#roadGlow)" opacity="0.9">
+                  <animateMotion dur="3s" repeatCount="indefinite" path={d} />
+                </circle>
+              ))}
+
+              {/* === MAP PIN MARKERS === */}
+              {ROADMAP_NODES.map((node, index) => {
+                const { x, y } = nodePos[index];
+                const isCert   = isCertificate(node);
+                const isDone   = node.status === "done";
+                const isActive = node.status === "active";
+                const isLocked = node.status === "locked" && !isCert;
+                const isSelected = activeNodeId === node.id;
+                const isHovered  = hoveredId === node.id;
+
+                const statusKey = isCert ? "active" : isDone ? "done" : isActive ? "active" : "locked";
+                const pinColor = isCert ? "hsl(45, 90%, 55%)" : PIN_COLORS[statusKey];
+                const pinGlow  = isCert ? "hsl(45, 90%, 55% / 0.6)" : PIN_GLOW[statusKey];
+
+                // Pin sits above the road, pointing down to the road
+                const pinH = isCert ? 56 : 48;
+                const pinW = isCert ? 46 : 38;
+                const pinY = y - pinH - 4; // top of pin above road point
+
+                return (
+                  <g key={node.id}
+                    onClick={() => !isLocked && onSelectNode(node.id)}
+                    onMouseEnter={() => setHoveredId(node.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
+                  >
+                    {/* Pulse ring for active/selected */}
+                    {(isActive || isSelected) && !isCert && (
+                      <circle cx={x} cy={y} r="16" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
+                        <animate attributeName="r" values="14;24;14" dur="1.8s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+
+                    {/* Certificate special glow */}
+                    {isCert && (
+                      <circle cx={x} cy={y} r="22" fill="none" stroke="hsl(45, 90%, 55%)" strokeWidth="2" opacity="0.4">
+                        <animate attributeName="r" values="20;34;20" dur="2.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+
+                    {/* Map pin shape (teardrop) */}
+                    <g filter={isHovered || isSelected ? "url(#pinGlow)" : "none"}>
+                      {/* Pin shadow */}
+                      <ellipse cx={x} cy={pinY + pinH + 2} rx={pinW * 0.3} ry={4} fill="rgba(0,0,0,0.4)" />
+                      {/* Pin body */}
+                      <path
+                        d={`
+                          M ${x} ${pinY + pinH}
+                          C ${x - 2} ${pinY + pinH - 10}, ${x - pinW/2} ${pinY + pinH * 0.65}, ${x - pinW/2} ${pinY + pinH * 0.42}
+                          A ${pinW/2} ${pinH * 0.45} 0 1 1 ${x + pinW/2} ${pinY + pinH * 0.42}
+                          C ${x + pinW/2} ${pinY + pinH * 0.65}, ${x + 2} ${pinY + pinH - 10}, ${x} ${pinY + pinH}
+                          Z
+                        `}
+                        fill={isLocked ? "hsl(215, 18%, 20%)" : pinColor}
+                        stroke={isLocked ? "hsl(215, 20%, 30%)" : isSelected ? "white" : "rgba(255,255,255,0.2)"}
+                        strokeWidth={isSelected ? "2" : "1"}
+                        style={{
+                          filter: isLocked ? "saturate(0) brightness(0.6)" : "none",
+                          opacity: isHovered ? 1 : 0.92,
+                          transition: "all 0.15s ease",
+                          transform: isHovered && !isLocked ? `translate(0px, -4px)` : "none",
+                        }}
+                      />
+                      {/* Pin inner highlight */}
+                      <ellipse
+                        cx={x - pinW * 0.12}
+                        cy={pinY + pinH * 0.28}
+                        rx={pinW * 0.18}
+                        ry={pinH * 0.14}
+                        fill="rgba(255,255,255,0.25)"
+                        style={{ filter: isLocked ? "grayscale(1)" : "none" }}
+                      />
+                      {/* Pin icon/emoji */}
+                      <text
+                        x={x}
+                        y={pinY + pinH * 0.47}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize={isCert ? 18 : 15}
+                        style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}
+                      >
+                        {isLocked ? "🔒" : node.icon}
+                      </text>
+                      {/* Done check badge */}
+                      {isDone && (
+                        <g>
+                          <circle cx={x + pinW/2 - 2} cy={pinY + 4} r="7" fill="hsl(155, 60%, 40%)" stroke="hsl(155, 60%, 55%)" strokeWidth="1.5" />
+                          <text x={x + pinW/2 - 2} y={pinY + 4} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
+                        </g>
+                      )}
+                    </g>
+
+                    {/* Road dot at node base */}
+                    <circle cx={x} cy={y} r={isSelected ? 6 : 4}
+                      fill={isLocked ? "hsl(215, 20%, 30%)" : pinColor}
+                      stroke="hsl(215, 25%, 10%)" strokeWidth="2"
+                      style={{ filter: !isLocked ? `drop-shadow(0 0 4px ${pinGlow})` : "none" }}
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* === TEXT LABELS (HTML for better typography) === */}
+            {ROADMAP_NODES.map((node, index) => {
+              const { x, y } = nodePos[index];
+              const isCert   = isCertificate(node);
+              const isDone   = node.status === "done";
+              const isActive = node.status === "active";
+              const isLocked = node.status === "locked" && !isCert;
+              const isSelected = activeNodeId === node.id;
+              const isAbove = y < midY; // node is above center → label goes below road
+              const pinH = isCert ? 56 : 48;
+              const labelY = isAbove
+                ? y + 18          // below the road when pin is above
+                : y - pinH - 62;  // above the pin when pin is below
+
+              return (
+                <div key={`label-${node.id}`}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: x,
+                    top: labelY,
+                    transform: "translateX(-50%)",
+                    width: 90,
+                    textAlign: "center",
+                  }}
+                >
+                  <p className={`font-display text-[11px] font-bold leading-tight ${
+                    isCert ? "text-[hsl(45_90%_65%)]"
+                    : isDone || isActive || isSelected ? "text-foreground"
+                    : "text-muted-foreground/50"
+                  }`}
+                    style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
+                    {node.title}
+                  </p>
+                  <p className="text-[8px] font-body text-muted-foreground/40 mt-0.5 leading-tight">{node.subtitle}</p>
+                </div>
+              );
+            })}
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── VERTICAL MODE (default) — Road style ─────────────────────────────────
+  const HEADER_H_V = 110;
+  const ROW_H      = 100;          // px between node centres
+  const totalH     = HEADER_H_V + ROADMAP_NODES.length * ROW_H + 60;
+  const midX       = panelW / 2;
+  const ampX       = Math.min(panelW * 0.28, 70); // horizontal swing
+
+  // Each node's x,y centre
+  const vNodePos = ROADMAP_NODES.map((node, i) => {
+    const isCert = isCertificate(node);
+    const y = HEADER_H_V + i * ROW_H + ROW_H / 2;
+    const x = isCert ? midX : midX + (i % 2 === 0 ? -ampX : ampX);
+    return { x, y };
+  });
+
+  // Build one continuous road path
+  const vRoadPath = (() => {
+    if (vNodePos.length === 0) return "";
+    let d = `M ${vNodePos[0].x} ${vNodePos[0].y}`;
+    for (let i = 1; i < vNodePos.length; i++) {
+      const p0 = vNodePos[i - 1];
+      const p1 = vNodePos[i];
+      const dy = (p1.y - p0.y) * 0.5;
+      d += ` C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
+    }
+    return d;
+  })();
+
+  // Per-segment paths for colouring
+  const vSegments = ROADMAP_NODES.slice(1).map((node, i) => {
+    const p0 = vNodePos[i];
+    const p1 = vNodePos[i + 1];
+    const dy = (p1.y - p0.y) * 0.5;
+    const d = `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
+    const prev = ROADMAP_NODES[i];
+    const lit = prev.status === "done" || prev.status === "active";
+    return { d, lit, key: node.id };
+  });
+
+  const V_PIN_COLORS: Record<string, string> = {
+    done:   "hsl(155 60% 42%)",
+    active: "hsl(25 90% 55%)",
+    locked: "hsl(215 20% 30%)",
+    cert:   "hsl(45 90% 55%)",
+  };
 
   return (
-    <div className="min-h-screen gradient-hero scanline px-4 pt-24 pb-12">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Back */}
-        <Link
-          to="/perfil"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition"
-        >
-          <ArrowLeft size={14} /> Voltar ao Perfil
-        </Link>
+    <div
+      ref={containerRef}
+      className="relative flex flex-col overflow-hidden"
+      style={{ height: "calc(100vh - 108px)" }}
+    >
+      {/* Atmospheric glow */}
+      <div className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(ellipse 80% 30% at 50% 10%, hsl(155 60% 45% / 0.07) 0%, transparent 70%)" }} />
 
-        {/* Page header */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-1"
-        >
-          <p className="text-xs font-accent font-semibold text-muted-foreground tracking-widest uppercase">
-            Módulo 1 · Fundamentos
-          </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-            Trilha{" "}
-            <span className="text-primary" style={{ textShadow: "0 0 20px hsl(155 60% 45% / 0.5)" }}>
-              Dev Full Stack
-            </span>
-          </h1>
-        </motion.div>
+      {/* Sticky header */}
+      <div className="shrink-0 sticky top-0 z-10 px-4 pt-4 pb-3 bg-background/60 backdrop-blur-sm border-b border-border/30">
+        <p className="text-[9px] font-accent font-semibold text-muted-foreground tracking-widest uppercase mb-0.5">Sua Jornada</p>
+        <h2 className="font-display text-sm font-bold text-foreground leading-tight">
+          Trilha <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>Dev Full Stack</span>
+        </h2>
+        <div className="mt-2">
+          <div className="flex justify-between text-[9px] font-accent text-muted-foreground mb-1">
+            <span>Progresso</span><span className="text-primary font-bold">2 / 11</span>
+          </div>
+          <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
+            <motion.div initial={{ width: 0 }} animate={{ width: "18%" }}
+              transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
+              className="h-full rounded-full bg-primary"
+              style={{ boxShadow: "0 0 6px hsl(155 60% 45% / 0.8)" }} />
+          </div>
+        </div>
+      </div>
 
-        {/* Tab buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="flex gap-2"
-        >
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 px-5 py-2.5 rounded-sm text-sm font-accent font-semibold transition-all
-                ${
-                  activeTab === tab.id
-                    ? "bg-primary/15 text-primary border border-primary/50"
-                    : "text-muted-foreground border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
-                }
-              `}
+      {/* Scrollable road canvas */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden relative"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}>
+        <div className="relative" style={{ height: totalH, width: "100%" }}>
+
+          <svg className="absolute inset-0 pointer-events-none" width="100%" height={totalH}>
+            <defs>
+              <filter id="vRoadGlow" x="-30%" y="-10%" width="160%" height="120%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="vPinGlow" x="-50%" y="-30%" width="200%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+
+            {/* ── ROAD SEGMENTS ── */}
+            {vSegments.map(({ d, lit, key }) => (
+              <g key={key}>
+                {/* shadow */}
+                <path d={d} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
+                {/* asphalt */}
+                <path d={d} fill="none"
+                  stroke={lit ? "hsl(155, 42%, 20%)" : "hsl(215, 18%, 13%)"}
+                  strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
+                {/* edge glow */}
+                <path d={d} fill="none"
+                  stroke={lit ? "hsl(155, 60%, 38%)" : "hsl(215, 20%, 26%)"}
+                  strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"
+                  opacity="0.12" />
+              </g>
+            ))}
+
+            {/* ── CENTER DASHED LINE ── */}
+            <path d={vRoadPath} fill="none"
+              stroke="hsl(215, 15%, 48%)" strokeWidth="1.5"
+              strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
+
+            {/* Lit dashed overlay */}
+            {vSegments.filter(s => s.lit).map(({ d, key }) => (
+              <path key={`vdash-${key}`} d={d} fill="none"
+                stroke="hsl(155, 60%, 48%)" strokeWidth="1.5"
+                strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
+            ))}
+
+            {/* ── ANIMATED PARTICLE ── */}
+            {vSegments.filter(s => s.lit).map(({ d, key }) => (
+              <circle key={`vdot-${key}`} r="3" fill="hsl(155, 70%, 62%)" filter="url(#vRoadGlow)" opacity="0.9">
+                <animateMotion dur="3s" repeatCount="indefinite" path={d} />
+              </circle>
+            ))}
+
+            {/* ── MAP PINS ── */}
+            {ROADMAP_NODES.map((node, index) => {
+              const { x, y } = vNodePos[index];
+              const isCert   = isCertificate(node);
+              const isDone   = node.status === "done";
+              const isActive = node.status === "active";
+              const isLocked = node.status === "locked" && !isCert;
+              const isSelected = activeNodeId === node.id;
+              const isHovered  = hoveredId === node.id;
+
+              const pinColor = isCert ? V_PIN_COLORS.cert
+                : isDone ? V_PIN_COLORS.done
+                : isActive ? V_PIN_COLORS.active
+                : V_PIN_COLORS.locked;
+
+              // Pin points LEFT if node is on right side of road, RIGHT if on left
+              const isOnRight = x > midX;
+              const pinW = isCert ? 44 : 36;
+              const pinH = isCert ? 54 : 46;
+              // Pin hangs to the side, pointing inward to the road
+              const pinX = isOnRight ? x + 10 : x - 10;
+              const pinTop = y - pinH - 2;
+
+              return (
+                <g key={node.id}
+                  onClick={() => !isLocked && onSelectNode(node.id)}
+                  onMouseEnter={() => setHoveredId(node.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
+                >
+                  {/* Active pulse */}
+                  {(isActive || isSelected) && !isCert && (
+                    <circle cx={x} cy={y} r="13" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
+                      <animate attributeName="r" values="12;22;12" dur="1.8s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
+                    </circle>
+                  )}
+                  {/* Cert pulse */}
+                  {isCert && (
+                    <circle cx={x} cy={y} r="20" fill="none" stroke="hsl(45, 90%, 55%)" strokeWidth="2" opacity="0.35">
+                      <animate attributeName="r" values="18;32;18" dur="2.5s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
+                    </circle>
+                  )}
+
+                  {/* Module badge on first of module */}
+                  {(index === 0 || ROADMAP_NODES[index - 1].module !== node.module) && !isCert && (
+                    <text
+                      x={isOnRight ? x - ampX - 4 : x + ampX + 4}
+                      y={y - pinH / 2}
+                      textAnchor={isOnRight ? "end" : "start"}
+                      fontSize="8" fontFamily="monospace"
+                      fill="hsl(155, 60%, 40%)" opacity="0.5"
+                      fontWeight="bold" letterSpacing="2"
+                    >
+                      M{node.module}
+                    </text>
+                  )}
+
+                  {/* Pin shadow */}
+                  <ellipse cx={pinX} cy={pinTop + pinH + 3} rx={pinW * 0.28} ry={3.5} fill="rgba(0,0,0,0.45)" />
+
+                  {/* Pin body */}
+                  <g filter={isHovered || isSelected ? "url(#vPinGlow)" : "none"}
+                    style={{ transition: "transform 0.15s ease", transform: isHovered && !isLocked ? `translate(0px, -5px)` : "none" }}>
+                    <path
+                      d={`
+                        M ${pinX} ${pinTop + pinH}
+                        C ${pinX - 2} ${pinTop + pinH - 10}, ${pinX - pinW/2} ${pinTop + pinH * 0.65}, ${pinX - pinW/2} ${pinTop + pinH * 0.42}
+                        A ${pinW/2} ${pinH * 0.45} 0 1 1 ${pinX + pinW/2} ${pinTop + pinH * 0.42}
+                        C ${pinX + pinW/2} ${pinTop + pinH * 0.65}, ${pinX + 2} ${pinTop + pinH - 10}, ${pinX} ${pinTop + pinH}
+                        Z
+                      `}
+                      fill={isLocked ? "hsl(215, 18%, 18%)" : pinColor}
+                      stroke={isSelected && !isCert ? "white" : isLocked ? "hsl(215, 20%, 28%)" : "rgba(255,255,255,0.18)"}
+                      strokeWidth={isSelected ? "2" : "1"}
+                      opacity={isLocked ? 0.6 : 1}
+                    />
+                    {/* Inner highlight */}
+                    <ellipse
+                      cx={pinX - pinW * 0.1}
+                      cy={pinTop + pinH * 0.28}
+                      rx={pinW * 0.18} ry={pinH * 0.14}
+                      fill="rgba(255,255,255,0.22)"
+                      style={{ filter: isLocked ? "grayscale(1)" : "none" }}
+                    />
+                    {/* Icon */}
+                    <text x={pinX} y={pinTop + pinH * 0.46}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize={isCert ? 17 : 14}
+                      style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}>
+                      {isLocked ? "🔒" : node.icon}
+                    </text>
+                    {/* Done check */}
+                    {isDone && (
+                      <g>
+                        <circle cx={pinX + pinW/2 - 2} cy={pinTop + 4} r="7"
+                          fill="hsl(155, 60%, 38%)" stroke="hsl(155, 65%, 52%)" strokeWidth="1.5" />
+                        <text x={pinX + pinW/2 - 2} y={pinTop + 4}
+                          textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
+                      </g>
+                    )}
+                  </g>
+
+                  {/* Road anchor dot */}
+                  <circle cx={x} cy={y} r={isSelected ? 6 : 4}
+                    fill={isLocked ? "hsl(215, 20%, 28%)" : pinColor}
+                    stroke="hsl(215, 25%, 9%)" strokeWidth="2"
+                    style={{ filter: !isLocked ? `drop-shadow(0 0 5px ${pinColor})` : "none" }} />
+
+                  {/* Connector line from dot to pin base */}
+                  <line
+                    x1={x} y1={y}
+                    x2={pinX} y2={pinTop + pinH - 2}
+                    stroke={isLocked ? "hsl(215, 20%, 28%)" : pinColor}
+                    strokeWidth="1.5" opacity="0.5"
+                    strokeDasharray="3 2"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* ── HTML LABELS (sit opposite the pin) ── */}
+          {ROADMAP_NODES.map((node, index) => {
+            const { x, y } = vNodePos[index];
+            const isCert   = isCertificate(node);
+            const isDone   = node.status === "done";
+            const isActive = node.status === "active";
+            const isLocked = node.status === "locked" && !isCert;
+            const isSelected = activeNodeId === node.id;
+            const isOnRight = x > midX;
+            const pinH = isCert ? 54 : 46;
+            // Label on the opposite side from the pin
+            const labelX = isOnRight ? x - ampX - 12 : x + ampX + 12;
+            const labelW = 80;
+
+            return (
+              <div key={`vlabel-${node.id}`}
+                className="absolute pointer-events-none"
+                style={{
+                  left: isOnRight ? labelX - labelW : labelX,
+                  top: y - pinH / 2 - 4,
+                  width: labelW,
+                  textAlign: isOnRight ? "right" : "left",
+                }}
+              >
+                <p className={`font-display text-[10px] font-bold leading-tight ${
+                  isCert ? "text-[hsl(45_90%_65%)]"
+                  : isDone || isActive || isSelected ? "text-foreground"
+                  : "text-muted-foreground/45"
+                }`}
+                  style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
+                  {node.title}
+                </p>
+                <p className="text-[7.5px] font-body text-muted-foreground/38 mt-0.5 leading-tight">
+                  {node.subtitle}
+                </p>
+              </div>
+            );
+          })}
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── AI Chat Types ────────────────────────────────────────────────────────────
+
+interface ChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  ts: string;
+}
+
+const SUGGESTIONS = [
+  "O que é uma closure em JavaScript?",
+  "Como funciona o Git rebase?",
+  "Explique REST vs GraphQL",
+  "Qual a diferença entre == e === ?",
+  "Como funciona async/await?",
+  "O que é Docker e por que usar?",
+];
+
+// ─── AI Chat Panel ────────────────────────────────────────────────────────────
+
+const AIChatPanel = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 0,
+      role: "assistant",
+      text: "Olá! Sou seu tutor de programação. Pergunte qualquer coisa sobre o conteúdo da trilha — lógica, algoritmos, Git, deploy e muito mais. 🚀",
+      ts: "agora",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollToBottom = () => {
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  const sendMessage = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now(),
+      role: "user",
+      text: trimmed,
+      ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+    scrollToBottom();
+
+    try {
+      const history = messages
+        .filter((m) => m.id !== 0)
+        .map((m) => ({ role: m.role, content: m.text }));
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system:
+            "Você é um tutor especialista em programação e desenvolvimento Full Stack. Responda em português brasileiro, de forma clara, didática e amigável. Use exemplos de código quando for útil. Seja conciso mas completo. Contexto: o aluno está estudando uma trilha Dev Full Stack com módulos sobre: Introdução ao Mercado Tech, Fundamentos de Programação, Lógica e Algoritmos, Git & Versionamento, Deploy na Nuvem, Front-end (HTML/CSS), JavaScript ES6+, React, Back-end (Node.js/APIs), Banco de Dados e DevOps.",
+          messages: [...history, { role: "user", content: trimmed }],
+        }),
+      });
+
+      const data = await res.json();
+      const reply = data.content?.map((b: { type: string; text?: string }) => b.text || "").join("") || "Desculpe, não consegui responder agora.";
+
+      const aiMsg: ChatMessage = {
+        id: Date.now() + 1,
+        role: "assistant",
+        text: reply,
+        ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar com a IA. Tente novamente.", ts: "agora" },
+      ]);
+    } finally {
+      setLoading(false);
+      scrollToBottom();
+    }
+  };
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border/40">
+        <div className="flex items-center gap-2 mb-0.5">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
+          <p className="text-[10px] font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</p>
+        </div>
+        <h2 className="font-display text-sm font-bold text-foreground">Pergunte à IA</h2>
+        <p className="text-[10px] text-muted-foreground font-body mt-0.5">Tire dúvidas sobre qualquer conteúdo da trilha</p>
+      </div>
+
+      {/* Messages */}
+      <div
+        className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
+      >
+        {messages.map((msg, i) => (
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i === 0 ? 0.2 : 0 }}
+            className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+          >
+            {/* Avatar */}
+            <div
+              className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold"
               style={
-                activeTab === tab.id
-                  ? { boxShadow: "0 0 12px hsl(155 60% 45% / 0.3), inset 0 0 12px hsl(155 60% 45% / 0.05)" }
-                  : {}
+                msg.role === "assistant"
+                  ? { background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }
+                  : { background: "hsl(215 25% 22%)", color: "hsl(215 50% 70%)", border: "1px solid hsl(215 25% 32%)" }
               }
             >
-              {tab.icon}
-              {tab.label}
-              {/* active underline */}
-              {activeTab === tab.id && (
-                <motion.span
-                  layoutId="tab-underline"
-                  className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary"
-                  style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }}
-                />
-              )}
-            </button>
-          ))}
+              {msg.role === "assistant" ? "IA" : "EU"}
+            </div>
+
+            {/* Bubble */}
+            <div
+              className="max-w-[80%] px-3 py-2 rounded-sm text-xs font-body leading-relaxed"
+              style={
+                msg.role === "assistant"
+                  ? {
+                      background: "hsl(215 25% 12%)",
+                      border: "1px solid hsl(155 60% 45% / 0.2)",
+                      color: "hsl(215 15% 85%)",
+                      boxShadow: "0 0 8px hsl(155 60% 45% / 0.05)",
+                    }
+                  : {
+                      background: "hsl(155 60% 20% / 0.4)",
+                      border: "1px solid hsl(155 60% 45% / 0.3)",
+                      color: "hsl(155 30% 90%)",
+                    }
+              }
+            >
+              <pre className="whitespace-pre-wrap font-body text-xs leading-relaxed" style={{ fontFamily: "inherit" }}>
+                {msg.text}
+              </pre>
+              <p className="text-[9px] text-muted-foreground/50 mt-1 text-right">{msg.ts}</p>
+            </div>
+          </motion.div>
+        ))}
+
+        {/* Loading indicator */}
+        {loading && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold"
+              style={{ background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }}>
+              IA
+            </div>
+            <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5"
+              style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(155 60% 45% / 0.2)" }}>
+              {[0, 0.15, 0.3].map((delay, i) => (
+                <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay }} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Suggestions */}
+      {messages.length <= 1 && (
+        <div className="shrink-0 px-3 pb-2">
+          <p className="text-[9px] font-accent text-muted-foreground/60 uppercase tracking-widest mb-2">Sugestões</p>
+          <div className="flex flex-wrap gap-1.5">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => sendMessage(s)}
+                className="text-[10px] font-body px-2 py-1 rounded-sm border border-border/60 text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input area */}
+      <div className="shrink-0 px-3 pb-3 pt-2 border-t border-border/40">
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            rows={1}
+            placeholder="Digite sua dúvida... (Enter para enviar)"
+            disabled={loading}
+            className="flex-1 px-3 py-2 rounded-sm bg-input border border-border text-foreground font-body text-xs focus:outline-none focus:border-primary/60 transition resize-none disabled:opacity-50"
+            style={{ minHeight: 36, maxHeight: 80 }}
+          />
+          <button
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || loading}
+            className="shrink-0 w-9 h-9 rounded-sm flex items-center justify-center bg-primary text-primary-foreground disabled:opacity-40 hover:brightness-110 transition"
+            style={{ boxShadow: input.trim() ? "0 0 10px hsl(155 60% 45% / 0.4)" : "none" }}
+          >
+            <Send size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+const CoursesPage = () => {
+  const [activeTab, setActiveTab] = useState<Tab>("aula");
+  const [activeNodeId, setActiveNodeId] = useState(3);
+  const [showChat, setShowChat] = useState(true);
+  const [showCourses, setShowCourses] = useState(true);
+
+  const onlyRoadmap = !showChat && !showCourses;
+  const columnHeight = "calc(100vh - 108px)";
+
+  return (
+    <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
+
+      {/* Top bar */}
+      <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border/50 bg-background/40 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/perfil"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition"
+          >
+            <ArrowLeft size={14} /> Voltar
+          </Link>
+
+          {/* Toggle col 1 */}
+          <button
+            onClick={() => setShowChat((v) => !v)}
+            title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-[11px] font-accent font-semibold transition-all"
+            style={showChat
+              ? { borderColor: "hsl(155 60% 45% / 0.5)", color: "hsl(155 60% 55%)", background: "hsl(155 60% 45% / 0.1)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.2)" }
+              : { borderColor: "hsl(215 20% 28%)", color: "hsl(215 15% 50%)", background: "transparent" }}
+          >
+            <MessageCircleQuestion size={12} />
+            IA
+            <span className="opacity-60">{showChat ? "◀" : "▶"}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-accent text-muted-foreground tracking-widest uppercase hidden sm:block">Módulo 1 · Fundamentos</span>
+          <span className="text-muted-foreground/40 hidden sm:block">·</span>
+          <h1 className="font-display text-sm font-bold text-foreground">
+            Trilha <span className="text-primary" style={{ textShadow: "0 0 12px hsl(155 60% 45% / 0.5)" }}>Dev Full Stack</span>
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Toggle col 3 */}
+          <button
+            onClick={() => setShowCourses((v) => !v)}
+            title={showCourses ? "Ocultar Aulas" : "Mostrar Aulas"}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-[11px] font-accent font-semibold transition-all"
+            style={showCourses
+              ? { borderColor: "hsl(155 60% 45% / 0.5)", color: "hsl(155 60% 55%)", background: "hsl(155 60% 45% / 0.1)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.2)" }
+              : { borderColor: "hsl(215 20% 28%)", color: "hsl(215 15% 50%)", background: "transparent" }}
+          >
+            <span className="opacity-60">{showCourses ? "▶" : "◀"}</span>
+            Aulas
+            <PlayCircle size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden divide-x divide-border/30">
+
+        {/* COL 1 — AI Chat */}
+        <AnimatePresence initial={false}>
+          {showChat && (
+            <motion.div
+              key="chat-col"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: onlyRoadmap ? 0 : "33.333%", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+              className="flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
+              style={{ minWidth: 0 }}
+            >
+              <div style={{ height: columnHeight, minWidth: 280 }}>
+                <AIChatPanel />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* COL 2 — Roadmap (always visible, adapts orientation) */}
+        <motion.div
+          layout
+          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+          className="flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden"
+          style={{ flex: 1, minWidth: 0 }}
+        >
+          <div style={{ height: columnHeight }}>
+            <RoadmapPanel
+              activeNodeId={activeNodeId}
+              onSelectNode={(id) => { setActiveNodeId(id); setActiveTab("aula"); }}
+              horizontal={onlyRoadmap}
+            />
+          </div>
         </motion.div>
 
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === "aula" && <AulaTab />}
-            {activeTab === "questionario" && <QuestionarioTab />}
-            {activeTab === "duvidas" && <DuvidasTab />}
-          </motion.div>
+        {/* COL 3 — Course content */}
+        <AnimatePresence initial={false}>
+          {showCourses && (
+            <motion.div
+              key="courses-col"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: "33.333%", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+              className="flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
+              style={{ minWidth: 0 }}
+            >
+              <div
+                className="overflow-y-auto px-4 py-4"
+                style={{ height: columnHeight, minWidth: 280, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
+              >
+                {/* Tab bar */}
+                <div className="flex gap-1.5 mb-5 flex-wrap">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs font-accent font-semibold transition-all
+                        ${activeTab === tab.id
+                          ? "bg-primary/15 text-primary border border-primary/50"
+                          : "text-muted-foreground border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
+                        }`}
+                      style={activeTab === tab.id ? { boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)" } : {}}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                      {activeTab === tab.id && (
+                        <motion.span
+                          layoutId="tab-ul"
+                          className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-primary"
+                          style={{ boxShadow: "0 0 5px hsl(155 60% 45%)" }}
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    {activeTab === "aula" && <AulaTab activeLesson={activeNodeId <= 3 ? activeNodeId : 3} />}
+                    {activeTab === "questionario" && <QuestionarioTab />}
+                    {activeTab === "duvidas" && <DuvidasTab />}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
+
       </div>
     </div>
   );
