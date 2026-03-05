@@ -10,6 +10,7 @@ const navLinks = [
   { label: "Roadmap", href: "#roadmap" },
   { label: "Soluções", href: "#solucoes" },
   { label: "FAQ", href: "#faq" },
+  { label: "Comunidade", href: "/comunidade" },
 ];
 
 const Header = () => {
