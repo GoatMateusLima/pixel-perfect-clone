@@ -12,6 +12,7 @@ import ResultPage from "./pages/ResultPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import CoursesPage from "./pages/CoursesPage";
+import RoadmapSection from "./components/RoadmapSection";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/resultado" element={<ResultPage />} />
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/courses" element={<CoursesPage/>}/>
+            <Route path="/roadmap" element={<RoadmapSection />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

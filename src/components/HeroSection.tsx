@@ -9,7 +9,7 @@ const HeroSection = () => {
 
   const handleCTA = () => {
     if (user) {
-      navigate("/perfil");
+      navigate("/roadmap");
     } else {
       navigate("/login");
     }

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, LogIn } from "lucide-react";
 
 const LoginPage = () => {
+  
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
