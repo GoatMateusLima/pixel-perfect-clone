@@ -16,3 +16,7 @@ oracleDB
 
 
 tabela, campo, tupla
+
+
+
+/courses
