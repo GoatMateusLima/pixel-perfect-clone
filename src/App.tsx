@@ -13,6 +13,7 @@ import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import CoursesPage from "./pages/CoursesPage";
 import RoadmapSection from "./pages/RoadmapSection";
+import CommunityPage from "./pages/CommunityPage (2)";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/courses" element={<CoursesPage/>}/>
             <Route path="/roadmap" element={<RoadmapSection />} />
+            <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
