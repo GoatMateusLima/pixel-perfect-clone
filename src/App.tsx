@@ -12,7 +12,7 @@ import ResultPage from "./pages/ResultPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import CoursesPage from "./pages/CoursesPage";
-import RoadmapSection from "./components/RoadmapSection";
+import RoadmapSection from "./pages/RoadmapSection";
 
 const queryClient = new QueryClient();
 
