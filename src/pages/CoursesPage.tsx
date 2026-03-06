@@ -1341,6 +1341,8 @@ const SUGGESTIONS = [
   "O que é Docker e por que usar?",
 ];
 
+
+
 // ─── AI Chat Panel ────────────────────────────────────────────────────────────
 
 const GEMINI_KEY = "AIzaSyBmwJ3p_H-Ux-cTXHw7Izecx2wC_6Pa678";
