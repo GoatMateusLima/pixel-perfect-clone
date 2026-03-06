@@ -7,7 +7,7 @@ import {
   Camera, Flame, Star, Zap, Trophy, Target, Clock, MapPin,
   Linkedin, Github, Facebook, Mail, Twitter, Instagram, Globe,
   Shield, Code2, Brain, Database, Cloud, Lock, Cpu, Layers,
-  ChevronRight, Briefcase, TrendingUp,
+  ChevronRight, TrendingUp, CheckCircle2,
 } from "lucide-react";
 import dominanciaImg   from "@/assets/disc/Dominancia.webp";
 import influenciaImg   from "@/assets/disc/Influencia.webp";
@@ -53,7 +53,7 @@ const SOCIAL_META: Record<SocialKey, { label: string; Icon: React.ElementType; p
 const ALL_SOCIAL_KEYS = Object.keys(SOCIAL_META) as SocialKey[];
 
 // ─── Medalhas mockadas ────────────────────────────────────────────────────────
-const MOCK_MEDALS = [
+const ALL_MEDALS = [
   {
     id: 1,
     icon: Code2,
@@ -184,10 +184,13 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
 };
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
-const KEY_PHOTO  = "upjobs_profile_photo_v2";
-const KEY_BANNER = "upjobs_profile_banner_v1";
-const KEY_SOCIAL = "upjobs_profile_social_v1";
+const KEY_PHOTO   = "upjobs_profile_photo_v2";
+const KEY_BANNER  = "upjobs_profile_banner_v1";
+const KEY_SOCIAL  = "upjobs_profile_social_v1";
+const KEY_MEDALS  = "upjobs_profile_medals_v1";
 if (typeof window !== "undefined") localStorage.removeItem("upjobs_profile_photo");
+
+const DEFAULT_FEATURED_IDS = [1, 2, 3];
 
 // ═════════════════════════════════════════════════════════════════════════════
 const ProfilePage = () => {
@@ -202,17 +205,23 @@ const ProfilePage = () => {
   const [socialLinks, setSocialLinks] = useState<Partial<Record<SocialKey, string>>>(() => {
     try { return JSON.parse(localStorage.getItem(KEY_SOCIAL) ?? "{}"); } catch { return {}; }
   });
+  const [featuredMedalIds, setFeaturedMedalIds] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem(KEY_MEDALS) ?? JSON.stringify(DEFAULT_FEATURED_IDS)); }
+    catch { return DEFAULT_FEATURED_IDS; }
+  });
 
-  const [isEditing,    setIsEditing]    = useState(false);
-  const [draftPhoto,   setDraftPhoto]   = useState<string | null>(null);
-  const [draftBanner,  setDraftBanner]  = useState<string | null>(null);
-  const [draftSocial,  setDraftSocial]  = useState<Partial<Record<SocialKey, string>>>({});
-  const [cropSrc,      setCropSrc]      = useState<string | null>(null);
-  const [cropType,     setCropType]     = useState<"photo" | "banner" | null>(null);
-  const [socialModal,  setSocialModal]  = useState<SocialKey | null>(null);
-  const [socialInput,  setSocialInput]  = useState("");
-  const [hoverPhoto,   setHoverPhoto]   = useState(false);
-  const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
+  const [isEditing,       setIsEditing]      = useState(false);
+  const [draftPhoto,      setDraftPhoto]      = useState<string | null>(null);
+  const [draftBanner,     setDraftBanner]     = useState<string | null>(null);
+  const [draftSocial,     setDraftSocial]     = useState<Partial<Record<SocialKey, string>>>({});
+  const [draftMedalIds,   setDraftMedalIds]   = useState<number[]>([]);
+  const [cropSrc,         setCropSrc]         = useState<string | null>(null);
+  const [cropType,        setCropType]        = useState<"photo" | "banner" | null>(null);
+  const [socialModal,     setSocialModal]     = useState<SocialKey | null>(null);
+  const [socialInput,     setSocialInput]     = useState("");
+  const [hoverPhoto,      setHoverPhoto]      = useState(false);
+  const [hoveredMedal,    setHoveredMedal]    = useState<number | null>(null);
+  const [medalPickerOpen, setMedalPickerOpen] = useState(false);
 
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
   if (!user) return null;
@@ -226,9 +235,18 @@ const ProfilePage = () => {
   const displaySocial: Partial<Record<SocialKey, string>> = isEditing
     ? Object.fromEntries(ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : socialLinks[k]]))
     : socialLinks;
+  const activeMedalIds = isEditing ? draftMedalIds : featuredMedalIds;
+  const featuredMedals = activeMedalIds.map(id => ALL_MEDALS.find(m => m.id === id)!).filter(Boolean);
 
-  const handleStartEdit   = () => { setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setIsEditing(true); };
-  const handleCancelEdit  = () => { setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setIsEditing(false); };
+  const handleStartEdit = () => {
+    setDraftPhoto(null); setDraftBanner(null); setDraftSocial({});
+    setDraftMedalIds([...featuredMedalIds]);
+    setIsEditing(true);
+  };
+  const handleCancelEdit = () => {
+    setDraftPhoto(null); setDraftBanner(null); setDraftSocial({});
+    setDraftMedalIds([]); setIsEditing(false); setMedalPickerOpen(false);
+  };
   const handleConfirmEdit = () => {
     const fp = draftPhoto  !== null ? (draftPhoto  || null) : photoSrc;
     const fb = draftBanner !== null ? (draftBanner || null) : bannerSrc;
@@ -237,7 +255,10 @@ const ProfilePage = () => {
     if (fp) localStorage.setItem(KEY_PHOTO, fp);   else localStorage.removeItem(KEY_PHOTO);
     if (fb) localStorage.setItem(KEY_BANNER, fb);  else localStorage.removeItem(KEY_BANNER);
     localStorage.setItem(KEY_SOCIAL, JSON.stringify(fs));
-    setPhotoSrc(fp); setBannerSrc(fb); setSocialLinks(fs); setIsEditing(false);
+    localStorage.setItem(KEY_MEDALS, JSON.stringify(draftMedalIds));
+    setPhotoSrc(fp); setBannerSrc(fb); setSocialLinks(fs);
+    setFeaturedMedalIds(draftMedalIds);
+    setIsEditing(false); setMedalPickerOpen(false);
   };
 
   const readAndOpenCrop  = (file: File, type: "photo" | "banner") => {
@@ -259,6 +280,14 @@ const ProfilePage = () => {
     setSocialModal(null); setSocialInput("");
   };
   const removeSocialLink = (key: SocialKey) => setDraftSocial(p => ({ ...p, [key]: "" }));
+
+  const toggleDraftMedal = (id: number) => {
+    setDraftMedalIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= 3) return prev;
+      return [...prev, id];
+    });
+  };
 
   const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
   const emptySocials  = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
@@ -311,9 +340,9 @@ const ProfilePage = () => {
               {/* Stats rápidos */}
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {[
-                  { icon: Flame,  label: "Streak",  value: `${STREAK}d`,  color: "hsl(25 90% 55%)"  },
-                  { icon: Trophy, label: "Ranking",  value: `#${RANK}`,   color: "hsl(45 90% 55%)"  },
-                  { icon: Zap,    label: "Medalhas", value: `${MOCK_MEDALS.length}`,  color: "hsl(155 60% 45%)" },
+                  { icon: Flame,  label: "Streak",  value: `${STREAK}d`,          color: "hsl(25 90% 55%)"  },
+                  { icon: Trophy, label: "Ranking",  value: `#${RANK}`,            color: "hsl(45 90% 55%)"  },
+                  { icon: Zap,    label: "Medalhas", value: `${ALL_MEDALS.length}`, color: "hsl(155 60% 45%)" },
                 ].map(({ icon: Icon, label, value, color }) => (
                   <div key={label} className="rounded-sm p-2 text-center" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
                     <Icon size={12} style={{ color, margin: "0 auto 2px" }} />
@@ -324,83 +353,46 @@ const ProfilePage = () => {
               </div>
             </motion.div>
 
-            {/* Perfil DISC */}
+            {/* Vagas recomendadas */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-              className="hologram-panel rounded-sm p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Target size={14} style={{ color: ringColor }} />
-                <h3 className="font-display text-sm font-bold text-foreground">Perfil DISC</h3>
-                <span className="ml-auto text-[10px] font-accent font-bold px-1.5 py-0.5 rounded-sm"
-                  style={{ background: `${ringColor}18`, color: ringColor, border: `1px solid ${ringColor}40` }}>
-                  {discProfile}
+              className="hologram-panel rounded-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-border/30 flex items-center gap-2">
+                <TrendingUp size={14} className="text-accent" />
+                <h3 className="font-display text-sm font-bold text-foreground">Vagas para você</h3>
+                <span className="ml-auto text-[9px] font-accent px-1.5 py-0.5 rounded-sm"
+                  style={{ background: `${ringColor}18`, color: ringColor, border: `1px solid ${ringColor}30` }}>
+                  Perfil {discProfile}
                 </span>
               </div>
-              <p className="text-[11px] font-accent font-semibold mb-2" style={{ color: ringColor }}>
-                {DISC_LABELS[discProfile]}
-              </p>
-              <div className="space-y-1.5 mb-3">
-                {discTraits.map((trait) => (
-                  <div key={trait} className="flex items-center gap-2">
-                    <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: ringColor }} />
-                    <span className="text-[11px] font-body text-muted-foreground">{trait}</span>
-                  </div>
+              <div className="divide-y divide-border/20">
+                {recommendedJobs.map((job, i) => (
+                  <motion.div key={i}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.07 }}
+                    whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }}
+                    className="px-4 py-3 cursor-pointer transition group">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="text-[12px] font-accent font-semibold text-foreground group-hover:text-primary transition leading-tight">{job.title}</p>
+                      <ArrowUpRight size={11} className="text-muted-foreground/40 group-hover:text-primary transition flex-shrink-0 mt-0.5" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-body">{job.company}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[9px] font-accent font-semibold text-primary">{job.salary}</span>
+                      <span className="text-[9px] font-accent text-muted-foreground flex items-center gap-0.5">
+                        <MapPin size={8} /> {job.type}
+                      </span>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
-              <Link to="/resultado"
-                className="flex items-center gap-1 text-[10px] font-accent text-primary hover:brightness-125 transition mt-1">
-                Ver resultado completo <ChevronRight size={10} />
-              </Link>
-            </motion.div>
-
-            {/* Carreiras recomendadas */}
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-              className="hologram-panel rounded-sm p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Briefcase size={14} className="text-accent" />
-                <h3 className="font-display text-sm font-bold text-foreground">Carreiras para você</h3>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {(DISC_CAREERS[discProfile] ?? []).map((career) => (
-                  <span key={career} className="text-[10px] font-accent px-2 py-1 rounded-sm"
-                    style={{ background: `${ringColor}12`, color: ringColor, border: `1px solid ${ringColor}30` }}>
-                    {career}
-                  </span>
-                ))}
+              <div className="px-4 py-2.5 border-t border-border/30">
+                <button className="w-full text-[11px] font-accent font-semibold text-muted-foreground hover:text-primary transition flex items-center justify-center gap-1">
+                  Ver todas as vagas <ChevronRight size={11} />
+                </button>
               </div>
             </motion.div>
 
-            {/* Cursos em andamento */}
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-              className="hologram-panel rounded-sm p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <BookOpen size={14} className="text-primary" />
-                  <h3 className="font-display text-sm font-bold text-foreground">Trilhas Ativas</h3>
-                </div>
-                <Link to="/courses" className="text-[10px] text-primary font-accent hover:brightness-125 transition flex items-center gap-0.5">
-                  Ver todas <ChevronRight size={10} />
-                </Link>
-              </div>
-              <div className="space-y-3">
-                {MOCK_COURSES.map((course, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1 gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <course.icon size={11} className="text-primary flex-shrink-0" />
-                        <p className="text-[11px] font-body text-foreground truncate">{course.title}</p>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground font-accent flex-shrink-0">{course.progress}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${course.progress}%` }}
-                        transition={{ delay: 0.6 + i * 0.1, duration: 0.8 }}
-                        className="h-full rounded-full"
-                        style={{ background: "linear-gradient(90deg, hsl(155 60% 35%), hsl(155 60% 55%))" }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
           </aside>
 
           {/* ═══════════════════════════════════════════
@@ -420,7 +412,6 @@ const ProfilePage = () => {
                   <div className="w-full h-full" style={{
                     background: `linear-gradient(135deg, ${ringColor}44 0%, ${ringColor}11 60%, hsl(210 40% 10% / 0.2) 100%)`,
                   }}>
-                    {/* grade decorativa */}
                     <div className="absolute inset-0 opacity-10"
                       style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 24px,hsl(155 60% 45%)1px),repeating-linear-gradient(90deg,transparent,transparent 24px,hsl(155 60% 45%)1px)" }} />
                   </div>
@@ -571,13 +562,70 @@ const ProfilePage = () => {
                 <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
                   <Trophy size={18} className="text-accent" /> Conquistas
                 </h2>
-                <span className="text-[11px] font-accent text-muted-foreground">
-                  {MOCK_MEDALS.length} medalhas
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-accent text-muted-foreground">
+                    {ALL_MEDALS.length} medalhas
+                  </span>
+                  {/* botão "Editar medalhas" — só aparece no modo edição */}
+                  {isEditing && (
+                    <button
+                      onClick={() => setMedalPickerOpen(p => !p)}
+                      className="flex items-center gap-1.5 text-[10px] font-accent px-2 py-1 rounded-sm border transition-all"
+                      style={medalPickerOpen
+                        ? { background: `${ringColor}20`, color: ringColor, border: `1px solid ${ringColor}50` }
+                        : { color: "hsl(var(--muted-foreground))", borderColor: "hsl(var(--border))" }}>
+                      <Pencil size={9} /> Editar medalhas
+                    </button>
+                  )}
+                </div>
               </div>
 
+              {/* ── Medal picker — expande ao clicar em "Editar medalhas" ── */}
+              <AnimatePresence>
+                {isEditing && medalPickerOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden mb-5"
+                  >
+                    <div className="rounded-sm p-3 space-y-1.5"
+                      style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}>
+                      <p className="text-[9px] font-accent text-muted-foreground mb-2">
+                        Escolha até 3 medalhas para exibir em destaque ({draftMedalIds.length}/3)
+                      </p>
+                      {ALL_MEDALS.map((medal) => {
+                        const Icon = medal.icon;
+                        const isSelected = draftMedalIds.includes(medal.id);
+                        return (
+                          <button key={medal.id}
+                            onClick={() => toggleDraftMedal(medal.id)}
+                            disabled={!isSelected && draftMedalIds.length >= 3}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-left transition-all disabled:opacity-40"
+                            style={{
+                              background: isSelected ? `${medal.color}14` : "transparent",
+                              border: `1px solid ${isSelected ? medal.color + "40" : "transparent"}`,
+                            }}>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                              style={{ background: medal.bg, border: `1px solid ${medal.border}` }}>
+                              <Icon size={12} style={{ color: medal.color }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-accent font-semibold text-foreground truncate">{medal.title}</p>
+                              <p className="text-[9px] text-muted-foreground font-body truncate">{medal.desc}</p>
+                            </div>
+                            {isSelected && <CheckCircle2 size={13} style={{ color: medal.color, flexShrink: 0 }} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── 3 medalhas em destaque (mesmo visual original) ── */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {MOCK_MEDALS.map((medal, i) => {
+                {featuredMedals.map((medal, i) => {
                   const Icon = medal.icon;
                   const isHovered = hoveredMedal === medal.id;
                   return (
@@ -595,7 +643,6 @@ const ProfilePage = () => {
                         boxShadow: isHovered ? `0 0 18px ${medal.glow}` : "none",
                       }}
                     >
-                      {/* Brilho animado no hover */}
                       <AnimatePresence>
                         {isHovered && (
                           <motion.div
@@ -606,11 +653,9 @@ const ProfilePage = () => {
                         )}
                       </AnimatePresence>
 
-                      {/* Ícone */}
                       <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2 relative"
                         style={{ background: medal.bg, border: `2px solid ${medal.border}`, boxShadow: `0 0 12px ${medal.glow}` }}>
                         <Icon size={22} style={{ color: medal.color }} />
-                        {/* brilho interno */}
                         <div className="absolute inset-0 rounded-full"
                           style={{ background: `radial-gradient(circle at 35% 30%, ${medal.color}25, transparent 60%)` }} />
                       </div>
@@ -631,20 +676,7 @@ const ProfilePage = () => {
                   );
                 })}
 
-                {/* Slot bloqueado — próxima medalha */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 + MOCK_MEDALS.length * 0.07 }}
-                  className="rounded-sm p-4 flex flex-col items-center text-center border border-dashed border-border/40"
-                  style={{ background: "hsl(215 20% 10% / 0.4)" }}
-                >
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2 bg-secondary/30 border border-border/30">
-                    <Lock size={18} className="text-muted-foreground/40" />
-                  </div>
-                  <p className="text-[11px] font-accent text-muted-foreground/50 mb-1">Próxima medalha</p>
-                  <p className="text-[9px] text-muted-foreground/30 font-body">Conclua Machine Learning Avançado</p>
-                </motion.div>
+
               </div>
             </motion.div>
 
@@ -691,7 +723,6 @@ const ProfilePage = () => {
                 <Clock size={14} className="text-primary" /> Atividade Recente
               </h3>
               <div className="relative">
-                {/* linha vertical */}
                 <div className="absolute left-[7px] top-0 bottom-0 w-px bg-border/40" />
                 <div className="space-y-4 pl-5">
                   {ACTIVITY_TIMELINE.map((item, i) => {
@@ -702,7 +733,6 @@ const ProfilePage = () => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.3 + i * 0.06 }}
                         className="relative">
-                        {/* dot */}
                         <div className="absolute -left-5 top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"
                           style={{ background: `${item.color}20`, border: `1.5px solid ${item.color}60` }}>
                           <Icon size={7} style={{ color: item.color }} />
@@ -713,46 +743,6 @@ const ProfilePage = () => {
                     );
                   })}
                 </div>
-              </div>
-            </motion.div>
-
-            {/* Vagas recomendadas */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-              className="hologram-panel rounded-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-border/30 flex items-center gap-2">
-                <TrendingUp size={14} className="text-accent" />
-                <h3 className="font-display text-sm font-bold text-foreground">Vagas para você</h3>
-                <span className="ml-auto text-[9px] font-accent px-1.5 py-0.5 rounded-sm"
-                  style={{ background: `${ringColor}18`, color: ringColor, border: `1px solid ${ringColor}30` }}>
-                  Perfil {discProfile}
-                </span>
-              </div>
-              <div className="divide-y divide-border/20">
-                {recommendedJobs.map((job, i) => (
-                  <motion.div key={i}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + i * 0.07 }}
-                    whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }}
-                    className="px-4 py-3 cursor-pointer transition group">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="text-[12px] font-accent font-semibold text-foreground group-hover:text-primary transition leading-tight">{job.title}</p>
-                      <ArrowUpRight size={11} className="text-muted-foreground/40 group-hover:text-primary transition flex-shrink-0 mt-0.5" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-body">{job.company}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[9px] font-accent font-semibold text-primary">{job.salary}</span>
-                      <span className="text-[9px] font-accent text-muted-foreground flex items-center gap-0.5">
-                        <MapPin size={8} /> {job.type}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-              <div className="px-4 py-2.5 border-t border-border/30">
-                <button className="w-full text-[11px] font-accent font-semibold text-muted-foreground hover:text-primary transition flex items-center justify-center gap-1">
-                  Ver todas as vagas <ChevronRight size={11} />
-                </button>
               </div>
             </motion.div>
 
