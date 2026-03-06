@@ -102,30 +102,6 @@ const FAQSection = () => {
           </a>
         </motion.div>
 
-        {/* Final persuasion */}
-        <motion.div
-          className="mt-20 text-center max-w-2xl mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-2xl sm:text-3xl font-display font-bold text-glow mb-4">
-            Cada dia que passa é um dia a menos para o{" "}
-            <span className="text-accent text-glow-accent">futuro</span>
-          </h2>
-          <p className="text-muted-foreground font-body mb-8">
-            Você pode continuar onde está e esperar o mercado decidir por você. Ou pode tomar o controle agora.
-          </p>
-          <motion.a
-            href="#"
-            className="group inline-flex items-center gap-3 px-10 py-4 rounded-sm bg-accent text-accent-foreground font-display font-bold text-lg box-glow-accent animate-pulse-glow"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            Começar Agora — É Grátis
-            <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-          </motion.a>
-        </motion.div>
       </div>
     </section>
   );

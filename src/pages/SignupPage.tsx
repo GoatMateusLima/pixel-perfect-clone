@@ -25,7 +25,8 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center gradient-hero scanline px-4">
+    <div className="min-h-screen flex items-center justify-center gradient-hero scanline px-20">
+      
       <motion.div
         className="w-full max-w-md hologram-panel rounded-sm p-8"
         initial={{ opacity: 0, y: 20 }}
@@ -98,6 +99,29 @@ const SignupPage = () => {
           <Link to="/login" className="text-primary hover:underline">Faça login</Link>
         </p>
       </motion.div>
+      
+      <motion.div
+          className="w-full text-center"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h3 className="text-2xl sm:text-3xl font-display font-bold text-glow mb-4">
+            Pronto para{" "}
+            <span className="text-accent text-glow-accent">conhecer o futuro</span>?
+          </h3>
+          <p className="text-muted-foreground font-body mb-8 max-w-xl mx-auto leading-relaxed">
+            Pare de perder tempo em uma carreira sem futuro. Descubra seu caminho ideal em minutos — 100% gratuito.
+          </p>
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground font-body">
+            {["Análise DISC completa", "Cálculo Hora-Valor", "Roadmap gamificado", "Cursos gratuitos", "Certificação UpJobs"].map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                {item}
+              </div>
+            ))}
+          </div>
+        </motion.div>
     </div>
   );
 };
