@@ -440,17 +440,17 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
           </motion.div>
 
           <div className="absolute bottom-3 left-3 flex items-center gap-2">
-            <span className="text-[10px] font-accent font-semibold text-muted-foreground px-2 py-0.5 rounded-sm bg-secondary/80 border border-border">
+            <span className="text-xs font-accent font-semibold text-muted-foreground px-2 py-0.5 rounded-sm bg-secondary/80 border border-border">
               AULA {lesson.num} DE {LESSONS.length}
             </span>
             {playing && (
-              <span className="flex items-center gap-1 text-[10px] font-accent text-primary px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30">
+              <span className="flex items-center gap-1 text-xs font-accent text-primary px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 REPRODUZINDO
               </span>
             )}
           </div>
-          <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[10px] text-muted-foreground font-accent">
+          <div className="absolute bottom-3 right-3 flex items-center gap-1 text-xs text-muted-foreground font-accent">
             <Clock size={10} />
             {lesson.duration}
           </div>
@@ -459,7 +459,7 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
         {/* Lesson info */}
         <div className="p-5">
           <h2 className="font-display text-lg font-bold text-foreground mb-1">{lesson.title}</h2>
-          <p className="text-sm text-muted-foreground font-body leading-relaxed">{lesson.description}</p>
+          <p className="text-sm text-foreground/75 font-body leading-relaxed">{lesson.description}</p>
           <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground font-accent">
             <span className="flex items-center gap-1"><BookOpen size={12} /> {lesson.module}</span>
             <span className="flex items-center gap-1"><Clock size={12} /> {lesson.duration}</span>
@@ -492,7 +492,7 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
                l.locked ? <Lock size={14} className="text-muted-foreground shrink-0" /> :
                <PlayCircle size={14} className="text-accent shrink-0" />}
               <span className={`text-xs font-body flex-1 truncate ${l.id === activeLesson ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{l.title}</span>
-              <span className="text-[10px] font-accent text-muted-foreground">{l.duration}</span>
+              <span className="text-xs font-accent text-muted-foreground">{l.duration}</span>
             </div>
           ))}
         </div>
@@ -638,7 +638,7 @@ const QuestionarioTab = () => {
             style={{ left: "75%", transform: "translateY(-10px)", height: "20px" }}
           />
           <span
-            className="absolute text-[9px] font-accent text-primary/70"
+            className="absolute text-xs font-accent text-primary/70"
             style={{ left: "75%", transform: "translateX(-50%) translateY(-22px)" }}
           >
             75%
@@ -738,7 +738,7 @@ const QuestionarioTab = () => {
                   `}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`shrink-0 w-5 h-5 rounded-sm border flex items-center justify-center text-[10px] font-accent font-bold
+                    <span className={`shrink-0 w-5 h-5 rounded-sm border flex items-center justify-center text-xs font-accent font-bold
                       ${state === "selected" ? "border-primary text-primary" : ""}
                       ${state === "correct" ? "border-[hsl(155_60%_45%)] text-[hsl(155_60%_45%)]" : ""}
                       ${state === "wrong" ? "border-destructive text-destructive" : "border-border text-muted-foreground"}
@@ -784,6 +784,7 @@ const DuvidasTab = () => {
   const [doubts, setDoubts] = useState<Doubt[]>(DOUBTS);
   const [newDoubt, setNewDoubt] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = () => {
@@ -803,6 +804,8 @@ const DuvidasTab = () => {
   };
 
   const handleLike = (id: number) => {
+    if (likedIds.has(id)) return;
+    setLikedIds((prev) => new Set(prev).add(id));
     setDoubts((prev) => prev.map((d) => (d.id === id ? { ...d, likes: d.likes + 1 } : d)));
   };
 
@@ -856,14 +859,14 @@ const DuvidasTab = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-accent font-semibold text-foreground">{d.author}</span>
-                  <span className="text-[10px] text-muted-foreground font-body">{d.time}</span>
+                  <span className="text-xs text-foreground/60 font-body">{d.time}</span>
                   {d.answered && (
-                    <span className="text-[10px] font-accent font-semibold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10 border border-primary/20">
+                    <span className="text-xs font-accent font-semibold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10 border border-primary/20">
                       Respondida
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground font-body leading-relaxed">{d.text}</p>
+                <p className="text-sm text-foreground/80 font-body leading-relaxed">{d.text}</p>
 
                 {/* reply */}
                 <AnimatePresence>
@@ -874,8 +877,8 @@ const DuvidasTab = () => {
                       exit={{ opacity: 0, height: 0 }}
                       className="mt-3 pl-3 border-l-2 border-primary/30"
                     >
-                      <p className="text-[11px] font-accent font-semibold text-primary mb-0.5">Resposta do Instrutor</p>
-                      <p className="text-xs text-muted-foreground font-body leading-relaxed">{d.reply}</p>
+                      <p className="text-xs font-accent font-semibold text-primary mb-0.5">Resposta do Instrutor</p>
+                      <p className="text-sm text-foreground/75 font-body leading-relaxed">{d.reply}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -884,14 +887,28 @@ const DuvidasTab = () => {
                 <div className="flex items-center gap-3 mt-3">
                   <button
                     onClick={() => handleLike(d.id)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground font-accent hover:text-primary transition"
+                    disabled={likedIds.has(d.id)}
+                    className="flex items-center gap-1 text-xs font-accent transition-all"
+                    style={likedIds.has(d.id)
+                      ? { color: "hsl(155 60% 50%)", cursor: "default" }
+                      : { color: "hsl(215 15% 50%)" }}
                   >
-                    <ThumbsUp size={11} /> {d.likes}
+                    <motion.span
+                      animate={likedIds.has(d.id) ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                      style={{ display: "flex" }}
+                    >
+                      <ThumbsUp
+                        size={11}
+                        style={likedIds.has(d.id) ? { fill: "hsl(155 60% 50%)", color: "hsl(155 60% 50%)" } : {}}
+                      />
+                    </motion.span>
+                    {d.likes}
                   </button>
                   {d.answered && (
                     <button
                       onClick={() => setExpanded(expanded === d.id ? null : d.id)}
-                      className="flex items-center gap-1 text-[11px] text-muted-foreground font-accent hover:text-primary transition"
+                      className="flex items-center gap-1 text-xs text-muted-foreground font-accent hover:text-primary transition"
                     >
                       <MessageCircleQuestion size={11} />
                       {expanded === d.id ? "Fechar" : "Ver resposta"}
@@ -1040,13 +1057,13 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
           style={{ height: HEADER_H }}
         >
           <div>
-            <p className="text-[9px] font-accent font-semibold text-muted-foreground tracking-widest uppercase mb-0.5">Sua Jornada</p>
+            <p className="text-xs font-accent font-semibold text-foreground/70 tracking-widest uppercase mb-0.5">Sua Jornada</p>
             <h2 className="font-display text-sm font-bold text-foreground leading-tight">
               Trilha <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>Dev Full Stack</span>
             </h2>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[9px] font-accent text-muted-foreground">Progresso <span className="text-primary font-bold">2 / 11</span></span>
+            <span className="text-xs font-accent text-foreground/70">Progresso <span className="text-primary font-bold">2 / 11</span></span>
             <div className="w-28 h-0.5 rounded-full bg-secondary overflow-hidden">
               <motion.div initial={{ width: 0 }} animate={{ width: "18%" }} transition={{ delay: 0.5, duration: 1 }}
                 className="h-full rounded-full bg-primary" style={{ boxShadow: "0 0 6px hsl(155 60% 45% / 0.8)" }} />
@@ -1272,15 +1289,15 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
                     textAlign: "center",
                   }}
                 >
-                  <p className={`font-display text-[11px] font-bold leading-tight ${
+                  <p className={`font-display text-xs font-bold leading-tight ${
                     isCert ? "text-[hsl(45_90%_65%)]"
                     : isDone || isActive || isSelected ? "text-foreground"
-                    : "text-muted-foreground/50"
+                    : "text-muted-foreground/90"
                   }`}
                     style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
                     {node.title}
                   </p>
-                  <p className="text-[8px] font-body text-muted-foreground/40 mt-0.5 leading-tight">{node.subtitle}</p>
+                  <p className="text-xs font-body text-muted-foreground/85 mt-0.5 leading-tight">{node.subtitle}</p>
                 </div>
               );
             })}
@@ -1349,12 +1366,12 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
 
       {/* Sticky header */}
       <div className="shrink-0 sticky top-0 z-10 px-4 pt-4 pb-3 bg-background/60 backdrop-blur-sm border-b border-border/30">
-        <p className="text-[9px] font-accent font-semibold text-muted-foreground tracking-widest uppercase mb-0.5">Sua Jornada</p>
+        <p className="text-xs font-accent font-semibold text-foreground/70 tracking-widest uppercase mb-0.5">Sua Jornada</p>
         <h2 className="font-display text-sm font-bold text-foreground leading-tight">
           Trilha <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>Dev Full Stack</span>
         </h2>
         <div className="mt-2">
-          <div className="flex justify-between text-[9px] font-accent text-muted-foreground mb-1">
+          <div className="flex justify-between text-xs font-accent text-muted-foreground mb-1">
             <span>Progresso</span><span className="text-primary font-bold">2 / 11</span>
           </div>
           <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
@@ -1566,15 +1583,15 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
                   textAlign: isOnRight ? "right" : "left",
                 }}
               >
-                <p className={`font-display text-[10px] font-bold leading-tight ${
+                <p className={`font-display text-xs font-bold leading-tight ${
                   isCert ? "text-[hsl(45_90%_65%)]"
                   : isDone || isActive || isSelected ? "text-foreground"
-                  : "text-muted-foreground/45"
+                  : "text-muted-foreground/85"
                 }`}
                   style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
                   {node.title}
                 </p>
-                <p className="text-[7.5px] font-body text-muted-foreground/38 mt-0.5 leading-tight">
+                <p className="text-xs font-body text-muted-foreground/85 mt-0.5 leading-tight">
                   {node.subtitle}
                 </p>
               </div>
@@ -1693,10 +1710,10 @@ const AIChatPanel = () => {
       <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border/40">
         <div className="flex items-center gap-2 mb-0.5">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
-          <p className="text-[10px] font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</p>
+          <p className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</p>
         </div>
         <h2 className="font-display text-sm font-bold text-foreground">Pergunte à IA</h2>
-        <p className="text-[10px] text-muted-foreground font-body mt-0.5">Tire dúvidas sobre qualquer conteúdo da trilha</p>
+        <p className="text-sm text-foreground/70 font-body mt-0.5">Tire dúvidas sobre qualquer conteúdo da trilha</p>
       </div>
 
       {/* Messages */}
@@ -1714,7 +1731,7 @@ const AIChatPanel = () => {
           >
             {/* Avatar */}
             <div
-              className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold"
+              className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={
                 msg.role === "assistant"
                   ? { background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }
@@ -1745,7 +1762,7 @@ const AIChatPanel = () => {
               <pre className="whitespace-pre-wrap font-body text-xs leading-relaxed" style={{ fontFamily: "inherit" }}>
                 {msg.text}
               </pre>
-              <p className="text-[9px] text-muted-foreground/50 mt-1 text-right">{msg.ts}</p>
+              <p className="text-xs text-muted-foreground/90 mt-1 text-right">{msg.ts}</p>
             </div>
           </motion.div>
         ))}
@@ -1753,7 +1770,7 @@ const AIChatPanel = () => {
         {/* Loading indicator */}
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
-            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold"
+            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={{ background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }}>
               IA
             </div>
@@ -1773,13 +1790,13 @@ const AIChatPanel = () => {
       {/* Suggestions */}
       {messages.length <= 1 && (
         <div className="shrink-0 px-3 pb-2">
-          <p className="text-[9px] font-accent text-muted-foreground/60 uppercase tracking-widest mb-2">Sugestões</p>
+          <p className="text-xs font-accent text-foreground/65 uppercase tracking-widest mb-2">Sugestões</p>
           <div className="flex flex-wrap gap-1.5">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
                 onClick={() => sendMessage(s)}
-                className="text-[10px] font-body px-2 py-1 rounded-sm border border-border/60 text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                className="text-xs font-body px-2 py-1 rounded-sm border border-border/60 text-foreground/65 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
               >
                 {s}
               </button>
@@ -1824,6 +1841,8 @@ const CoursesPage = () => {
   const [showChat, setShowChat] = useState(true);
   const [showCourses, setShowCourses] = useState(true);
 
+  const chatColRef = useRef<HTMLDivElement>(null);
+  const coursesColRef = useRef<HTMLDivElement>(null);
   const onlyRoadmap = !showChat && !showCourses;
   const columnHeight = "calc(100vh - 108px)";
 
@@ -1839,60 +1858,34 @@ const CoursesPage = () => {
           >
             <ArrowLeft size={14} /> Voltar
           </Link>
-
-          {/* Toggle col 1 */}
-          <button
-            onClick={() => setShowChat((v) => !v)}
-            title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-[11px] font-accent font-semibold transition-all"
-            style={showChat
-              ? { borderColor: "hsl(155 60% 45% / 0.5)", color: "hsl(155 60% 55%)", background: "hsl(155 60% 45% / 0.1)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.2)" }
-              : { borderColor: "hsl(215 20% 28%)", color: "hsl(215 15% 50%)", background: "transparent" }}
-          >
-            <MessageCircleQuestion size={12} />
-            IA
-            <span className="opacity-60">{showChat ? "◀" : "▶"}</span>
-          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-accent text-muted-foreground tracking-widest uppercase hidden sm:block">Módulo 1 · Fundamentos</span>
-          <span className="text-muted-foreground/40 hidden sm:block">·</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-accent text-muted-foreground tracking-widest uppercase hidden sm:block">Módulo 1 · Fundamentos</span>
+          <span className="text-muted-foreground/85 hidden sm:block">·</span>
           <h1 className="font-display text-sm font-bold text-foreground">
             Trilha <span className="text-primary" style={{ textShadow: "0 0 12px hsl(155 60% 45% / 0.5)" }}>Dev Full Stack</span>
           </h1>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Toggle col 3 */}
-          <button
-            onClick={() => setShowCourses((v) => !v)}
-            title={showCourses ? "Ocultar Aulas" : "Mostrar Aulas"}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-[11px] font-accent font-semibold transition-all"
-            style={showCourses
-              ? { borderColor: "hsl(155 60% 45% / 0.5)", color: "hsl(155 60% 55%)", background: "hsl(155 60% 45% / 0.1)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.2)" }
-              : { borderColor: "hsl(215 20% 28%)", color: "hsl(215 15% 50%)", background: "transparent" }}
-          >
-            <span className="opacity-60">{showCourses ? "▶" : "◀"}</span>
-            Aulas
-            <PlayCircle size={12} />
-          </button>
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden divide-x divide-border/30">
+      <div className="relative flex flex-1 overflow-hidden divide-x divide-border/30">
 
         {/* COL 1 — AI Chat */}
         <AnimatePresence initial={false}>
           {showChat && (
             <motion.div
               key="chat-col"
+              ref={chatColRef}
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: onlyRoadmap ? 0 : "33.333%", opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-              className="flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
+              className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
               style={{ minWidth: 0 }}
             >
               <div style={{ height: columnHeight, minWidth: 280 }}>
@@ -1906,7 +1899,7 @@ const CoursesPage = () => {
         <motion.div
           layout
           transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-          className="flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden"
+          className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden"
           style={{ flex: 1, minWidth: 0 }}
         >
           <div style={{ height: columnHeight }}>
@@ -1923,11 +1916,12 @@ const CoursesPage = () => {
           {showCourses && (
             <motion.div
               key="courses-col"
+              ref={coursesColRef}
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: "33.333%", opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-              className="flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
+              className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
               style={{ minWidth: 0 }}
             >
               <div
@@ -1943,7 +1937,7 @@ const CoursesPage = () => {
                       className={`relative flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs font-accent font-semibold transition-all
                         ${activeTab === tab.id
                           ? "bg-primary/15 text-primary border border-primary/50"
-                          : "text-muted-foreground border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
+                          : "text-foreground/65 border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
                         }`}
                       style={activeTab === tab.id ? { boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)" } : {}}
                     >
@@ -1978,6 +1972,85 @@ const CoursesPage = () => {
         </AnimatePresence>
 
       </div>
+
+      {/* ── Floating column toggle buttons (teardrop shape) ── */}
+
+      {/* Botão IA — gota com raiz plana na esquerda, ponta para direita */}
+      <motion.button
+        onClick={() => setShowChat((v) => !v)}
+        title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
+        animate={{ left: showChat ? "33.333%" : "0px" }}
+        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        className="fixed z-50 cursor-pointer border-0 p-0"
+        style={{
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 28,
+          height: 72,
+          background: "none",
+          filter: showChat
+            ? "drop-shadow(3px 0 10px hsl(155 60% 45% / 0.55))"
+            : "drop-shadow(3px 0 7px hsl(0 0% 0% / 0.55))",
+        }}
+      >
+        <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
+          {/* Raiz plana na esquerda, curva suave até a ponta na direita — forma de gota real */}
+          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72 Z"
+            fill={showChat ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"}
+          />
+          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72"
+            stroke={showChat ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"}
+            strokeWidth="1"
+            fill="none"
+          />
+        </svg>
+        <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingLeft: 2 }}>
+          <span style={{ fontSize: 13, color: showChat ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
+            {showChat ? "‹" : "›"}
+          </span>
+        </div>
+      </motion.button>
+
+      {/* Botão Aulas — gota com raiz plana na direita, ponta para esquerda */}
+      <motion.button
+        onClick={() => setShowCourses((v) => !v)}
+        title={showCourses ? "Ocultar Aulas" : "Mostrar Aulas"}
+        animate={{ right: showCourses ? "33.333%" : "0px" }}
+        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        className="fixed z-50 cursor-pointer border-0 p-0"
+        style={{
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 28,
+          height: 72,
+          background: "none",
+          filter: showCourses
+            ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))"
+            : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))",
+        }}
+      >
+        <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
+          {/* Raiz plana na direita, curva suave até a ponta na esquerda */}
+          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z"
+            fill={showCourses ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"}
+          />
+          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72"
+            stroke={showCourses ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"}
+            strokeWidth="1"
+            fill="none"
+          />
+        </svg>
+        <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingRight: 2 }}>
+          <span style={{ fontSize: 13, color: showCourses ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
+            {showCourses ? "›" : "‹"}
+          </span>
+        </div>
+      </motion.button>
+
     </div>
   );
 };
