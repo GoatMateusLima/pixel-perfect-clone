@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Clock, BarChart2, MonitorPlay } from "lucide-react";
 import { useState } from "react";
+import Header from "../components/Header";
 
 const areas = [
   {
@@ -261,6 +262,7 @@ const RoadmapSection = () => {
 
   return (
     <section className="relative min-h-screen gradient-hero scanline overflow-hidden pt-24 pb-20">
+      <Header/>
       {/* Grid background */}
       <div className="absolute inset-0 opacity-5" style={gridBg} />
 
