@@ -54,78 +54,12 @@ const ALL_SOCIAL_KEYS = Object.keys(SOCIAL_META) as SocialKey[];
 
 // ─── Medalhas mockadas ────────────────────────────────────────────────────────
 const ALL_MEDALS = [
-  {
-    id: 1,
-    icon: Code2,
-    title: "Primeira Linha de Código",
-    desc: "Concluiu Fundamentos de Programação",
-    color: "hsl(155 60% 45%)",
-    bg: "hsl(155 60% 45% / 0.12)",
-    border: "hsl(155 60% 45% / 0.35)",
-    glow: "hsl(155 60% 45% / 0.3)",
-    date: "Jan 2025",
-    rarity: "Comum",
-  },
-  {
-    id: 2,
-    icon: Brain,
-    title: "Mente Analítica",
-    desc: "Concluiu Python para Data Science",
-    color: "hsl(210 70% 60%)",
-    bg: "hsl(210 70% 60% / 0.12)",
-    border: "hsl(210 70% 60% / 0.35)",
-    glow: "hsl(210 70% 60% / 0.3)",
-    date: "Mar 2025",
-    rarity: "Rara",
-  },
-  {
-    id: 3,
-    icon: Shield,
-    title: "Guardião Digital",
-    desc: "Concluiu Introdução a Cibersegurança",
-    color: "hsl(0 70% 60%)",
-    bg: "hsl(0 70% 60% / 0.12)",
-    border: "hsl(0 70% 60% / 0.35)",
-    glow: "hsl(0 70% 60% / 0.3)",
-    date: "Mai 2025",
-    rarity: "Épica",
-  },
-  {
-    id: 4,
-    icon: Cloud,
-    title: "Arquiteto de Nuvens",
-    desc: "Concluiu Cloud Computing Basics",
-    color: "hsl(45 90% 55%)",
-    bg: "hsl(45 90% 55% / 0.12)",
-    border: "hsl(45 90% 55% / 0.35)",
-    glow: "hsl(45 90% 55% / 0.3)",
-    date: "Jul 2025",
-    rarity: "Rara",
-  },
-  {
-    id: 5,
-    icon: Database,
-    title: "Mestre dos Dados",
-    desc: "Concluiu Fundamentos de SQL",
-    color: "hsl(270 60% 65%)",
-    bg: "hsl(270 60% 65% / 0.12)",
-    border: "hsl(270 60% 65% / 0.35)",
-    glow: "hsl(270 60% 65% / 0.3)",
-    date: "Ago 2025",
-    rarity: "Comum",
-  },
-  {
-    id: 6,
-    icon: Cpu,
-    title: "Pioneiro em IA",
-    desc: "Concluiu Fundamentos de Inteligência Artificial",
-    color: "hsl(25 90% 55%)",
-    bg: "hsl(25 90% 55% / 0.12)",
-    border: "hsl(25 90% 55% / 0.35)",
-    glow: "hsl(25 90% 55% / 0.3)",
-    date: "Out 2025",
-    rarity: "Lendária",
-  },
+  { id: 1, icon: Code2, title: "Primeira Linha de Código", desc: "Concluiu Fundamentos de Programação", color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.3)", date: "Jan 2025", rarity: "Comum" },
+  { id: 2, icon: Brain, title: "Mente Analítica", desc: "Concluiu Python para Data Science", color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.3)", date: "Mar 2025", rarity: "Rara" },
+  { id: 3, icon: Shield, title: "Guardião Digital", desc: "Concluiu Introdução a Cibersegurança", color: "hsl(0 70% 60%)", bg: "hsl(0 70% 60% / 0.12)", border: "hsl(0 70% 60% / 0.35)", glow: "hsl(0 70% 60% / 0.3)", date: "Mai 2025", rarity: "Épica" },
+  { id: 4, icon: Cloud, title: "Arquiteto de Nuvens", desc: "Concluiu Cloud Computing Basics", color: "hsl(45 90% 55%)", bg: "hsl(45 90% 55% / 0.12)", border: "hsl(45 90% 55% / 0.35)", glow: "hsl(45 90% 55% / 0.3)", date: "Jul 2025", rarity: "Rara" },
+  { id: 5, icon: Database, title: "Mestre dos Dados", desc: "Concluiu Fundamentos de SQL", color: "hsl(270 60% 65%)", bg: "hsl(270 60% 65% / 0.12)", border: "hsl(270 60% 65% / 0.35)", glow: "hsl(270 60% 65% / 0.3)", date: "Ago 2025", rarity: "Comum" },
+  { id: 6, icon: Cpu, title: "Pioneiro em IA", desc: "Concluiu Fundamentos de Inteligência Artificial", color: "hsl(25 90% 55%)", bg: "hsl(25 90% 55% / 0.12)", border: "hsl(25 90% 55% / 0.35)", glow: "hsl(25 90% 55% / 0.3)", date: "Out 2025", rarity: "Lendária" },
 ];
 
 const RARITY_COLOR: Record<string, string> = {
@@ -146,7 +80,7 @@ const MOCK_COURSES = [
 const ACTIVITY_TIMELINE = [
   { type: "medal",   text: "Conquistou a medalha Pioneiro em IA",        time: "há 2d",  color: "hsl(25 90% 55%)"  },
   { type: "course",  text: "Avançou 15% em Machine Learning Avançado",   time: "há 3d",  color: "hsl(155 60% 45%)" },
-  { type: "post",    text: "Publicou um post na Comunidade",              time: "há 5d",  color: "hsl(210 70% 55%)" },
+  { type: "post",    text: "Publicou um post na Comunidade",             time: "há 5d",  color: "hsl(210 70% 55%)" },
   { type: "medal",   text: "Conquistou a medalha Mestre dos Dados",      time: "há 1sem",color: "hsl(270 60% 65%)" },
   { type: "course",  text: "Concluiu Fundamentos de SQL",                time: "há 2sem",color: "hsl(155 60% 45%)" },
   { type: "login",   text: "Completou 7 dias seguidos de estudo 🔥",     time: "há 2sem",color: "hsl(45 90% 55%)"  },
@@ -169,7 +103,7 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
   I: [
     { title: "Product Manager", company: "Hotmart",      salary: "R$12–18k", type: "Remoto" },
     { title: "UX Lead",         company: "Conta Simples",salary: "R$10–15k", type: "Remoto" },
-    { title: "Dev Advocate",    company: "Stripe",        salary: "R$15–22k", type: "Remoto" },
+    { title: "Dev Advocate",    company: "Stripe",       salary: "R$15–22k", type: "Remoto" },
   ],
   S: [
     { title: "DevOps Engineer", company: "PicPay",       salary: "R$12–18k", type: "Remoto" },
@@ -211,16 +145,16 @@ const ProfilePage = () => {
   });
 
   const [isEditing,       setIsEditing]      = useState(false);
-  const [draftPhoto,      setDraftPhoto]      = useState<string | null>(null);
-  const [draftBanner,     setDraftBanner]     = useState<string | null>(null);
-  const [draftSocial,     setDraftSocial]     = useState<Partial<Record<SocialKey, string>>>({});
-  const [draftMedalIds,   setDraftMedalIds]   = useState<number[]>([]);
-  const [cropSrc,         setCropSrc]         = useState<string | null>(null);
-  const [cropType,        setCropType]        = useState<"photo" | "banner" | null>(null);
-  const [socialModal,     setSocialModal]     = useState<SocialKey | null>(null);
-  const [socialInput,     setSocialInput]     = useState("");
-  const [hoverPhoto,      setHoverPhoto]      = useState(false);
-  const [hoveredMedal,    setHoveredMedal]    = useState<number | null>(null);
+  const [draftPhoto,      setDraftPhoto]     = useState<string | null>(null);
+  const [draftBanner,     setDraftBanner]    = useState<string | null>(null);
+  const [draftSocial,     setDraftSocial]    = useState<Partial<Record<SocialKey, string>>>({});
+  const [draftMedalIds,   setDraftMedalIds]  = useState<number[]>([]);
+  const [cropSrc,         setCropSrc]        = useState<string | null>(null);
+  const [cropType,        setCropType]       = useState<"photo" | "banner" | null>(null);
+  const [socialModal,     setSocialModal]    = useState<SocialKey | null>(null);
+  const [socialInput,     setSocialInput]    = useState("");
+  const [hoverPhoto,      setHoverPhoto]     = useState(false);
+  const [hoveredMedal,    setHoveredMedal]   = useState<number | null>(null);
   const [medalPickerOpen, setMedalPickerOpen] = useState(false);
 
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
@@ -439,17 +373,20 @@ const ProfilePage = () => {
                       <div className="absolute inset-0 rounded-full"
                         style={{ background: ringColor, zIndex: 1, boxShadow: `0 0 18px ${ringColor}60` }} />
                     )}
-                    <button type="button"
+                    
+                    {/* 👇 Aqui está a correção: trocamos o <button> por uma <div> */}
+                    <div
                       onClick={() => isEditing && photoInputRef.current?.click()}
                       onMouseEnter={() => isEditing && setHoverPhoto(true)}
                       onMouseLeave={() => setHoverPhoto(false)}
-                      disabled={!isEditing}
                       className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center focus:outline-none"
                       style={{ width: 80, height: 80, top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 2, border: "3px solid hsl(var(--background))", cursor: isEditing ? "pointer" : "default" }}>
+                      
                       {displayPhoto
                         ? <img src={displayPhoto} alt="Foto" className="w-full h-full object-cover" />
                         : <User size={28} className="text-muted-foreground" />
                       }
+                      
                       <AnimatePresence>
                         {isEditing && hoverPhoto && (
                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -464,7 +401,7 @@ const ProfilePage = () => {
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </button>
+                    </div>
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
                   </div>
 
@@ -783,6 +720,7 @@ const ProfilePage = () => {
       </div>
 
       {/* ── Crop Modal ── */}
+{/* ── Crop Modal ── */}
       <AnimatePresence>
         {cropSrc && cropType && (
           <ImageCropModal
