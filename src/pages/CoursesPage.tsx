@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import Header from "@/components/Header";
 import {
   PlayCircle,
   ClipboardList,
@@ -383,8 +384,6 @@ const LESSON_INFO: Record<number, { title: string; description: string; duration
 };
 
 const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
-  const [playing, setPlaying] = useState(false);
-
   const lesson = LESSON_INFO[activeLesson] ?? LESSON_INFO[3];
   const lessonData = LESSONS.find(l => l.id === activeLesson);
   const isLocked = lessonData?.locked;
@@ -416,44 +415,21 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
       >
         {/* Video area */}
         <div
-          className="relative w-full bg-[hsl(200_30%_5%)] flex items-center justify-center cursor-pointer group"
+          className="relative w-full bg-[hsl(200_30%_5%)]"
           style={{ aspectRatio: "16/9" }}
-          onClick={() => setPlaying(!playing)}
         >
-          <div className="absolute inset-0 scanline pointer-events-none opacity-40" />
-          <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/60" />
-          <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/60" />
-          <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/60" />
-          <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/60" />
-          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(155_60%_35%/0.07)] via-transparent to-[hsl(200_70%_50%/0.05)]" />
+          <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/60 z-10 pointer-events-none" />
+          <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/60 z-10 pointer-events-none" />
+          <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/60 z-10 pointer-events-none" />
+          <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/60 z-10 pointer-events-none" />
 
-          <motion.div
-            animate={playing ? { scale: 0.85, opacity: 0.5 } : { scale: 1, opacity: 1 }}
-            whileHover={{ scale: 1.1 }}
-            transition={{ type: "spring", stiffness: 300 }}
-          >
-            <PlayCircle
-              size={72}
-              className={`transition-colors ${playing ? "text-primary/40" : "text-primary group-hover:text-primary/80"}`}
-              style={{ filter: playing ? "none" : "drop-shadow(0 0 14px hsl(155 60% 45% / 0.7))" }}
-            />
-          </motion.div>
-
-          <div className="absolute bottom-3 left-3 flex items-center gap-2">
-            <span className="text-xs font-accent font-semibold text-muted-foreground px-2 py-0.5 rounded-sm bg-secondary/80 border border-border">
-              AULA {lesson.num} DE {LESSONS.length}
-            </span>
-            {playing && (
-              <span className="flex items-center gap-1 text-xs font-accent text-primary px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                REPRODUZINDO
-              </span>
-            )}
-          </div>
-          <div className="absolute bottom-3 right-3 flex items-center gap-1 text-xs text-muted-foreground font-accent">
-            <Clock size={10} />
-            {lesson.duration}
-          </div>
+          <iframe
+            className="absolute inset-0 w-full h-full"
+            src="https://www.youtube.com/embed/u7XSuhGroL0?rel=0&modestbranding=1"
+            title={lesson.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
         </div>
 
         {/* Lesson info */}
@@ -1844,10 +1820,11 @@ const CoursesPage = () => {
   const chatColRef = useRef<HTMLDivElement>(null);
   const coursesColRef = useRef<HTMLDivElement>(null);
   const onlyRoadmap = !showChat && !showCourses;
-  const columnHeight = "calc(100vh - 108px)";
+  const columnHeight = "calc(100vh - 152px)";
 
   return (
     <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
+      <Header />
 
       {/* Top bar */}
       <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border/50 bg-background/40 backdrop-blur-sm">
