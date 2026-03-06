@@ -447,7 +447,7 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
         </div>
       </motion.div>
 
-      {/* Mini lesson list for mobile (roadmap hidden on mobile) */}
+      {/* Mini lesson list for mobile */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -465,8 +465,8 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
                 ${l.locked ? "opacity-40" : ""}
               `}>
               {l.done ? <CheckCircle2 size={14} className="text-primary shrink-0" /> :
-               l.locked ? <Lock size={14} className="text-muted-foreground shrink-0" /> :
-               <PlayCircle size={14} className="text-accent shrink-0" />}
+                l.locked ? <Lock size={14} className="text-muted-foreground shrink-0" /> :
+                  <PlayCircle size={14} className="text-accent shrink-0" />}
               <span className={`text-xs font-body flex-1 truncate ${l.id === activeLesson ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{l.title}</span>
               <span className="text-xs font-accent text-muted-foreground">{l.duration}</span>
             </div>
@@ -532,7 +532,6 @@ const QuestionarioTab = () => {
         animate={{ opacity: 1, scale: 1 }}
         className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center"
       >
-        {/* Icon */}
         <motion.div
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -559,25 +558,19 @@ const QuestionarioTab = () => {
           )}
         </motion.div>
 
-        {/* Title */}
         <h2 className="font-display text-xl font-bold text-foreground mb-2">
           {passed ? "Parabéns! Você passou! 🎉" : "Quase lá! Tente novamente"}
         </h2>
 
-        {/* Score */}
         <p className="text-muted-foreground font-body text-sm mb-2">
           Você acertou{" "}
           <span className="text-primary font-semibold">{score}</span> de{" "}
           <span className="font-semibold">{queue.length}</span> questões —{" "}
-          <span
-            className="font-bold text-base"
-            style={{ color: passed ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)" }}
-          >
+          <span className="font-bold text-base" style={{ color: passed ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)" }}>
             {pct}%
           </span>
         </p>
 
-        {/* Threshold hint */}
         <p className="text-xs text-muted-foreground font-accent mb-1">
           Mínimo para aprovação:{" "}
           <span className={passed ? "text-primary" : "text-accent"}>75%</span>
@@ -589,7 +582,6 @@ const QuestionarioTab = () => {
           </p>
         )}
 
-        {/* Score bar */}
         <div className="my-5 h-2 rounded-full bg-secondary overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
@@ -597,17 +589,12 @@ const QuestionarioTab = () => {
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="h-full rounded-full"
             style={{
-              background: passed
-                ? "hsl(155 60% 45%)"
-                : "hsl(25 90% 55%)",
-              boxShadow: passed
-                ? "0 0 10px hsl(155 60% 45% / 0.6)"
-                : "0 0 10px hsl(25 90% 55% / 0.6)",
+              background: passed ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)",
+              boxShadow: passed ? "0 0 10px hsl(155 60% 45% / 0.6)" : "0 0 10px hsl(25 90% 55% / 0.6)",
             }}
           />
         </div>
 
-        {/* Threshold marker */}
         <div className="relative h-0 mb-4">
           <div
             className="absolute top-0 bottom-0 w-px bg-primary/50"
@@ -621,7 +608,6 @@ const QuestionarioTab = () => {
           </span>
         </div>
 
-        {/* Actions */}
         <div className="flex justify-center gap-3 mt-6">
           {passed ? (
             <>
@@ -660,7 +646,6 @@ const QuestionarioTab = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-accent text-muted-foreground">
           Questão <span className="text-primary font-semibold">{current + 1}</span> / {queue.length}
@@ -673,7 +658,6 @@ const QuestionarioTab = () => {
         </span>
       </div>
 
-      {/* Progress */}
       <div className="h-1 rounded-full bg-secondary overflow-hidden">
         <motion.div
           animate={{ width: `${((current) / queue.length) * 100}%` }}
@@ -683,7 +667,6 @@ const QuestionarioTab = () => {
         />
       </div>
 
-      {/* Question card */}
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
@@ -787,7 +770,6 @@ const DuvidasTab = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* New doubt */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -816,7 +798,6 @@ const DuvidasTab = () => {
         </div>
       </motion.div>
 
-      {/* List */}
       <div className="space-y-3">
         {doubts.map((d, i) => (
           <motion.div
@@ -827,7 +808,6 @@ const DuvidasTab = () => {
             className={`hologram-panel rounded-sm p-4 transition-all ${expanded === d.id ? "border-primary/40" : ""}`}
           >
             <div className="flex items-start gap-3">
-              {/* avatar */}
               <div className="shrink-0 w-8 h-8 rounded-sm bg-primary/20 border border-primary/30 flex items-center justify-center font-display text-xs font-bold text-primary">
                 {d.avatar}
               </div>
@@ -844,7 +824,6 @@ const DuvidasTab = () => {
                 </div>
                 <p className="text-sm text-foreground/80 font-body leading-relaxed">{d.text}</p>
 
-                {/* reply */}
                 <AnimatePresence>
                   {d.answered && expanded === d.id && d.reply && (
                     <motion.div
@@ -859,7 +838,6 @@ const DuvidasTab = () => {
                   )}
                 </AnimatePresence>
 
-                {/* actions */}
                 <div className="flex items-center gap-3 mt-3">
                   <button
                     onClick={() => handleLike(d.id)}
@@ -916,36 +894,26 @@ interface RoadmapNode {
   subtitle: string;
   icon: string;
   status: "done" | "active" | "locked";
-  xOffset: number; // zigzag offset: -1 | 0 | 1
+  xOffset: number;
   module: number;
 }
 
 const ROADMAP_NODES: RoadmapNode[] = [
-  { id: 1, title: "Mercado Tech",       subtitle: "Introdução",        icon: "🌐", status: "done",   xOffset: 0,  module: 1 },
-  { id: 2, title: "Fundamentos",        subtitle: "Programação",       icon: "💡", status: "done",   xOffset: 1,  module: 1 },
-  { id: 3, title: "Lógica",             subtitle: "Algoritmos",        icon: "🧠", status: "active", xOffset: -1, module: 1 },
-  { id: 4, title: "Git",                subtitle: "Versionamento",     icon: "🔀", status: "locked", xOffset: 0,  module: 2 },
-  { id: 5, title: "Deploy",             subtitle: "Nuvem",             icon: "☁️", status: "locked", xOffset: 1,  module: 2 },
-  { id: 6, title: "Front-end",          subtitle: "HTML & CSS",        icon: "🎨", status: "locked", xOffset: -1, module: 2 },
-  { id: 7, title: "JavaScript",         subtitle: "ES6+",              icon: "⚡", status: "locked", xOffset: 0,  module: 3 },
-  { id: 8, title: "React",              subtitle: "Componentes",       icon: "⚛️", status: "locked", xOffset: 1,  module: 3 },
-  { id: 9, title: "Back-end",           subtitle: "Node.js & APIs",    icon: "🔧", status: "locked", xOffset: -1, module: 3 },
-  { id: 10, title: "Banco de Dados",    subtitle: "SQL & NoSQL",       icon: "🗄️", status: "locked", xOffset: 0,  module: 4 },
-  { id: 11, title: "DevOps",            subtitle: "CI/CD & Docker",    icon: "🐳", status: "locked", xOffset: 1,  module: 4 },
-  { id: 12, title: "Certificado",       subtitle: "Full Stack Dev",    icon: "🏆", status: "locked", xOffset: 0,  module: 5 },
+  { id: 1, title: "Mercado Tech", subtitle: "Introdução", icon: "🌐", status: "done", xOffset: 0, module: 1 },
+  { id: 2, title: "Fundamentos", subtitle: "Programação", icon: "💡", status: "done", xOffset: 1, module: 1 },
+  { id: 3, title: "Lógica", subtitle: "Algoritmos", icon: "🧠", status: "active", xOffset: -1, module: 1 },
+  { id: 4, title: "Git", subtitle: "Versionamento", icon: "🔀", status: "locked", xOffset: 0, module: 2 },
+  { id: 5, title: "Deploy", subtitle: "Nuvem", icon: "☁️", status: "locked", xOffset: 1, module: 2 },
+  { id: 6, title: "Front-end", subtitle: "HTML & CSS", icon: "🎨", status: "locked", xOffset: -1, module: 2 },
+  { id: 7, title: "JavaScript", subtitle: "ES6+", icon: "⚡", status: "locked", xOffset: 0, module: 3 },
+  { id: 8, title: "React", subtitle: "Componentes", icon: "⚛️", status: "locked", xOffset: 1, module: 3 },
+  { id: 9, title: "Back-end", subtitle: "Node.js & APIs", icon: "🔧", status: "locked", xOffset: -1, module: 3 },
+  { id: 10, title: "Banco de Dados", subtitle: "SQL & NoSQL", icon: "🗄️", status: "locked", xOffset: 0, module: 4 },
+  { id: 11, title: "DevOps", subtitle: "CI/CD & Docker", icon: "🐳", status: "locked", xOffset: 1, module: 4 },
+  { id: 12, title: "Certificado", subtitle: "Full Stack Dev", icon: "🏆", status: "locked", xOffset: 0, module: 5 },
 ];
 
 // ─── Roadmap Component ────────────────────────────────────────────────────────
-
-// Zigzag pattern: each node alternates left → right → left ...
-// "left" = 15% from left edge, "right" = 85% from left edge, "center" = 50% (cert)
-const getNodeX = (index: number, isCert: boolean): number => {
-  if (isCert) return 50;
-  return index % 2 === 0 ? 20 : 80;
-};
-
-const NODE_ROW_HEIGHT = 88; // px per row
-const NODE_R = 26;          // circle radius
 
 const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { activeNodeId: number; onSelectNode: (id: number) => void; horizontal?: boolean }) => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -963,31 +931,22 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
 
   const isCertificate = (node: RoadmapNode) => node.id === 12;
 
-  // ── HORIZONTAL MODE — Road style ─────────────────────────────────────────
   if (horizontal) {
     const HEADER_H = 72;
     const canvasH = panelH - HEADER_H;
-
-    // Road geometry — sinusoidal path through the canvas
-    // Each node sits on the road. We define control points manually for a natural S-road.
     const N = ROADMAP_NODES.length;
     const stepX = Math.max(110, panelW / (N - 1 + 1.5));
     const totalW = Math.max(panelW, stepX * (N + 0.5));
-
-    // Mid-Y of road canvas, amplitude of waves
     const midY = canvasH * 0.5;
-    const amp  = Math.min(canvasH * 0.28, 90);
+    const amp = Math.min(canvasH * 0.28, 90);
 
-    // Each node's x,y position on the road
     const nodePos = ROADMAP_NODES.map((node, i) => {
       const isCert = isCertificate(node);
       const x = 60 + i * stepX;
-      // Sine wave: node 0 at mid, alternates up/down, cert at center
       const y = isCert ? midY : midY + (i % 2 === 0 ? -amp : amp);
       return { x, y };
     });
 
-    // Build a single continuous road path through all node positions
     const buildRoadPath = () => {
       if (nodePos.length === 0) return "";
       let d = `M ${nodePos[0].x} ${nodePos[0].y}`;
@@ -1000,7 +959,6 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
       return d;
     };
 
-    // Per-segment path (for color: done/active vs locked)
     const segmentPaths = ROADMAP_NODES.slice(1).map((node, i) => {
       const p0 = nodePos[i];
       const p1 = nodePos[i + 1];
@@ -1013,21 +971,19 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
 
     const roadPath = buildRoadPath();
 
-    // Pin colors per node
     const PIN_COLORS: Record<string, string> = {
-      done:   "hsl(155 60% 45%)",
+      done: "hsl(155 60% 45%)",
       active: "hsl(25 90% 55%)",
       locked: "hsl(215 20% 35%)",
     };
     const PIN_GLOW: Record<string, string> = {
-      done:   "hsl(155 60% 45% / 0.6)",
+      done: "hsl(155 60% 45% / 0.6)",
       active: "hsl(25 90% 55% / 0.6)",
       locked: "transparent",
     };
 
     return (
       <div ref={containerRef} className="relative w-full h-full overflow-hidden flex flex-col">
-        {/* Header */}
         <div
           className="shrink-0 px-6 pt-4 pb-2 border-b border-border/30 bg-background/60 backdrop-blur-sm flex items-center justify-between"
           style={{ height: HEADER_H }}
@@ -1047,112 +1003,57 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
           </div>
         </div>
 
-        {/* Road canvas */}
         <div
           className="flex-1 overflow-x-auto overflow-y-hidden"
           style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}
         >
           <div className="relative" style={{ width: totalW, height: canvasH }}>
-
-            <svg
-              className="absolute inset-0 pointer-events-none"
-              width={totalW}
-              height={canvasH}
-              style={{ overflow: "visible" }}
-            >
+            <svg className="absolute inset-0 pointer-events-none" width={totalW} height={canvasH} style={{ overflow: "visible" }}>
               <defs>
-                {/* Road done gradient */}
-                <linearGradient id="roadDone" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="hsl(155, 55%, 30%)" />
-                  <stop offset="100%" stopColor="hsl(155, 55%, 25%)" />
-                </linearGradient>
-                {/* Road locked gradient */}
-                <linearGradient id="roadLocked" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="hsl(215, 20%, 16%)" />
-                  <stop offset="100%" stopColor="hsl(215, 20%, 13%)" />
-                </linearGradient>
-                {/* Glow filter */}
                 <filter id="roadGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
                 <filter id="pinGlow" x="-40%" y="-40%" width="180%" height="180%">
-                  <feGaussianBlur stdDeviation="3" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
               </defs>
 
-              {/* === ROAD LAYERS === */}
               {segmentPaths.map(({ d, lit, key }) => (
                 <g key={key}>
-                  {/* Road shadow */}
                   <path d={d} fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
-                  {/* Road surface */}
-                  <path d={d} fill="none"
-                    stroke={lit ? "hsl(155, 45%, 22%)" : "hsl(215, 18%, 14%)"}
-                    strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
-                  {/* Road edge lines */}
-                  <path d={d} fill="none"
-                    stroke={lit ? "hsl(155, 60%, 35% / 0.5)" : "hsl(215, 20%, 28% / 0.4)"}
-                    strokeWidth="22" strokeLinecap="round" strokeLinejoin="round"
-                    strokeDasharray="0"
-                    style={{ paintOrder: "stroke" }}
-                  />
-                  {/* Outer border of road */}
-                  <path d={d} fill="none"
-                    stroke={lit ? "hsl(155, 55%, 40%)" : "hsl(215, 20%, 28%)"}
-                    strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ mixBlendMode: "screen", opacity: 0.15 }}
-                  />
+                  <path d={d} fill="none" stroke={lit ? "hsl(155, 45%, 22%)" : "hsl(215, 18%, 14%)"} strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={d} fill="none" stroke={lit ? "hsl(155, 55%, 40%)" : "hsl(215, 20%, 28%)"} strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" style={{ mixBlendMode: "screen", opacity: 0.15 }} />
                 </g>
               ))}
 
-              {/* === CENTER DASHED LINE === */}
-              <path
-                d={roadPath}
-                fill="none"
-                stroke="hsl(215, 15%, 50%)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeDasharray="10 8"
-                opacity="0.45"
-              />
+              <path d={roadPath} fill="none" stroke="hsl(215, 15%, 50%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.45" />
 
-              {/* Lit dashed line (green for completed segments) */}
               {segmentPaths.filter(s => s.lit).map(({ d, key }) => (
-                <path key={`dash-${key}`}
-                  d={d} fill="none"
-                  stroke="hsl(155, 60%, 50%)"
-                  strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8"
-                  opacity="0.6"
-                />
+                <path key={`dash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 50%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.6" />
               ))}
 
-              {/* === ANIMATED PARTICLE on active segment === */}
               {segmentPaths.filter(s => s.lit).map(({ d, key }) => (
                 <circle key={`dot-${key}`} r="3" fill="hsl(155, 70%, 60%)" filter="url(#roadGlow)" opacity="0.9">
                   <animateMotion dur="3s" repeatCount="indefinite" path={d} />
                 </circle>
               ))}
 
-              {/* === MAP PIN MARKERS === */}
               {ROADMAP_NODES.map((node, index) => {
                 const { x, y } = nodePos[index];
-                const isCert   = isCertificate(node);
-                const isDone   = node.status === "done";
+                const isCert = isCertificate(node);
+                const isDone = node.status === "done";
                 const isActive = node.status === "active";
                 const isLocked = node.status === "locked" && !isCert;
                 const isSelected = activeNodeId === node.id;
-                const isHovered  = hoveredId === node.id;
-
+                const isHovered = hoveredId === node.id;
                 const statusKey = isCert ? "active" : isDone ? "done" : isActive ? "active" : "locked";
                 const pinColor = isCert ? "hsl(45, 90%, 55%)" : PIN_COLORS[statusKey];
-                const pinGlow  = isCert ? "hsl(45, 90%, 55% / 0.6)" : PIN_GLOW[statusKey];
-
-                // Pin sits above the road, pointing down to the road
+                const pinGlow = isCert ? "hsl(45, 90%, 55% / 0.6)" : PIN_GLOW[statusKey];
                 const pinH = isCert ? 56 : 48;
                 const pinW = isCert ? 46 : 38;
-                const pinY = y - pinH - 4; // top of pin above road point
+                const pinY = y - pinH - 4;
 
                 return (
                   <g key={node.id}
@@ -1161,115 +1062,58 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
                     onMouseLeave={() => setHoveredId(null)}
                     style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
                   >
-                    {/* Pulse ring for active/selected */}
                     {(isActive || isSelected) && !isCert && (
                       <circle cx={x} cy={y} r="16" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
                         <animate attributeName="r" values="14;24;14" dur="1.8s" repeatCount="indefinite" />
                         <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
                       </circle>
                     )}
-
-                    {/* Certificate special glow */}
                     {isCert && (
                       <circle cx={x} cy={y} r="22" fill="none" stroke="hsl(45, 90%, 55%)" strokeWidth="2" opacity="0.4">
                         <animate attributeName="r" values="20;34;20" dur="2.5s" repeatCount="indefinite" />
                         <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
                       </circle>
                     )}
-
-                    {/* Map pin shape (teardrop) */}
                     <g filter={isHovered || isSelected ? "url(#pinGlow)" : "none"}>
-                      {/* Pin shadow */}
                       <ellipse cx={x} cy={pinY + pinH + 2} rx={pinW * 0.3} ry={4} fill="rgba(0,0,0,0.4)" />
-                      {/* Pin body */}
                       <path
-                        d={`
-                          M ${x} ${pinY + pinH}
-                          C ${x - 2} ${pinY + pinH - 10}, ${x - pinW/2} ${pinY + pinH * 0.65}, ${x - pinW/2} ${pinY + pinH * 0.42}
-                          A ${pinW/2} ${pinH * 0.45} 0 1 1 ${x + pinW/2} ${pinY + pinH * 0.42}
-                          C ${x + pinW/2} ${pinY + pinH * 0.65}, ${x + 2} ${pinY + pinH - 10}, ${x} ${pinY + pinH}
-                          Z
-                        `}
+                        d={`M ${x} ${pinY + pinH} C ${x - 2} ${pinY + pinH - 10}, ${x - pinW / 2} ${pinY + pinH * 0.65}, ${x - pinW / 2} ${pinY + pinH * 0.42} A ${pinW / 2} ${pinH * 0.45} 0 1 1 ${x + pinW / 2} ${pinY + pinH * 0.42} C ${x + pinW / 2} ${pinY + pinH * 0.65}, ${x + 2} ${pinY + pinH - 10}, ${x} ${pinY + pinH} Z`}
                         fill={isLocked ? "hsl(215, 18%, 20%)" : pinColor}
                         stroke={isLocked ? "hsl(215, 20%, 30%)" : isSelected ? "white" : "rgba(255,255,255,0.2)"}
                         strokeWidth={isSelected ? "2" : "1"}
-                        style={{
-                          filter: isLocked ? "saturate(0) brightness(0.6)" : "none",
-                          opacity: isHovered ? 1 : 0.92,
-                          transition: "all 0.15s ease",
-                          transform: isHovered && !isLocked ? `translate(0px, -4px)` : "none",
-                        }}
+                        style={{ filter: isLocked ? "saturate(0) brightness(0.6)" : "none", opacity: isHovered ? 1 : 0.92, transition: "all 0.15s ease" }}
                       />
-                      {/* Pin inner highlight */}
-                      <ellipse
-                        cx={x - pinW * 0.12}
-                        cy={pinY + pinH * 0.28}
-                        rx={pinW * 0.18}
-                        ry={pinH * 0.14}
-                        fill="rgba(255,255,255,0.25)"
-                        style={{ filter: isLocked ? "grayscale(1)" : "none" }}
-                      />
-                      {/* Pin icon/emoji */}
-                      <text
-                        x={x}
-                        y={pinY + pinH * 0.47}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize={isCert ? 18 : 15}
-                        style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}
-                      >
+                      <ellipse cx={x - pinW * 0.12} cy={pinY + pinH * 0.28} rx={pinW * 0.18} ry={pinH * 0.14} fill="rgba(255,255,255,0.25)" />
+                      <text x={x} y={pinY + pinH * 0.47} textAnchor="middle" dominantBaseline="middle" fontSize={isCert ? 18 : 15} style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}>
                         {isLocked ? "🔒" : node.icon}
                       </text>
-                      {/* Done check badge */}
                       {isDone && (
                         <g>
-                          <circle cx={x + pinW/2 - 2} cy={pinY + 4} r="7" fill="hsl(155, 60%, 40%)" stroke="hsl(155, 60%, 55%)" strokeWidth="1.5" />
-                          <text x={x + pinW/2 - 2} y={pinY + 4} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
+                          <circle cx={x + pinW / 2 - 2} cy={pinY + 4} r="7" fill="hsl(155, 60%, 40%)" stroke="hsl(155, 60%, 55%)" strokeWidth="1.5" />
+                          <text x={x + pinW / 2 - 2} y={pinY + 4} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
                         </g>
                       )}
                     </g>
-
-                    {/* Road dot at node base */}
-                    <circle cx={x} cy={y} r={isSelected ? 6 : 4}
-                      fill={isLocked ? "hsl(215, 20%, 30%)" : pinColor}
-                      stroke="hsl(215, 25%, 10%)" strokeWidth="2"
-                      style={{ filter: !isLocked ? `drop-shadow(0 0 4px ${pinGlow})` : "none" }}
-                    />
+                    <circle cx={x} cy={y} r={isSelected ? 6 : 4} fill={isLocked ? "hsl(215, 20%, 30%)" : pinColor} stroke="hsl(215, 25%, 10%)" strokeWidth="2" style={{ filter: !isLocked ? `drop-shadow(0 0 4px ${pinGlow})` : "none" }} />
                   </g>
                 );
               })}
             </svg>
 
-            {/* === TEXT LABELS (HTML for better typography) === */}
             {ROADMAP_NODES.map((node, index) => {
               const { x, y } = nodePos[index];
-              const isCert   = isCertificate(node);
-              const isDone   = node.status === "done";
+              const isCert = isCertificate(node);
+              const isDone = node.status === "done";
               const isActive = node.status === "active";
-              const isLocked = node.status === "locked" && !isCert;
               const isSelected = activeNodeId === node.id;
-              const isAbove = y < midY; // node is above center → label goes below road
+              const isAbove = y < midY;
               const pinH = isCert ? 56 : 48;
-              const labelY = isAbove
-                ? y + 18          // below the road when pin is above
-                : y - pinH - 62;  // above the pin when pin is below
+              const labelY = isAbove ? y + 18 : y - pinH - 62;
 
               return (
-                <div key={`label-${node.id}`}
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: x,
-                    top: labelY,
-                    transform: "translateX(-50%)",
-                    width: 90,
-                    textAlign: "center",
-                  }}
-                >
-                  <p className={`font-display text-xs font-bold leading-tight ${
-                    isCert ? "text-[hsl(45_90%_65%)]"
-                    : isDone || isActive || isSelected ? "text-foreground"
-                    : "text-muted-foreground/90"
-                  }`}
+                <div key={`label-${node.id}`} className="absolute pointer-events-none"
+                  style={{ left: x, top: labelY, transform: "translateX(-50%)", width: 90, textAlign: "center" }}>
+                  <p className={`font-display text-xs font-bold leading-tight ${isCert ? "text-[hsl(45_90%_65%)]" : isDone || isActive || isSelected ? "text-foreground" : "text-muted-foreground/90"}`}
                     style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
                     {node.title}
                   </p>
@@ -1277,21 +1121,19 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
                 </div>
               );
             })}
-
           </div>
         </div>
       </div>
     );
   }
 
-  // ── VERTICAL MODE (default) — Road style ─────────────────────────────────
+  // ── VERTICAL MODE ─────────────────────────────────────────────────────────
   const HEADER_H_V = 110;
-  const ROW_H      = 100;          // px between node centres
-  const totalH     = HEADER_H_V + ROADMAP_NODES.length * ROW_H + 60;
-  const midX       = panelW / 2;
-  const ampX       = Math.min(panelW * 0.28, 70); // horizontal swing
+  const ROW_H = 100;
+  const totalH = HEADER_H_V + ROADMAP_NODES.length * ROW_H + 60;
+  const midX = panelW / 2;
+  const ampX = Math.min(panelW * 0.28, 70);
 
-  // Each node's x,y centre
   const vNodePos = ROADMAP_NODES.map((node, i) => {
     const isCert = isCertificate(node);
     const y = HEADER_H_V + i * ROW_H + ROW_H / 2;
@@ -1299,7 +1141,6 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
     return { x, y };
   });
 
-  // Build one continuous road path
   const vRoadPath = (() => {
     if (vNodePos.length === 0) return "";
     let d = `M ${vNodePos[0].x} ${vNodePos[0].y}`;
@@ -1312,7 +1153,6 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
     return d;
   })();
 
-  // Per-segment paths for colouring
   const vSegments = ROADMAP_NODES.slice(1).map((node, i) => {
     const p0 = vNodePos[i];
     const p1 = vNodePos[i + 1];
@@ -1324,23 +1164,17 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
   });
 
   const V_PIN_COLORS: Record<string, string> = {
-    done:   "hsl(155 60% 42%)",
+    done: "hsl(155 60% 42%)",
     active: "hsl(25 90% 55%)",
     locked: "hsl(215 20% 30%)",
-    cert:   "hsl(45 90% 55%)",
+    cert: "hsl(45 90% 55%)",
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative flex flex-col overflow-hidden"
-      style={{ height: "calc(100vh - 108px)" }}
-    >
-      {/* Atmospheric glow */}
+    <div ref={containerRef} className="relative flex flex-col overflow-hidden" style={{ height: "calc(100vh - 108px)" }}>
       <div className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(ellipse 80% 30% at 50% 10%, hsl(155 60% 45% / 0.07) 0%, transparent 70%)" }} />
 
-      {/* Sticky header */}
       <div className="shrink-0 sticky top-0 z-10 px-4 pt-4 pb-3 bg-background/60 backdrop-blur-sm border-b border-border/30">
         <p className="text-xs font-accent font-semibold text-foreground/70 tracking-widest uppercase mb-0.5">Sua Jornada</p>
         <h2 className="font-display text-sm font-bold text-foreground leading-tight">
@@ -1359,79 +1193,53 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
         </div>
       </div>
 
-      {/* Scrollable road canvas */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative"
         style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}>
         <div className="relative" style={{ height: totalH, width: "100%" }}>
-
           <svg className="absolute inset-0 pointer-events-none" width="100%" height={totalH}>
             <defs>
               <filter id="vRoadGlow" x="-30%" y="-10%" width="160%" height="120%">
-                <feGaussianBlur stdDeviation="3" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
               <filter id="vPinGlow" x="-50%" y="-30%" width="200%" height="160%">
-                <feGaussianBlur stdDeviation="3.5" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
             </defs>
 
-            {/* ── ROAD SEGMENTS ── */}
             {vSegments.map(({ d, lit, key }) => (
               <g key={key}>
-                {/* shadow */}
                 <path d={d} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
-                {/* asphalt */}
-                <path d={d} fill="none"
-                  stroke={lit ? "hsl(155, 42%, 20%)" : "hsl(215, 18%, 13%)"}
-                  strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
-                {/* edge glow */}
-                <path d={d} fill="none"
-                  stroke={lit ? "hsl(155, 60%, 38%)" : "hsl(215, 20%, 26%)"}
-                  strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"
-                  opacity="0.12" />
+                <path d={d} fill="none" stroke={lit ? "hsl(155, 42%, 20%)" : "hsl(215, 18%, 13%)"} strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={d} fill="none" stroke={lit ? "hsl(155, 60%, 38%)" : "hsl(215, 20%, 26%)"} strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" opacity="0.12" />
               </g>
             ))}
 
-            {/* ── CENTER DASHED LINE ── */}
-            <path d={vRoadPath} fill="none"
-              stroke="hsl(215, 15%, 48%)" strokeWidth="1.5"
-              strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
+            <path d={vRoadPath} fill="none" stroke="hsl(215, 15%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
 
-            {/* Lit dashed overlay */}
             {vSegments.filter(s => s.lit).map(({ d, key }) => (
-              <path key={`vdash-${key}`} d={d} fill="none"
-                stroke="hsl(155, 60%, 48%)" strokeWidth="1.5"
-                strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
+              <path key={`vdash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
             ))}
 
-            {/* ── ANIMATED PARTICLE ── */}
             {vSegments.filter(s => s.lit).map(({ d, key }) => (
               <circle key={`vdot-${key}`} r="3" fill="hsl(155, 70%, 62%)" filter="url(#vRoadGlow)" opacity="0.9">
                 <animateMotion dur="3s" repeatCount="indefinite" path={d} />
               </circle>
             ))}
 
-            {/* ── MAP PINS ── */}
             {ROADMAP_NODES.map((node, index) => {
               const { x, y } = vNodePos[index];
-              const isCert   = isCertificate(node);
-              const isDone   = node.status === "done";
+              const isCert = isCertificate(node);
+              const isDone = node.status === "done";
               const isActive = node.status === "active";
               const isLocked = node.status === "locked" && !isCert;
               const isSelected = activeNodeId === node.id;
-              const isHovered  = hoveredId === node.id;
-
-              const pinColor = isCert ? V_PIN_COLORS.cert
-                : isDone ? V_PIN_COLORS.done
-                : isActive ? V_PIN_COLORS.active
-                : V_PIN_COLORS.locked;
-
-              // Pin points LEFT if node is on right side of road, RIGHT if on left
+              const isHovered = hoveredId === node.id;
+              const pinColor = isCert ? V_PIN_COLORS.cert : isDone ? V_PIN_COLORS.done : isActive ? V_PIN_COLORS.active : V_PIN_COLORS.locked;
               const isOnRight = x > midX;
               const pinW = isCert ? 44 : 36;
               const pinH = isCert ? 54 : 46;
-              // Pin hangs to the side, pointing inward to the road
               const pinX = isOnRight ? x + 10 : x - 10;
               const pinTop = y - pinH - 2;
 
@@ -1442,138 +1250,73 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
                   onMouseLeave={() => setHoveredId(null)}
                   style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
                 >
-                  {/* Active pulse */}
                   {(isActive || isSelected) && !isCert && (
                     <circle cx={x} cy={y} r="13" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
                       <animate attributeName="r" values="12;22;12" dur="1.8s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
                     </circle>
                   )}
-                  {/* Cert pulse */}
                   {isCert && (
                     <circle cx={x} cy={y} r="20" fill="none" stroke="hsl(45, 90%, 55%)" strokeWidth="2" opacity="0.35">
                       <animate attributeName="r" values="18;32;18" dur="2.5s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
                     </circle>
                   )}
-
-                  {/* Module badge on first of module */}
                   {(index === 0 || ROADMAP_NODES[index - 1].module !== node.module) && !isCert && (
-                    <text
-                      x={isOnRight ? x - ampX - 4 : x + ampX + 4}
-                      y={y - pinH / 2}
-                      textAnchor={isOnRight ? "end" : "start"}
-                      fontSize="8" fontFamily="monospace"
-                      fill="hsl(155, 60%, 40%)" opacity="0.5"
-                      fontWeight="bold" letterSpacing="2"
-                    >
+                    <text x={isOnRight ? x - ampX - 4 : x + ampX + 4} y={y - pinH / 2} textAnchor={isOnRight ? "end" : "start"} fontSize="8" fontFamily="monospace" fill="hsl(155, 60%, 40%)" opacity="0.5" fontWeight="bold" letterSpacing="2">
                       M{node.module}
                     </text>
                   )}
-
-                  {/* Pin shadow */}
                   <ellipse cx={pinX} cy={pinTop + pinH + 3} rx={pinW * 0.28} ry={3.5} fill="rgba(0,0,0,0.45)" />
-
-                  {/* Pin body */}
                   <g filter={isHovered || isSelected ? "url(#vPinGlow)" : "none"}
                     style={{ transition: "transform 0.15s ease", transform: isHovered && !isLocked ? `translate(0px, -5px)` : "none" }}>
                     <path
-                      d={`
-                        M ${pinX} ${pinTop + pinH}
-                        C ${pinX - 2} ${pinTop + pinH - 10}, ${pinX - pinW/2} ${pinTop + pinH * 0.65}, ${pinX - pinW/2} ${pinTop + pinH * 0.42}
-                        A ${pinW/2} ${pinH * 0.45} 0 1 1 ${pinX + pinW/2} ${pinTop + pinH * 0.42}
-                        C ${pinX + pinW/2} ${pinTop + pinH * 0.65}, ${pinX + 2} ${pinTop + pinH - 10}, ${pinX} ${pinTop + pinH}
-                        Z
-                      `}
+                      d={`M ${pinX} ${pinTop + pinH} C ${pinX - 2} ${pinTop + pinH - 10}, ${pinX - pinW / 2} ${pinTop + pinH * 0.65}, ${pinX - pinW / 2} ${pinTop + pinH * 0.42} A ${pinW / 2} ${pinH * 0.45} 0 1 1 ${pinX + pinW / 2} ${pinTop + pinH * 0.42} C ${pinX + pinW / 2} ${pinTop + pinH * 0.65}, ${pinX + 2} ${pinTop + pinH - 10}, ${pinX} ${pinTop + pinH} Z`}
                       fill={isLocked ? "hsl(215, 18%, 18%)" : pinColor}
                       stroke={isSelected && !isCert ? "white" : isLocked ? "hsl(215, 20%, 28%)" : "rgba(255,255,255,0.18)"}
                       strokeWidth={isSelected ? "2" : "1"}
                       opacity={isLocked ? 0.6 : 1}
                     />
-                    {/* Inner highlight */}
-                    <ellipse
-                      cx={pinX - pinW * 0.1}
-                      cy={pinTop + pinH * 0.28}
-                      rx={pinW * 0.18} ry={pinH * 0.14}
-                      fill="rgba(255,255,255,0.22)"
-                      style={{ filter: isLocked ? "grayscale(1)" : "none" }}
-                    />
-                    {/* Icon */}
-                    <text x={pinX} y={pinTop + pinH * 0.46}
-                      textAnchor="middle" dominantBaseline="middle"
-                      fontSize={isCert ? 17 : 14}
-                      style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}>
+                    <ellipse cx={pinX - pinW * 0.1} cy={pinTop + pinH * 0.28} rx={pinW * 0.18} ry={pinH * 0.14} fill="rgba(255,255,255,0.22)" style={{ filter: isLocked ? "grayscale(1)" : "none" }} />
+                    <text x={pinX} y={pinTop + pinH * 0.46} textAnchor="middle" dominantBaseline="middle" fontSize={isCert ? 17 : 14} style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}>
                       {isLocked ? "🔒" : node.icon}
                     </text>
-                    {/* Done check */}
                     {isDone && (
                       <g>
-                        <circle cx={pinX + pinW/2 - 2} cy={pinTop + 4} r="7"
-                          fill="hsl(155, 60%, 38%)" stroke="hsl(155, 65%, 52%)" strokeWidth="1.5" />
-                        <text x={pinX + pinW/2 - 2} y={pinTop + 4}
-                          textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
+                        <circle cx={pinX + pinW / 2 - 2} cy={pinTop + 4} r="7" fill="hsl(155, 60%, 38%)" stroke="hsl(155, 65%, 52%)" strokeWidth="1.5" />
+                        <text x={pinX + pinW / 2 - 2} y={pinTop + 4} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
                       </g>
                     )}
                   </g>
-
-                  {/* Road anchor dot */}
-                  <circle cx={x} cy={y} r={isSelected ? 6 : 4}
-                    fill={isLocked ? "hsl(215, 20%, 28%)" : pinColor}
-                    stroke="hsl(215, 25%, 9%)" strokeWidth="2"
-                    style={{ filter: !isLocked ? `drop-shadow(0 0 5px ${pinColor})` : "none" }} />
-
-                  {/* Connector line from dot to pin base */}
-                  <line
-                    x1={x} y1={y}
-                    x2={pinX} y2={pinTop + pinH - 2}
-                    stroke={isLocked ? "hsl(215, 20%, 28%)" : pinColor}
-                    strokeWidth="1.5" opacity="0.5"
-                    strokeDasharray="3 2"
-                  />
+                  <circle cx={x} cy={y} r={isSelected ? 6 : 4} fill={isLocked ? "hsl(215, 20%, 28%)" : pinColor} stroke="hsl(215, 25%, 9%)" strokeWidth="2" style={{ filter: !isLocked ? `drop-shadow(0 0 5px ${pinColor})` : "none" }} />
+                  <line x1={x} y1={y} x2={pinX} y2={pinTop + pinH - 2} stroke={isLocked ? "hsl(215, 20%, 28%)" : pinColor} strokeWidth="1.5" opacity="0.5" strokeDasharray="3 2" />
                 </g>
               );
             })}
           </svg>
 
-          {/* ── HTML LABELS (sit opposite the pin) ── */}
           {ROADMAP_NODES.map((node, index) => {
             const { x, y } = vNodePos[index];
-            const isCert   = isCertificate(node);
-            const isDone   = node.status === "done";
+            const isCert = isCertificate(node);
+            const isDone = node.status === "done";
             const isActive = node.status === "active";
-            const isLocked = node.status === "locked" && !isCert;
             const isSelected = activeNodeId === node.id;
             const isOnRight = x > midX;
             const pinH = isCert ? 54 : 46;
-            // Label on the opposite side from the pin
             const labelX = isOnRight ? x - ampX - 12 : x + ampX + 12;
             const labelW = 80;
 
             return (
-              <div key={`vlabel-${node.id}`}
-                className="absolute pointer-events-none"
-                style={{
-                  left: isOnRight ? labelX - labelW : labelX,
-                  top: y - pinH / 2 - 4,
-                  width: labelW,
-                  textAlign: isOnRight ? "right" : "left",
-                }}
-              >
-                <p className={`font-display text-xs font-bold leading-tight ${
-                  isCert ? "text-[hsl(45_90%_65%)]"
-                  : isDone || isActive || isSelected ? "text-foreground"
-                  : "text-muted-foreground/85"
-                }`}
+              <div key={`vlabel-${node.id}`} className="absolute pointer-events-none"
+                style={{ left: isOnRight ? labelX - labelW : labelX, top: y - pinH / 2 - 4, width: labelW, textAlign: isOnRight ? "right" : "left" }}>
+                <p className={`font-display text-xs font-bold leading-tight ${isCert ? "text-[hsl(45_90%_65%)]" : isDone || isActive || isSelected ? "text-foreground" : "text-muted-foreground/85"}`}
                   style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
                   {node.title}
                 </p>
-                <p className="text-xs font-body text-muted-foreground/85 mt-0.5 leading-tight">
-                  {node.subtitle}
-                </p>
+                <p className="text-xs font-body text-muted-foreground/85 mt-0.5 leading-tight">{node.subtitle}</p>
               </div>
             );
           })}
-
         </div>
       </div>
     </div>
@@ -1599,6 +1342,8 @@ const SUGGESTIONS = [
 ];
 
 // ─── AI Chat Panel ────────────────────────────────────────────────────────────
+
+const GEMINI_KEY = "AIzaSyBmwJ3p_H-Ux-cTXHw7Izecx2wC_6Pa678";
 
 const AIChatPanel = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -1639,20 +1384,34 @@ const AIChatPanel = () => {
         .filter((m) => m.id !== 0)
         .map((m) => ({ role: m.role, content: m.text }));
 
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system:
-            "Você é um tutor especialista em programação e desenvolvimento Full Stack. Responda em português brasileiro, de forma clara, didática e amigável. Use exemplos de código quando for útil. Seja conciso mas completo. Contexto: o aluno está estudando uma trilha Dev Full Stack com módulos sobre: Introdução ao Mercado Tech, Fundamentos de Programação, Lógica e Algoritmos, Git & Versionamento, Deploy na Nuvem, Front-end (HTML/CSS), JavaScript ES6+, React, Back-end (Node.js/APIs), Banco de Dados e DevOps.",
-          messages: [...history, { role: "user", content: trimmed }],
-        }),
-      });
+      const systemPrompt =
+        "Você é um tutor especialista em programação e desenvolvimento Full Stack. Responda em português brasileiro, de forma clara, didática e amigável. Use exemplos de código quando for útil. Seja conciso mas completo. Contexto: o aluno está estudando uma trilha Dev Full Stack com módulos sobre: Introdução ao Mercado Tech, Fundamentos de Programação, Lógica e Algoritmos, Git & Versionamento, Deploy na Nuvem, Front-end (HTML/CSS), JavaScript ES6+, React, Back-end (Node.js/APIs), Banco de Dados e DevOps.";
+
+      const geminiHistory = [
+        { role: "user", parts: [{ text: systemPrompt }] },
+        { role: "model", parts: [{ text: "Entendido! Estou pronto para ajudar." }] },
+        ...history.map((m) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content as string }],
+        })),
+        { role: "user", parts: [{ text: trimmed }] },
+      ];
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: geminiHistory }),
+        }
+      );
 
       const data = await res.json();
-      const reply = data.content?.map((b: { type: string; text?: string }) => b.text || "").join("") || "Desculpe, não consegui responder agora.";
+
+      const reply =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        data.error?.message ||
+        "Desculpe, não consegui responder agora.";
 
       const aiMsg: ChatMessage = {
         id: Date.now() + 1,
@@ -1682,7 +1441,6 @@ const AIChatPanel = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border/40">
         <div className="flex items-center gap-2 mb-0.5">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
@@ -1692,7 +1450,6 @@ const AIChatPanel = () => {
         <p className="text-sm text-foreground/70 font-body mt-0.5">Tire dúvidas sobre qualquer conteúdo da trilha</p>
       </div>
 
-      {/* Messages */}
       <div
         className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
         style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
@@ -1705,7 +1462,6 @@ const AIChatPanel = () => {
             transition={{ delay: i === 0 ? 0.2 : 0 }}
             className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
           >
-            {/* Avatar */}
             <div
               className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={
@@ -1717,22 +1473,12 @@ const AIChatPanel = () => {
               {msg.role === "assistant" ? "IA" : "EU"}
             </div>
 
-            {/* Bubble */}
             <div
               className="max-w-[80%] px-3 py-2 rounded-sm text-xs font-body leading-relaxed"
               style={
                 msg.role === "assistant"
-                  ? {
-                      background: "hsl(215 25% 12%)",
-                      border: "1px solid hsl(155 60% 45% / 0.2)",
-                      color: "hsl(215 15% 85%)",
-                      boxShadow: "0 0 8px hsl(155 60% 45% / 0.05)",
-                    }
-                  : {
-                      background: "hsl(155 60% 20% / 0.4)",
-                      border: "1px solid hsl(155 60% 45% / 0.3)",
-                      color: "hsl(155 30% 90%)",
-                    }
+                  ? { background: "hsl(215 25% 12%)", border: "1px solid hsl(155 60% 45% / 0.2)", color: "hsl(215 15% 85%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.05)" }
+                  : { background: "hsl(155 60% 20% / 0.4)", border: "1px solid hsl(155 60% 45% / 0.3)", color: "hsl(155 30% 90%)" }
               }
             >
               <pre className="whitespace-pre-wrap font-body text-xs leading-relaxed" style={{ fontFamily: "inherit" }}>
@@ -1743,7 +1489,6 @@ const AIChatPanel = () => {
           </motion.div>
         ))}
 
-        {/* Loading indicator */}
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
@@ -1763,7 +1508,6 @@ const AIChatPanel = () => {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggestions */}
       {messages.length <= 1 && (
         <div className="shrink-0 px-3 pb-2">
           <p className="text-xs font-accent text-foreground/65 uppercase tracking-widest mb-2">Sugestões</p>
@@ -1781,7 +1525,6 @@ const AIChatPanel = () => {
         </div>
       )}
 
-      {/* Input area */}
       <div className="shrink-0 px-3 pb-3 pt-2 border-t border-border/40">
         <div className="flex gap-2 items-end">
           <textarea
@@ -1826,17 +1569,12 @@ const CoursesPage = () => {
     <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
       <Header />
 
-      {/* Top bar */}
       <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border/50 bg-background/40 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <Link
-            to="/perfil"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition"
-          >
+          <Link to="/perfil" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition">
             <ArrowLeft size={14} /> Voltar
           </Link>
         </div>
-
         <div className="flex items-center gap-3">
           <span className="text-xs font-accent text-muted-foreground tracking-widest uppercase hidden sm:block">Módulo 1 · Fundamentos</span>
           <span className="text-muted-foreground/85 hidden sm:block">·</span>
@@ -1844,12 +1582,9 @@ const CoursesPage = () => {
             Trilha <span className="text-primary" style={{ textShadow: "0 0 12px hsl(155 60% 45% / 0.5)" }}>Dev Full Stack</span>
           </h1>
         </div>
-
-        <div className="flex items-center gap-3">
-        </div>
+        <div className="flex items-center gap-3" />
       </div>
 
-      {/* Body */}
       <div className="relative flex flex-1 overflow-hidden divide-x divide-border/30">
 
         {/* COL 1 — AI Chat */}
@@ -1872,7 +1607,7 @@ const CoursesPage = () => {
           )}
         </AnimatePresence>
 
-        {/* COL 2 — Roadmap (always visible, adapts orientation) */}
+        {/* COL 2 — Roadmap */}
         <motion.div
           layout
           transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
@@ -1905,7 +1640,6 @@ const CoursesPage = () => {
                 className="overflow-y-auto px-4 py-4"
                 style={{ height: columnHeight, minWidth: 280, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
               >
-                {/* Tab bar */}
                 <div className="flex gap-1.5 mb-5 flex-wrap">
                   {TABS.map((tab) => (
                     <button
@@ -1950,9 +1684,7 @@ const CoursesPage = () => {
 
       </div>
 
-      {/* ── Floating column toggle buttons (teardrop shape) ── */}
-
-      {/* Botão IA — gota com raiz plana na esquerda, ponta para direita */}
+      {/* Botão IA */}
       <motion.button
         onClick={() => setShowChat((v) => !v)}
         title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
@@ -1961,27 +1693,11 @@ const CoursesPage = () => {
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
         className="fixed z-50 cursor-pointer border-0 p-0"
-        style={{
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 28,
-          height: 72,
-          background: "none",
-          filter: showChat
-            ? "drop-shadow(3px 0 10px hsl(155 60% 45% / 0.55))"
-            : "drop-shadow(3px 0 7px hsl(0 0% 0% / 0.55))",
-        }}
+        style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showChat ? "drop-shadow(3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(3px 0 7px hsl(0 0% 0% / 0.55))" }}
       >
         <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
-          {/* Raiz plana na esquerda, curva suave até a ponta na direita — forma de gota real */}
-          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72 Z"
-            fill={showChat ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"}
-          />
-          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72"
-            stroke={showChat ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"}
-            strokeWidth="1"
-            fill="none"
-          />
+          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72 Z" fill={showChat ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
+          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72" stroke={showChat ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingLeft: 2 }}>
           <span style={{ fontSize: 13, color: showChat ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
@@ -1990,7 +1706,7 @@ const CoursesPage = () => {
         </div>
       </motion.button>
 
-      {/* Botão Aulas — gota com raiz plana na direita, ponta para esquerda */}
+      {/* Botão Aulas */}
       <motion.button
         onClick={() => setShowCourses((v) => !v)}
         title={showCourses ? "Ocultar Aulas" : "Mostrar Aulas"}
@@ -1999,27 +1715,11 @@ const CoursesPage = () => {
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
         className="fixed z-50 cursor-pointer border-0 p-0"
-        style={{
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 28,
-          height: 72,
-          background: "none",
-          filter: showCourses
-            ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))"
-            : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))",
-        }}
+        style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showCourses ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))" }}
       >
         <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
-          {/* Raiz plana na direita, curva suave até a ponta na esquerda */}
-          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z"
-            fill={showCourses ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"}
-          />
-          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72"
-            stroke={showCourses ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"}
-            strokeWidth="1"
-            fill="none"
-          />
+          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z" fill={showCourses ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
+          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showCourses ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingRight: 2 }}>
           <span style={{ fontSize: 13, color: showCourses ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
