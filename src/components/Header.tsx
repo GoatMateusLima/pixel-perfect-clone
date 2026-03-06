@@ -7,8 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const KEY_PHOTO = "upjobs_profile_photo_v2";
 
 const NAV_ITEMS = [
-  { label: "Início",    href: "/",          icon: Home    },
-  { label: "RoadMaps",  href: "/roadmap",  icon: Map     },
+  { label: "Início",    href: "/roadmap",          icon: Home    },
   { label: "Perfil",    href: "/perfil",    icon: User    },
   { label: "Suporte",   href: "/suporte",   icon: LifeBuoy },
   { label: "Comunidade",     href: "/comunidade", icon: Globe },
