@@ -1,10 +1,28 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Share2, ImageIcon, X, Send,
   Bookmark, MoreHorizontal, TrendingUp, Users, Zap,
-  Trophy, BookOpen, ExternalLink, Clock, ChevronRight, Flame,
+  Trophy, BookOpen, ExternalLink, Clock, ChevronRight, Flame, User,
 } from "lucide-react";
+import Header from "@/components/Header";
+import { useAuth } from "@/contexts/AuthContext";
+
+// ─── Imagens DISC (mesmas do ProfilePage) ─────────────────────────────────────
+import dominanciaImg   from "@/assets/disc/Dominancia.webp";
+import influenciaImg   from "@/assets/disc/Influencia.webp";
+import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
+import conformidadeImg from "@/assets/disc/Conformidade.webp";
+
+const DISC_IMGS: Record<string, string> = {
+  D: dominanciaImg,
+  I: influenciaImg,
+  S: estabilidadeImg,
+  C: conformidadeImg,
+};
+
+// ─── Chave do localStorage ────────────────────────────────────────────────────
+const KEY_PHOTO = "upjobs_profile_photo_v2";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -197,18 +215,24 @@ const TOP_MEMBERS = [
   { name: "Fernanda Lima",  avatar: "FL", disc: "S", posts: 29, badge: "🥉" },
 ];
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+// ─── Avatar genérico (outros usuários — sem DISC ring image) ─────────────────
 
-const Avatar = ({ initials, disc, size = "md" }: { initials: string; disc: string; size?: "sm" | "md" | "lg" }) => {
+const Avatar = ({
+  initials, disc, size = "md",
+}: {
+  initials: string;
+  disc: string;
+  size?: "sm" | "md" | "lg";
+}) => {
   const sz = size === "sm" ? "w-7 h-7 text-[10px]" : size === "lg" ? "w-12 h-12 text-base" : "w-9 h-9 text-xs";
   return (
     <div
       className={`${sz} rounded-full flex items-center justify-center font-display font-bold flex-shrink-0`}
       style={{
-        background: `linear-gradient(135deg, ${DISC_COLOR[disc]}33, ${DISC_COLOR[disc]}15)`,
-        border: `2px solid ${DISC_COLOR[disc]}60`,
-        color: DISC_COLOR[disc],
-        boxShadow: `0 0 10px ${DISC_COLOR[disc]}25`,
+        background: `linear-gradient(135deg, ${DISC_COLOR[disc] ?? DISC_COLOR.S}33, ${DISC_COLOR[disc] ?? DISC_COLOR.S}15)`,
+        border: `2px solid ${DISC_COLOR[disc] ?? DISC_COLOR.S}60`,
+        color: DISC_COLOR[disc] ?? DISC_COLOR.S,
+        boxShadow: `0 0 10px ${DISC_COLOR[disc] ?? DISC_COLOR.S}25`,
       }}
     >
       {initials}
@@ -216,13 +240,101 @@ const Avatar = ({ initials, disc, size = "md" }: { initials: string; disc: strin
   );
 };
 
+// ─── MyAvatar — igual ao ProfilePage: DISC ring image + foto por cima ─────────
+//
+//  Estrutura (idêntica ao ProfilePage):
+//  ┌─────────────── outerSize ──────────────────┐
+//  │  [DISC ring image — cobre tudo, circular]  │
+//  │       ┌──── innerSize (centralizado) ────┐  │
+//  │       │  foto do perfil / iniciais / ícone│  │
+//  │       └────────────────────────────────┘  │
+//  └────────────────────────────────────────────┘
+
+const MyAvatar = ({
+  photoSrc, name, disc, size = "md",
+}: {
+  photoSrc: string | null;
+  name: string;
+  disc: string;
+  size?: "sm" | "md" | "lg";
+}) => {
+  // Dimensões que espelham o ProfilePage (112px outer / 80px inner)
+  // mas escaladas para sm/md/lg
+  const cfg = {
+    sm: { outer: 28, inner: 20, iconSize: 10, textSize: "text-[8px]" },
+    md: { outer: 36, inner: 26, iconSize: 13, textSize: "text-[9px]" },
+    lg: { outer: 48, inner: 34, iconSize: 16, textSize: "text-xs"    },
+  }[size];
+
+  const discImg = DISC_IMGS[disc];
+  const initials = name?.slice(0, 2).toUpperCase() ?? "VC";
+
+  return (
+    <div
+      className="relative flex-shrink-0 flex items-center justify-center"
+      style={{ width: cfg.outer, height: cfg.outer }}
+    >
+      {/* ── Anel DISC (imagem, igual ao ProfilePage) ── */}
+      {discImg ? (
+        <img
+          src={discImg}
+          alt={DISC_LABEL[disc] ?? "DISC"}
+          className="absolute inset-0 w-full h-full rounded-full object-cover"
+          style={{ zIndex: 1 }}
+        />
+      ) : (
+        /* fallback: anel colorido sólido */
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: DISC_COLOR[disc] ?? DISC_COLOR.S,
+            zIndex: 1,
+            boxShadow: `0 0 12px ${DISC_COLOR[disc] ?? DISC_COLOR.S}50`,
+          }}
+        />
+      )}
+
+      {/* ── Foto / iniciais / ícone (por cima do anel) ── */}
+      <div
+        className={`
+          absolute rounded-full overflow-hidden flex items-center justify-center
+          font-display font-bold ${cfg.textSize} z-10
+        `}
+        style={{
+          width: cfg.inner,
+          height: cfg.inner,
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          background: photoSrc ? undefined : "hsl(var(--secondary))",
+          border: "2px solid hsl(var(--background))",
+          color: DISC_COLOR[disc] ?? DISC_COLOR.S,
+        }}
+      >
+        {photoSrc ? (
+          <img src={photoSrc} alt="Foto" className="w-full h-full object-cover" />
+        ) : initials ? (
+          <span>{initials}</span>
+        ) : (
+          <User size={cfg.iconSize} />
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
-const PostCard = ({ post, onLike, onSave, onComment }: {
+const PostCard = ({
+  post, onLike, onSave, onComment, myPhotoSrc, myName, myDisc,
+}: {
   post: Post;
   onLike: (id: number) => void;
   onSave: (id: number) => void;
   onComment: (id: number, text: string) => void;
+  myPhotoSrc: string | null;
+  myName: string;
+  myDisc: string;
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -233,6 +345,8 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
     onComment(post.id, commentText.trim());
     setCommentText("");
   };
+
+  const isMe = post.avatar === "VC" || post.author === myName;
 
   return (
     <motion.div
@@ -246,12 +360,22 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
       {/* Header */}
       <div className="p-5 pb-0 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <Avatar initials={post.avatar} disc={post.disc} size="lg" />
+          {isMe ? (
+            <MyAvatar photoSrc={myPhotoSrc} name={myName} disc={myDisc} size="lg" />
+          ) : (
+            <Avatar initials={post.avatar} disc={post.disc} size="lg" />
+          )}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-accent font-semibold text-sm text-foreground">{post.author}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                style={{ background: `${DISC_COLOR[post.disc]}18`, color: DISC_COLOR[post.disc], border: `1px solid ${DISC_COLOR[post.disc]}40` }}>
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
+                style={{
+                  background: `${DISC_COLOR[post.disc]}18`,
+                  color: DISC_COLOR[post.disc],
+                  border: `1px solid ${DISC_COLOR[post.disc]}40`,
+                }}
+              >
                 {post.disc} · {DISC_LABEL[post.disc]}
               </span>
             </div>
@@ -259,14 +383,20 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
             <p className="text-[10px] text-muted-foreground font-body opacity-60">{post.time}</p>
           </div>
         </div>
+
+        {/* Menu */}
         <div className="relative">
           <button onClick={() => setShowMenu(!showMenu)} className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm">
             <MoreHorizontal size={16} />
           </button>
           <AnimatePresence>
             {showMenu && (
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body"
+              >
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Denunciar post</button>
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Copiar link</button>
               </motion.div>
@@ -288,22 +418,27 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
         </div>
       )}
 
-      {/* Stats row */}
+      {/* Stats */}
       <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
         <span>{post.likes} curtidas</span>
-        <button onClick={() => setShowComments(!showComments)} className="hover:text-foreground transition">{post.comments.length} comentários</button>
+        <button onClick={() => setShowComments(!showComments)} className="hover:text-foreground transition">
+          {post.comments.length} comentários
+        </button>
       </div>
 
-      {/* Action bar */}
+      {/* Actions */}
       <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
         {[
-          { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,   active: post.liked,  color: "text-rose-400", fn: () => onLike(post.id) },
-          { label: "Comentar",     el: <MessageCircle size={14} />,                                           active: false,       color: "",             fn: () => setShowComments(!showComments) },
-          { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved,  color: "text-primary", fn: () => onSave(post.id) },
-          { label: "Compartilhar", el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: () => {} },
+          { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => onLike(post.id) },
+          { label: "Comentar",     el: <MessageCircle size={14} />,                                            active: false,       color: "",             fn: () => setShowComments(!showComments) },
+          { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => onSave(post.id) },
+          { label: "Compartilhar", el: <Share2 size={14} />,                                                  active: false,       color: "",             fn: () => {} },
         ].map(({ label, el, active, color, fn }) => (
-          <button key={label} onClick={fn}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
+          <button
+            key={label}
+            onClick={fn}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}
+          >
             {el} {label}
           </button>
         ))}
@@ -312,8 +447,13 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
       {/* Comments */}
       <AnimatePresence>
         {showComments && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
-            className="border-t border-border/30 overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="border-t border-border/30 overflow-hidden"
+          >
             <div className="px-5 py-4 space-y-3">
               {post.comments.map((c) => (
                 <div key={c.id} className="flex gap-2.5">
@@ -324,14 +464,23 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
                   </div>
                 </div>
               ))}
+
+              {/* Input comentário com MyAvatar */}
               <div className="flex gap-2.5 pt-1">
-                <Avatar initials="VC" disc="S" size="sm" />
+                <MyAvatar photoSrc={myPhotoSrc} name={myName} disc={myDisc} size="sm" />
                 <div className="flex-1 flex gap-2">
-                  <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
+                  <input
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submit()}
                     placeholder="Escreva um comentário..."
-                    className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition" />
-                  <button onClick={submit} className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110" style={{ background: "hsl(155 60% 35%)" }}>
+                    className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition"
+                  />
+                  <button
+                    onClick={submit}
+                    className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110"
+                    style={{ background: "hsl(155 60% 35%)" }}
+                  >
                     <Send size={12} />
                   </button>
                 </div>
@@ -346,7 +495,14 @@ const PostCard = ({ post, onLike, onSave, onComment }: {
 
 // ─── CreatePost ───────────────────────────────────────────────────────────────
 
-const CreatePost = ({ onPost }: { onPost: (content: string, image?: string) => void }) => {
+const CreatePost = ({
+  onPost, myPhotoSrc, myName, myDisc,
+}: {
+  onPost: (content: string, image?: string) => void;
+  myPhotoSrc: string | null;
+  myName: string;
+  myDisc: string;
+}) => {
   const [expanded, setExpanded] = useState(false);
   const [content, setContent] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -368,48 +524,65 @@ const CreatePost = ({ onPost }: { onPost: (content: string, image?: string) => v
 
   return (
     <motion.div layout className="hologram-panel rounded-sm p-5">
-      <div className="flex gap-3">
-        <Avatar initials="VC" disc="S" size="lg" />
+      <div className="flex gap-3 items-start">
+        <MyAvatar photoSrc={myPhotoSrc} name={myName} disc={myDisc} size="lg" />
         <div className="flex-1">
           {!expanded ? (
-            <button onClick={() => setExpanded(true)}
-              className="w-full text-left px-4 py-2.5 rounded-sm bg-secondary/40 border border-border/40 text-sm font-body text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 transition">
+            <button
+              onClick={() => setExpanded(true)}
+              className="w-full text-left px-4 py-2.5 rounded-sm bg-secondary/40 border border-border/40 text-sm font-body text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 transition"
+            >
               No que você está pensando?
             </button>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-              <textarea autoFocus value={content} onChange={(e) => setContent(e.target.value)}
+              <textarea
+                autoFocus
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
                 placeholder="Compartilhe um insight, conquista ou dúvida com a comunidade..."
                 rows={4}
-                className="w-full px-4 py-3 rounded-sm bg-secondary/30 border border-border/50 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition resize-none" />
-
+                className="w-full px-4 py-3 rounded-sm bg-secondary/30 border border-border/50 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition resize-none"
+              />
               <AnimatePresence>
                 {imagePreview && (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative rounded-sm overflow-hidden border border-border/40">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="relative rounded-sm overflow-hidden border border-border/40"
+                  >
                     <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-cover" />
-                    <button onClick={() => { setImagePreview(null); if (fileRef.current) fileRef.current.value = ""; }}
-                      className="absolute top-2 right-2 p-1 rounded-full bg-background/80 text-foreground hover:bg-background transition">
+                    <button
+                      onClick={() => { setImagePreview(null); if (fileRef.current) fileRef.current.value = ""; }}
+                      className="absolute top-2 right-2 p-1 rounded-full bg-background/80 text-foreground hover:bg-background transition"
+                    >
                       <X size={14} />
                     </button>
                   </motion.div>
                 )}
               </AnimatePresence>
-
               <div className="flex items-center justify-between">
-                <button onClick={() => fileRef.current?.click()}
-                  className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40">
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40"
+                >
                   <ImageIcon size={14} /> Adicionar imagem
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
                 <div className="flex gap-2">
-                  <button onClick={() => { setContent(""); setImagePreview(null); setExpanded(false); }}
-                    className="px-3 py-1.5 text-xs font-accent text-muted-foreground border border-border rounded-sm hover:text-foreground transition">
+                  <button
+                    onClick={() => { setContent(""); setImagePreview(null); setExpanded(false); }}
+                    className="px-3 py-1.5 text-xs font-accent text-muted-foreground border border-border rounded-sm hover:text-foreground transition"
+                  >
                     Cancelar
                   </button>
-                  <button onClick={submit} disabled={!content.trim()}
+                  <button
+                    onClick={submit}
+                    disabled={!content.trim()}
                     className="px-4 py-1.5 text-xs font-accent font-bold text-primary-foreground rounded-sm transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed box-glow-accent"
-                    style={{ background: "hsl(25 90% 55%)" }}>
+                    style={{ background: "hsl(25 90% 55%)" }}
+                  >
                     Publicar
                   </button>
                 </div>
@@ -424,105 +597,182 @@ const CreatePost = ({ onPost }: { onPost: (content: string, image?: string) => v
 
 // ─── Sidebar Esquerda ─────────────────────────────────────────────────────────
 
-const LeftSidebar = () => (
-  <div className="space-y-4">
-    {/* Mini Perfil */}
-    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
-      className="hologram-panel rounded-sm overflow-hidden">
-      <div className="h-16 w-full" style={{ background: "linear-gradient(135deg, hsl(155 60% 35% / 0.4), hsl(200 70% 50% / 0.3), hsl(25 90% 55% / 0.2))" }} />
-      <div className="px-4 pb-4">
-        <div className="flex items-end gap-3 -mt-6 mb-3">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-base flex-shrink-0"
-            style={{ background: `linear-gradient(135deg, ${DISC_COLOR.S}33, ${DISC_COLOR.S}15)`, border: `2px solid ${DISC_COLOR.S}`, color: DISC_COLOR.S, boxShadow: `0 0 14px ${DISC_COLOR.S}35` }}>
-            VC
-          </div>
-          <div className="mb-0.5">
-            <p className="font-accent font-semibold text-sm text-foreground leading-none">Você</p>
-            <p className="text-[10px] text-muted-foreground font-body mt-0.5">Membro · UpJobs</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] px-2 py-0.5 rounded-sm font-accent font-semibold"
-            style={{ background: `${DISC_COLOR.S}18`, color: DISC_COLOR.S, border: `1px solid ${DISC_COLOR.S}40` }}>
-            S · Estabilidade
-          </span>
-          <span className="text-[10px] font-accent text-accent font-semibold">R$ 85/h</span>
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <p className="text-[10px] text-muted-foreground font-accent flex items-center gap-1"><BookOpen size={10} /> Trilha atual</p>
-            <span className="text-[10px] text-primary font-accent">65%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-            <motion.div initial={{ width: 0 }} animate={{ width: "65%" }} transition={{ delay: 0.6, duration: 1 }}
-              className="h-full rounded-full" style={{ background: "linear-gradient(90deg, hsl(155 60% 35%), hsl(155 60% 55%))" }} />
-          </div>
-          <p className="text-[10px] text-muted-foreground font-body mt-1">Machine Learning Avançado</p>
-        </div>
-      </div>
-    </motion.div>
+const LeftSidebar = ({
+  myPhotoSrc, myName, myDisc, myRole, myHourValue, myCourseProgress, myCourseTitle,
+}: {
+  myPhotoSrc: string | null;
+  myName: string;
+  myDisc: string;
+  myRole: string;
+  myHourValue: string;
+  myCourseProgress: number;
+  myCourseTitle: string;
+}) => {
+  const discImg = DISC_IMGS[myDisc];
+  const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
 
-    {/* Tópicos em Alta */}
-    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-      className="hologram-panel rounded-sm p-4">
-      <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-        <Flame size={14} className="text-accent" /> Tópicos em Alta
-      </h3>
-      <div className="space-y-2.5">
-        {TRENDING.map((t, i) => (
-          <motion.button key={t.tag} whileHover={{ x: 3 }} className="w-full flex items-center justify-between text-left group">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-accent w-3">{i + 1}</span>
-              <span className="text-xs font-accent font-semibold text-primary group-hover:brightness-125 transition">{t.tag}</span>
+  return (
+    <div className="space-y-4">
+
+      {/* ── Mini Perfil com DISC ring igual ao ProfilePage ── */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+        className="hologram-panel rounded-sm overflow-hidden"
+      >
+        {/* Banner */}
+        <div
+          className="h-16 w-full"
+          style={{
+            background: `linear-gradient(135deg, ${discColor}44 0%, hsl(200 70% 50% / 0.2) 100%)`,
+          }}
+        />
+
+        <div className="px-4 pb-4">
+          {/* Avatar com DISC ring — estrutura idêntica ao ProfilePage */}
+          <div className="flex items-end gap-3 -mt-7 mb-3">
+            <div
+              className="relative flex-shrink-0 flex items-center justify-center"
+              style={{ width: 56, height: 56 }}
+            >
+              {/* Anel DISC (imagem circular) */}
+              {discImg ? (
+                <img
+                  src={discImg}
+                  alt={DISC_LABEL[myDisc] ?? "DISC"}
+                  className="absolute inset-0 w-full h-full rounded-full object-cover"
+                  style={{ zIndex: 1 }}
+                />
+              ) : (
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{ background: discColor, zIndex: 1, boxShadow: `0 0 14px ${discColor}50` }}
+                />
+              )}
+
+              {/* Foto / iniciais por cima do anel */}
+              <div
+                className="absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-xs z-10"
+                style={{
+                  width: 40,
+                  height: 40,
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background: myPhotoSrc ? undefined : "hsl(var(--secondary))",
+                  border: "2.5px solid hsl(var(--background))",
+                  color: discColor,
+                }}
+              >
+                {myPhotoSrc
+                  ? <img src={myPhotoSrc} alt="Foto" className="w-full h-full object-cover" />
+                  : <span>{myName.slice(0, 2).toUpperCase()}</span>
+                }
+              </div>
             </div>
-            <span className="text-[10px] text-muted-foreground font-body">{t.posts.toLocaleString("pt-BR")}</span>
-          </motion.button>
-        ))}
-      </div>
-    </motion.div>
 
-    {/* Top Membros */}
-    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-      className="hologram-panel rounded-sm p-4">
-      <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-        <Trophy size={14} className="text-accent" /> Membros em Destaque
-      </h3>
-      <div className="space-y-3">
-        {TOP_MEMBERS.map((m) => (
-          <div key={m.name} className="flex items-center gap-2.5">
-            <span className="text-sm">{m.badge}</span>
-            <Avatar initials={m.avatar} disc={m.disc} size="sm" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-accent font-semibold text-foreground truncate">{m.name}</p>
-              <p className="text-[10px] text-muted-foreground font-body">{m.posts} posts este mês</p>
+            <div className="mb-0.5">
+              <p className="font-accent font-semibold text-sm text-foreground leading-none">{myName || "Você"}</p>
+              <p className="text-[10px] text-muted-foreground font-body mt-0.5">{myRole}</p>
             </div>
           </div>
-        ))}
-      </div>
-    </motion.div>
 
-    {/* Stats */}
-    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-      className="hologram-panel rounded-sm p-4">
-      <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-        <Zap size={14} className="text-primary" /> Comunidade Hoje
-      </h3>
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { label: "Membros", value: "2.4k", color: "hsl(155 60% 45%)" },
-          { label: "Posts",   value: "138",  color: "hsl(25 90% 55%)"  },
-          { label: "Online",  value: "94",   color: "hsl(45 90% 55%)"  },
-          { label: "Vagas",   value: "412",  color: "hsl(210 70% 55%)" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-sm p-2 text-center" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
-            <p className="font-display text-sm font-bold" style={{ color }}>{value}</p>
-            <p className="text-[9px] text-muted-foreground font-accent uppercase tracking-wide">{label}</p>
+          {/* DISC badge + hora */}
+          <div className="flex items-center justify-between mb-3">
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-sm font-accent font-semibold"
+              style={{ background: `${discColor}18`, color: discColor, border: `1px solid ${discColor}40` }}
+            >
+              {myDisc} · {DISC_LABEL[myDisc] ?? "—"}
+            </span>
+            <span className="text-[10px] font-accent text-accent font-semibold">{myHourValue}</span>
           </div>
-        ))}
-      </div>
-    </motion.div>
-  </div>
-);
+
+          {/* Progresso da trilha */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <p className="text-[10px] text-muted-foreground font-accent flex items-center gap-1">
+                <BookOpen size={10} /> Trilha atual
+              </p>
+              <span className="text-[10px] text-primary font-accent">{myCourseProgress}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${myCourseProgress}%` }}
+                transition={{ delay: 0.6, duration: 1 }}
+                className="h-full rounded-full"
+                style={{ background: "linear-gradient(90deg, hsl(155 60% 35%), hsl(155 60% 55%))" }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground font-body mt-1 truncate">{myCourseTitle}</p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Tópicos em Alta */}
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+        className="hologram-panel rounded-sm p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+          <Flame size={14} className="text-accent" /> Tópicos em Alta
+        </h3>
+        <div className="space-y-2.5">
+          {TRENDING.map((t, i) => (
+            <motion.button key={t.tag} whileHover={{ x: 3 }} className="w-full flex items-center justify-between text-left group">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground font-accent w-3">{i + 1}</span>
+                <span className="text-xs font-accent font-semibold text-primary group-hover:brightness-125 transition">{t.tag}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground font-body">{t.posts.toLocaleString("pt-BR")}</span>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Membros em Destaque */}
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+        className="hologram-panel rounded-sm p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+          <Trophy size={14} className="text-accent" /> Membros em Destaque
+        </h3>
+        <div className="space-y-3">
+          {TOP_MEMBERS.map((m) => (
+            <div key={m.name} className="flex items-center gap-2.5">
+              <span className="text-sm">{m.badge}</span>
+              <Avatar initials={m.avatar} disc={m.disc} size="sm" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-accent font-semibold text-foreground truncate">{m.name}</p>
+                <p className="text-[10px] text-muted-foreground font-body">{m.posts} posts este mês</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Stats */}
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
+        className="hologram-panel rounded-sm p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+          <Zap size={14} className="text-primary" /> Comunidade Hoje
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "Membros", value: "2.4k", color: "hsl(155 60% 45%)" },
+            { label: "Posts",   value: "138",  color: "hsl(25 90% 55%)"  },
+            { label: "Online",  value: "94",   color: "hsl(45 90% 55%)"  },
+            { label: "Vagas",   value: "412",  color: "hsl(210 70% 55%)" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="rounded-sm p-2 text-center" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
+              <p className="font-display text-sm font-bold" style={{ color }}>{value}</p>
+              <p className="text-[9px] text-muted-foreground font-accent uppercase tracking-wide">{label}</p>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 // ─── Sidebar Direita — Notícias ───────────────────────────────────────────────
 
@@ -533,7 +783,6 @@ const RightSidebar = () => {
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
       className="hologram-panel rounded-sm overflow-hidden">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-border/30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp size={14} className="text-accent" />
@@ -545,7 +794,6 @@ const RightSidebar = () => {
         </a>
       </div>
 
-      {/* News list */}
       <div className="divide-y divide-border/20">
         <AnimatePresence>
           {visible.map((news, i) => (
@@ -554,7 +802,6 @@ const RightSidebar = () => {
               whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }}
               className="block px-4 py-3 group transition">
               <div className="flex gap-3">
-                {/* Thumb */}
                 <div className="w-16 h-[52px] rounded-sm overflow-hidden flex-shrink-0 bg-secondary/40 relative">
                   <img src={news.image} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
                   {news.hot && (
@@ -562,7 +809,6 @@ const RightSidebar = () => {
                       style={{ background: "hsl(25 90% 55%)", color: "#fff" }}>HOT</span>
                   )}
                 </div>
-                {/* Text */}
                 <div className="flex-1 min-w-0">
                   <span className="text-[9px] font-accent font-semibold px-1.5 py-0.5 rounded-sm mb-1.5 inline-block"
                     style={{ background: `${news.categoryColor}18`, color: news.categoryColor, border: `1px solid ${news.categoryColor}30` }}>
@@ -580,7 +826,6 @@ const RightSidebar = () => {
         </AnimatePresence>
       </div>
 
-      {/* Ver mais */}
       <button onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-2.5 text-[11px] font-accent font-semibold text-muted-foreground hover:text-primary transition flex items-center justify-center gap-1 border-t border-border/30">
         {expanded ? "Ver menos" : "Ver todas as notícias"}
@@ -593,13 +838,38 @@ const RightSidebar = () => {
 // ─── CommunityPage ────────────────────────────────────────────────────────────
 
 const CommunityPage = () => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [filter, setFilter] = useState<"recentes" | "populares">("recentes");
+  const [myPhotoSrc, setMyPhotoSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMyPhotoSrc(localStorage.getItem(KEY_PHOTO));
+  }, [user]);
+
+  const myName  = user?.name ?? "Você";
+  const myDisc  = user?.assessment?.discProfile ?? "S";
+  const myHourValue = user?.assessment?.valorHoraLiquida
+    ? `R$ ${user.assessment.valorHoraLiquida.toFixed(0)}/h`
+    : "—";
+  const myRole           = "Membro · UpJobs";
+  const myCourseProgress = 65;
+  const myCourseTitle    = "Machine Learning Avançado";
 
   const handlePost = (content: string, image?: string) => {
     setPosts((prev) => [{
-      id: Date.now(), author: "Você", avatar: "VC", role: "Membro da Comunidade",
-      disc: "S", time: "agora", content, image, likes: 0, liked: false, saved: false, comments: [],
+      id: Date.now(),
+      author: myName,
+      avatar: "VC",
+      role: myRole,
+      disc: myDisc as "D" | "I" | "S" | "C",
+      time: "agora",
+      content,
+      image,
+      likes: 0,
+      liked: false,
+      saved: false,
+      comments: [],
     }, ...prev]);
   };
 
@@ -611,82 +881,103 @@ const CommunityPage = () => {
 
   const handleComment = (id: number, text: string) =>
     setPosts((prev) => prev.map((p) =>
-      p.id === id ? { ...p, comments: [...p.comments, { id: Date.now(), author: "Você", avatar: "VC", disc: "S", text, time: "agora" }] } : p
+      p.id === id
+        ? { ...p, comments: [...p.comments, { id: Date.now(), author: myName, avatar: "VC", disc: myDisc, text, time: "agora" }] }
+        : p
     ));
 
-  const sortedPosts = filter === "populares" ? [...posts].sort((a, b) => b.likes - a.likes) : posts;
+  const sortedPosts = filter === "populares"
+    ? [...posts].sort((a, b) => b.likes - a.likes)
+    : posts;
 
   return (
-    <div className="min-h-screen gradient-hero scanline px-4 pt-24 pb-16">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen gradient-hero scanline">
+      <Header />
 
-        {/* Page header */}
-        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-glow">Comunidade</h1>
-            <p className="text-xs text-muted-foreground font-body mt-0.5">Compartilhe conquistas, dicas e insights com a rede UpJobs</p>
-          </div>
-          <div className="flex gap-3">
-            {[
-              { icon: Users,      label: "2.4k membros", color: "hsl(155 60% 45%)" },
-              { icon: TrendingUp, label: "↑ 18% hoje",   color: "hsl(25 90% 55%)"  },
-              { icon: Zap,        label: "94 online",     color: "hsl(45 90% 55%)"  },
-            ].map(({ icon: Icon, label, color }) => (
-              <div key={label} className="flex items-center gap-1 text-[10px] font-accent font-semibold px-2 py-1 rounded-sm"
-                style={{ color, background: `${color}12`, border: `1px solid ${color}30` }}>
-                <Icon size={10} /> <span className="hidden sm:inline">{label}</span>
+      <div className="px-4 pt-24 pb-16">
+        <div className="max-w-7xl mx-auto">
+
+          {/* Page header */}
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="font-display text-2xl font-bold text-glow">Comunidade</h1>
+              <p className="text-xs text-muted-foreground font-body mt-0.5">Compartilhe conquistas, dicas e insights com a rede UpJobs</p>
+            </div>
+            <div className="flex gap-3">
+              {[
+                { icon: Users,      label: "2.4k membros", color: "hsl(155 60% 45%)" },
+                { icon: TrendingUp, label: "↑ 18% hoje",   color: "hsl(25 90% 55%)"  },
+                { icon: Zap,        label: "94 online",     color: "hsl(45 90% 55%)"  },
+              ].map(({ icon: Icon, label, color }) => (
+                <div key={label} className="flex items-center gap-1 text-[10px] font-accent font-semibold px-2 py-1 rounded-sm"
+                  style={{ color, background: `${color}12`, border: `1px solid ${color}30` }}>
+                  <Icon size={10} /> <span className="hidden sm:inline">{label}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Grid 3 colunas */}
+          <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6">
+
+            <aside className="hidden lg:block">
+              <div className="sticky top-24">
+                <LeftSidebar
+                  myPhotoSrc={myPhotoSrc}
+                  myName={myName}
+                  myDisc={myDisc}
+                  myRole={myRole}
+                  myHourValue={myHourValue}
+                  myCourseProgress={myCourseProgress}
+                  myCourseTitle={myCourseTitle}
+                />
               </div>
-            ))}
-          </div>
-        </motion.div>
+            </aside>
 
-        {/* Layout 3 colunas */}
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6">
+            <main className="space-y-4 min-w-0">
+              <div className="flex gap-2">
+                {(["recentes", "populares"] as const).map((f) => (
+                  <button key={f} onClick={() => setFilter(f)}
+                    className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition ${filter === f ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
+                    style={filter === f ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
+                    {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+                  </button>
+                ))}
+              </div>
 
-          {/* Esquerda */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-24">
-              <LeftSidebar />
-            </div>
-          </aside>
+              <CreatePost onPost={handlePost} myPhotoSrc={myPhotoSrc} myName={myName} myDisc={myDisc} />
 
-          {/* Feed central */}
-          <main className="space-y-4 min-w-0">
-            <div className="flex gap-2">
-              {(["recentes", "populares"] as const).map((f) => (
-                <button key={f} onClick={() => setFilter(f)}
-                  className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition ${filter === f ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
-                  style={filter === f ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
-                  {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+              <AnimatePresence mode="popLayout">
+                {sortedPosts.map((post, i) => (
+                  <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <PostCard
+                      post={post}
+                      onLike={handleLike}
+                      onSave={handleSave}
+                      onComment={handleComment}
+                      myPhotoSrc={myPhotoSrc}
+                      myName={myName}
+                      myDisc={myDisc}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              <div className="text-center pt-2">
+                <button className="text-xs font-accent text-muted-foreground hover:text-foreground transition px-6 py-2 rounded-sm border border-border/40 hover:border-border">
+                  Carregar mais posts
                 </button>
-              ))}
-            </div>
+              </div>
+            </main>
 
-            <CreatePost onPost={handlePost} />
+            <aside className="hidden lg:block">
+              <div className="sticky top-24">
+                <RightSidebar />
+              </div>
+            </aside>
 
-            <AnimatePresence mode="popLayout">
-              {sortedPosts.map((post, i) => (
-                <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <PostCard post={post} onLike={handleLike} onSave={handleSave} onComment={handleComment} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            <div className="text-center pt-2">
-              <button className="text-xs font-accent text-muted-foreground hover:text-foreground transition px-6 py-2 rounded-sm border border-border/40 hover:border-border">
-                Carregar mais posts
-              </button>
-            </div>
-          </main>
-
-          {/* Direita — Notícias */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-24">
-              <RightSidebar />
-            </div>
-          </aside>
-
+          </div>
         </div>
       </div>
     </div>
