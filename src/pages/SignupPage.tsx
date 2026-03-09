@@ -4,6 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { ArrowLeft, UserPlus } from "lucide-react";
 
+import supabase from "../../utils/supabase";
+import { log } from "console";
+
+
+
 const SignupPage = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
@@ -13,15 +18,33 @@ const SignupPage = () => {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+ 
+
+
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!name || !email || !password || !confirm) { setError("Preencha todos os campos."); return; }
     if (password.length < 6) { setError("A senha deve ter pelo menos 6 caracteres."); return; }
     if (password !== confirm) { setError("As senhas não coincidem."); return; }
-    const ok = signup(name, email, password);
-    if (ok) { navigate("/avaliacao"); }
     else { setError("Este e-mail já está cadastrado."); }
+
+    const  {data, error} = await supabase.auth.signUp({
+      email: email,
+      password: password
+    });
+
+    alert("oakdoasjdjasjdaj")
+
+    if (error){
+      console.log("Problema no envio de LOgin e senha")
+      alert("Problema no envio de LOgin e senha")
+    } else {
+      console.log("sucesso em seu login, bem vindo: ")
+      alert("sucesso, seu kogia ")
+      navigate("/avaliacao");
+      
+    }
   };
 
   return (

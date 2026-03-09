@@ -18,6 +18,7 @@ import SupportPage from "./pages/SupportPage";
 import ProtectedRoute from "./contexts/ProtectedRoute";
 import AuthRoute from "./contexts/AuthRoute";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
