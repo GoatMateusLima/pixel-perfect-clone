@@ -1345,7 +1345,7 @@ const SUGGESTIONS = [
 
 // ─── AI Chat Panel ────────────────────────────────────────────────────────────
 
-const GEMINI_KEY = "AIzaSyBmwJ3p_H-Ux-cTXHw7Izecx2wC_6Pa678";
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
 
 const AIChatPanel = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
