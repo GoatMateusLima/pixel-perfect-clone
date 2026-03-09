@@ -15,6 +15,8 @@ import CoursesPage from "./pages/CoursesPage";
 import RoadmapSection from "./pages/RoadmapSection";
 import CommunityPage from "./pages/CommunityPage (2)";
 import SupportPage from "./pages/SupportPage";
+import ProtectedRoute from "./contexts/ProtectedRoute";
+import AuthRoute from "./contexts/AuthRoute";
 
 const queryClient = new QueryClient();
 
@@ -27,13 +29,13 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/cadastro" element={<SignupPage />} />
+            <Route path="/login" element=<AuthRoute>{<LoginPage />}</AuthRoute> />
+            <Route path="/cadastro" element=<AuthRoute>{<SignupPage />}</AuthRoute> />
             <Route path="/avaliacao" element={<AssessmentPage />} />
             <Route path="/resultado" element={<ResultPage />} />
-            <Route path="/perfil" element={<ProfilePage />} />
+            <Route path="/perfil" element=<ProtectedRoute>{<ProfilePage />}</ProtectedRoute> />
             <Route path="/courses" element={<CoursesPage/>}/>
-            <Route path="/roadmap" element={<RoadmapSection />} />
+            <Route path="/roadmap" element=<ProtectedRoute>{<RoadmapSection />}</ProtectedRoute> />
             <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="/suporte" element={<SupportPage />} />
             <Route path="*" element={<NotFound />} />
