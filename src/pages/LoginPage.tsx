@@ -4,25 +4,38 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { ArrowLeft, LogIn } from "lucide-react";
 
+import supabase from "../../utils/supabase";
+
 const LoginPage = () => {
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     setError("");
     if (!email || !password) { setError("Preencha todos os campos."); return; }
-    const ok = login(email, password);
-    if (ok) {
-      const users = JSON.parse(localStorage.getItem("upjobs_users") || "[]");
-      const found = users.find((u: any) => u.email === email);
-      navigate(found?.assessment?.completed ? "/perfil" : "/avaliacao");
-    }
     else { setError("E-mail ou senha incorretos."); }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      setError(error.message);
+    } else{
+      alert("seja bem vindo")
+      navigate("/perfil" );
+    }
+
+
   };
 
   return (

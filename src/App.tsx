@@ -16,6 +16,7 @@ import RoadmapSection from "./pages/RoadmapSection";
 import CommunityPage from "./pages/CommunityPage (2)";
 import SupportPage from "./pages/SupportPage";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
