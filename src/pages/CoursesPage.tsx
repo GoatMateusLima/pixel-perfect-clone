@@ -1345,7 +1345,7 @@ const SUGGESTIONS = [
 
 // ─── AI Chat Panel ────────────────────────────────────────────────────────────
 
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
+const AI_KEY = import.meta.env.VITE_AI_KEY;
 
 const AIChatPanel = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -1389,29 +1389,25 @@ const AIChatPanel = () => {
       const systemPrompt =
         "Você é um tutor especialista em programação e desenvolvimento Full Stack. Responda em português brasileiro, de forma clara, didática e amigável. Use exemplos de código quando for útil. Seja conciso mas completo. Contexto: o aluno está estudando uma trilha Dev Full Stack com módulos sobre: Introdução ao Mercado Tech, Fundamentos de Programação, Lógica e Algoritmos, Git & Versionamento, Deploy na Nuvem, Front-end (HTML/CSS), JavaScript ES6+, React, Back-end (Node.js/APIs), Banco de Dados e DevOps.";
 
-      const geminiHistory = [
-        { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "Entendido! Estou pronto para ajudar." }] },
-        ...history.map((m) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content as string }],
-        })),
-        { role: "user", parts: [{ text: trimmed }] },
-      ];
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: geminiHistory }),
-        }
-      );
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${AI_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.2-3b-instruct:free",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...history,
+            { role: "user", content: trimmed },
+          ],
+        }),
+      });
 
       const data = await res.json();
-
       const reply =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        data.choices?.[0]?.message?.content ||
         data.error?.message ||
         "Desculpe, não consegui responder agora.";
 
@@ -1423,7 +1419,7 @@ const AIChatPanel = () => {
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar com a IA. Tente novamente.", ts: "agora" },
