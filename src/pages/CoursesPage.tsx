@@ -1384,10 +1384,11 @@ const AIChatPanel = () => {
     try {
       const history = messages
         .filter((m) => m.id !== 0)
+        .slice(-4)  
         .map((m) => ({ role: m.role, content: m.text }));
 
       const systemPrompt =
-        "Você é um tutor especialista em programação e desenvolvimento Full Stack. Responda em português brasileiro, de forma clara, didática e amigável. Use exemplos de código quando for útil. Seja conciso mas completo. Contexto: o aluno está estudando uma trilha Dev Full Stack com módulos sobre: Introdução ao Mercado Tech, Fundamentos de Programação, Lógica e Algoritmos, Git & Versionamento, Deploy na Nuvem, Front-end (HTML/CSS), JavaScript ES6+, React, Back-end (Node.js/APIs), Banco de Dados e DevOps.";
+        "Seu nome é Aria. Você é tutora especialista em programação e transição de carreira para tech. Responda SEMPRE em português brasileiro.Identifique o tipo de pergunta e use o formato adequado:Se for pergunta TÉCNICA (código, ferramenta, conceito de programação): 📖 O QUE É | 🔑 TERMOS-CHAVE | ⚙️ COMO FUNCIONA | 🎯 COMO APLICAR | 🌐 PARA SE APROFUNDAR Se for pergunta de CARREIRA (salário, mercado, transição, vaga): Responda de forma direta e conversacional, como uma mentora experiente. Sem seções, só conselhos práticos. Se for SAUDAÇÃO ou conversa casual: Responda brevemente e pergunte como pode ajudar.Seja sempre concisa. Máximo 3 linhas por seção nas respostas técnicas.";
 
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -1396,7 +1397,7 @@ const AIChatPanel = () => {
           "Authorization": `Bearer ${AI_KEY}`,
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.2-3b-instruct:free",
+          model: "openrouter/free",
           messages: [
             { role: "system", content: systemPrompt },
             ...history,
