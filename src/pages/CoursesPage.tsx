@@ -179,7 +179,6 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
   );
 };
 
-
 const DuvidasTab = () => {
   const [doubts, setDoubts] = useState<Doubt[]>(DOUBTS);
   const [newDoubt, setNewDoubt] = useState("");
@@ -356,7 +355,7 @@ const ROADMAP_NODES: RoadmapNode[] = [
 
 // ─── Roadmap Component ────────────────────────────────────────────────────────
 
-const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { activeNodeId: number; onSelectNode: (id: number) => void; horizontal?: boolean }) => {
+const RoadmapPanel = ({ activeNodeId, onSelectNode }: { activeNodeId: number; onSelectNode: (id: number) => void }) => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [panelW, setPanelW] = useState(220);
@@ -372,203 +371,6 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode, horizontal = false }: { acti
 
   const isCertificate = (node: RoadmapNode) => node.id === 12;
 
-  if (horizontal) {
-    const HEADER_H = 72;
-    const canvasH = panelH - HEADER_H;
-    const N = ROADMAP_NODES.length;
-    const stepX = Math.max(110, panelW / (N - 1 + 1.5));
-    const totalW = Math.max(panelW, stepX * (N + 0.5));
-    const midY = canvasH * 0.5;
-    const amp = Math.min(canvasH * 0.28, 90);
-
-    const nodePos = ROADMAP_NODES.map((node, i) => {
-      const isCert = isCertificate(node);
-      const x = 60 + i * stepX;
-      const y = isCert ? midY : midY + (i % 2 === 0 ? -amp : amp);
-      return { x, y };
-    });
-
-    const buildRoadPath = () => {
-      if (nodePos.length === 0) return "";
-      let d = `M ${nodePos[0].x} ${nodePos[0].y}`;
-      for (let i = 1; i < nodePos.length; i++) {
-        const p0 = nodePos[i - 1];
-        const p1 = nodePos[i];
-        const dx = (p1.x - p0.x) * 0.5;
-        d += ` C ${p0.x + dx} ${p0.y}, ${p1.x - dx} ${p1.y}, ${p1.x} ${p1.y}`;
-      }
-      return d;
-    };
-
-    const segmentPaths = ROADMAP_NODES.slice(1).map((node, i) => {
-      const p0 = nodePos[i];
-      const p1 = nodePos[i + 1];
-      const dx = (p1.x - p0.x) * 0.5;
-      const d = `M ${p0.x} ${p0.y} C ${p0.x + dx} ${p0.y}, ${p1.x - dx} ${p1.y}, ${p1.x} ${p1.y}`;
-      const prev = ROADMAP_NODES[i];
-      const lit = prev.status === "done" || prev.status === "active";
-      return { d, lit, key: node.id };
-    });
-
-    const roadPath = buildRoadPath();
-
-    const PIN_COLORS: Record<string, string> = {
-      done: "hsl(155 60% 45%)",
-      active: "hsl(25 90% 55%)",
-      locked: "hsl(215 20% 35%)",
-    };
-    const PIN_GLOW: Record<string, string> = {
-      done: "hsl(155 60% 45% / 0.6)",
-      active: "hsl(25 90% 55% / 0.6)",
-      locked: "transparent",
-    };
-
-    return (
-      <div ref={containerRef} className="relative w-full h-full overflow-hidden flex flex-col">
-        <div
-          className="shrink-0 px-6 pt-4 pb-2 border-b border-border/30 bg-background/60 backdrop-blur-sm flex items-center justify-between"
-          style={{ height: HEADER_H }}
-        >
-          <div>
-            <p className="text-xs font-accent font-semibold text-foreground/70 tracking-widest uppercase mb-0.5">Sua Jornada</p>
-            <h2 className="font-display text-sm font-bold text-foreground leading-tight">
-              Trilha <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>Dev Full Stack</span>
-            </h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-accent text-foreground/70">Progresso <span className="text-primary font-bold">2 / 11</span></span>
-            <div className="w-28 h-0.5 rounded-full bg-secondary overflow-hidden">
-              <motion.div initial={{ width: 0 }} animate={{ width: "18%" }} transition={{ delay: 0.5, duration: 1 }}
-                className="h-full rounded-full bg-primary" style={{ boxShadow: "0 0 6px hsl(155 60% 45% / 0.8)" }} />
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="flex-1 overflow-x-auto overflow-y-hidden"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}
-        >
-          <div className="relative" style={{ width: totalW, height: canvasH }}>
-            <svg className="absolute inset-0 pointer-events-none" width={totalW} height={canvasH} style={{ overflow: "visible" }}>
-              <defs>
-                <filter id="roadGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-                <filter id="pinGlow" x="-40%" y="-40%" width="180%" height="180%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-              </defs>
-
-              {segmentPaths.map(({ d, lit, key }) => (
-                <g key={key}>
-                  <path d={d} fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={d} fill="none" stroke={lit ? "hsl(155, 45%, 22%)" : "hsl(215, 18%, 14%)"} strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={d} fill="none" stroke={lit ? "hsl(155, 55%, 40%)" : "hsl(215, 20%, 28%)"} strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" style={{ mixBlendMode: "screen", opacity: 0.15 }} />
-                </g>
-              ))}
-
-              <path d={roadPath} fill="none" stroke="hsl(215, 15%, 50%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.45" />
-
-              {segmentPaths.filter(s => s.lit).map(({ d, key }) => (
-                <path key={`dash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 50%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.6" />
-              ))}
-
-              {segmentPaths.filter(s => s.lit).map(({ d, key }) => (
-                <circle key={`dot-${key}`} r="3" fill="hsl(155, 70%, 60%)" filter="url(#roadGlow)" opacity="0.9">
-                  <animateMotion dur="3s" repeatCount="indefinite" path={d} />
-                </circle>
-              ))}
-
-              {ROADMAP_NODES.map((node, index) => {
-                const { x, y } = nodePos[index];
-                const isCert = isCertificate(node);
-                const isDone = node.status === "done";
-                const isActive = node.status === "active";
-                const isLocked = node.status === "locked" && !isCert;
-                const isSelected = activeNodeId === node.id;
-                const isHovered = hoveredId === node.id;
-                const statusKey = isCert ? "active" : isDone ? "done" : isActive ? "active" : "locked";
-                const pinColor = isCert ? "hsl(45, 90%, 55%)" : PIN_COLORS[statusKey];
-                const pinGlow = isCert ? "hsl(45, 90%, 55% / 0.6)" : PIN_GLOW[statusKey];
-                const pinH = isCert ? 56 : 48;
-                const pinW = isCert ? 46 : 38;
-                const pinY = y - pinH - 4;
-
-                return (
-                  <g key={node.id}
-                    onClick={() => !isLocked && onSelectNode(node.id)}
-                    onMouseEnter={() => setHoveredId(node.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
-                  >
-                    {(isActive || isSelected) && !isCert && (
-                      <circle cx={x} cy={y} r="16" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
-                        <animate attributeName="r" values="14;24;14" dur="1.8s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
-                      </circle>
-                    )}
-                    {isCert && (
-                      <circle cx={x} cy={y} r="22" fill="none" stroke="hsl(45, 90%, 55%)" strokeWidth="2" opacity="0.4">
-                        <animate attributeName="r" values="20;34;20" dur="2.5s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
-                      </circle>
-                    )}
-                    <g filter={isHovered || isSelected ? "url(#pinGlow)" : "none"}>
-                      <ellipse cx={x} cy={pinY + pinH + 2} rx={pinW * 0.3} ry={4} fill="rgba(0,0,0,0.4)" />
-                      <path
-                        d={`M ${x} ${pinY + pinH} C ${x - 2} ${pinY + pinH - 10}, ${x - pinW / 2} ${pinY + pinH * 0.65}, ${x - pinW / 2} ${pinY + pinH * 0.42} A ${pinW / 2} ${pinH * 0.45} 0 1 1 ${x + pinW / 2} ${pinY + pinH * 0.42} C ${x + pinW / 2} ${pinY + pinH * 0.65}, ${x + 2} ${pinY + pinH - 10}, ${x} ${pinY + pinH} Z`}
-                        fill={isLocked ? "hsl(215, 18%, 20%)" : pinColor}
-                        stroke={isLocked ? "hsl(215, 20%, 30%)" : isSelected ? "white" : "rgba(255,255,255,0.2)"}
-                        strokeWidth={isSelected ? "2" : "1"}
-                        style={{ filter: isLocked ? "saturate(0) brightness(0.6)" : "none", opacity: isHovered ? 1 : 0.92, transition: "all 0.15s ease" }}
-                      />
-                      <ellipse cx={x - pinW * 0.12} cy={pinY + pinH * 0.28} rx={pinW * 0.18} ry={pinH * 0.14} fill="rgba(255,255,255,0.25)" />
-                      <text x={x} y={pinY + pinH * 0.47} textAnchor="middle" dominantBaseline="middle" fontSize={isCert ? 18 : 15} style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}>
-                        {isLocked ? "🔒" : node.icon}
-                      </text>
-                      {isDone && (
-                        <g>
-                          <circle cx={x + pinW / 2 - 2} cy={pinY + 4} r="7" fill="hsl(155, 60%, 40%)" stroke="hsl(155, 60%, 55%)" strokeWidth="1.5" />
-                          <text x={x + pinW / 2 - 2} y={pinY + 4} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✓</text>
-                        </g>
-                      )}
-                    </g>
-                    <circle cx={x} cy={y} r={isSelected ? 6 : 4} fill={isLocked ? "hsl(215, 20%, 30%)" : pinColor} stroke="hsl(215, 25%, 10%)" strokeWidth="2" style={{ filter: !isLocked ? `drop-shadow(0 0 4px ${pinGlow})` : "none" }} />
-                  </g>
-                );
-              })}
-            </svg>
-
-            {ROADMAP_NODES.map((node, index) => {
-              const { x, y } = nodePos[index];
-              const isCert = isCertificate(node);
-              const isDone = node.status === "done";
-              const isActive = node.status === "active";
-              const isSelected = activeNodeId === node.id;
-              const isAbove = y < midY;
-              const pinH = isCert ? 56 : 48;
-              const labelY = isAbove ? y + 18 : y - pinH - 62;
-
-              return (
-                <div key={`label-${node.id}`} className="absolute pointer-events-none"
-                  style={{ left: x, top: labelY, transform: "translateX(-50%)", width: 90, textAlign: "center" }}>
-                  <p className={`font-display text-xs font-bold leading-tight ${isCert ? "text-[hsl(45_90%_65%)]" : isDone || isActive || isSelected ? "text-foreground" : "text-muted-foreground/90"}`}
-                    style={isCert ? { textShadow: "0 0 8px hsl(45 90% 55% / 0.5)" } : {}}>
-                    {node.title}
-                  </p>
-                  <p className="text-xs font-body text-muted-foreground/85 mt-0.5 leading-tight">{node.subtitle}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── VERTICAL MODE ─────────────────────────────────────────────────────────
   const HEADER_H_V = 110;
   const ROW_H = 100;
   const totalH = HEADER_H_V + ROADMAP_NODES.length * ROW_H + 60;
@@ -998,11 +800,9 @@ const CoursesPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("aula");
   const [activeNodeId, setActiveNodeId] = useState(3);
   const [showChat, setShowChat] = useState(true);
-  const [showCourses, setShowCourses] = useState(true);
+  const [showRoadmap, setShowRoadmap] = useState(true);
 
   const chatColRef = useRef<HTMLDivElement>(null);
-  const coursesColRef = useRef<HTMLDivElement>(null);
-  const onlyRoadmap = !showChat && !showCourses;
   const columnHeight = "calc(100vh - 152px)";
 
   return (
@@ -1034,7 +834,7 @@ const CoursesPage = () => {
               key="chat-col"
               ref={chatColRef}
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: onlyRoadmap ? 0 : "33.333%", opacity: 1 }}
+              animate={{ width: showRoadmap ? "33.333%" : "50%", opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
               className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
@@ -1047,76 +847,74 @@ const CoursesPage = () => {
           )}
         </AnimatePresence>
 
-        {/* COL 2 — Roadmap */}
+        {/* COL 2 — Course content (always visible, fills remaining space) */}
         <motion.div
           layout
           transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-          className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden"
+          className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden"
           style={{ flex: 1, minWidth: 0 }}
         >
-          <div style={{ height: columnHeight }}>
-            <RoadmapPanel
-              activeNodeId={activeNodeId}
-              onSelectNode={(id) => { setActiveNodeId(id); setActiveTab("aula"); }}
-              horizontal={onlyRoadmap}
-            />
+          <div
+            className="overflow-y-auto px-4 py-4"
+            style={{ height: columnHeight, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
+          >
+            <div className="flex gap-1.5 mb-5 flex-wrap">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs font-accent font-semibold transition-all
+                    ${activeTab === tab.id
+                      ? "bg-primary/15 text-primary border border-primary/50"
+                      : "text-foreground/65 border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
+                    }`}
+                  style={activeTab === tab.id ? { boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)" } : {}}
+                >
+                  {tab.icon}
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <motion.span
+                      layoutId="tab-ul"
+                      className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-primary"
+                      style={{ boxShadow: "0 0 5px hsl(155 60% 45%)" }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+              >
+                {activeTab === "aula" && <AulaTab activeLesson={activeNodeId <= 3 ? activeNodeId : 3} />}
+                {activeTab === "quiz" && <QuizTab />}
+                {activeTab === "duvidas" && <DuvidasTab />}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </motion.div>
 
-        {/* COL 3 — Course content */}
+        {/* COL 3 — Roadmap */}
         <AnimatePresence initial={false}>
-          {showCourses && (
+          {showRoadmap && (
             <motion.div
-              key="courses-col"
-              ref={coursesColRef}
+              key="roadmap-col"
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: "33.333%", opacity: 1 }}
+              animate={{ width: showChat ? "33.333%" : "50%", opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-              className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
+              className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden shrink-0"
               style={{ minWidth: 0 }}
             >
-              <div
-                className="overflow-y-auto px-4 py-4"
-                style={{ height: columnHeight, minWidth: 280, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
-              >
-                <div className="flex gap-1.5 mb-5 flex-wrap">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs font-accent font-semibold transition-all
-                        ${activeTab === tab.id
-                          ? "bg-primary/15 text-primary border border-primary/50"
-                          : "text-foreground/65 border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
-                        }`}
-                      style={activeTab === tab.id ? { boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)" } : {}}
-                    >
-                      {tab.icon}
-                      {tab.label}
-                      {activeTab === tab.id && (
-                        <motion.span
-                          layoutId="tab-ul"
-                          className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-primary"
-                          style={{ boxShadow: "0 0 5px hsl(155 60% 45%)" }}
-                        />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    {activeTab === "aula" && <AulaTab activeLesson={activeNodeId <= 3 ? activeNodeId : 3} />}
-                    {activeTab === "quiz" && <QuizTab />}
-                    {activeTab === "duvidas" && <DuvidasTab />}
-                  </motion.div>
-                </AnimatePresence>
+              <div style={{ height: columnHeight }}>
+                <RoadmapPanel
+                  activeNodeId={activeNodeId}
+                  onSelectNode={(id) => { setActiveNodeId(id); setActiveTab("aula"); }}
+                />
               </div>
             </motion.div>
           )}
@@ -1128,7 +926,7 @@ const CoursesPage = () => {
       <motion.button
         onClick={() => setShowChat((v) => !v)}
         title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
-        animate={{ left: showChat ? "33.333%" : "0px" }}
+        animate={{ left: showChat ? (showRoadmap ? "33.333%" : "50%") : "0px" }}
         transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
@@ -1146,24 +944,24 @@ const CoursesPage = () => {
         </div>
       </motion.button>
 
-      {/* Botão Aulas */}
+      {/* Botão Roadmap */}
       <motion.button
-        onClick={() => setShowCourses((v) => !v)}
-        title={showCourses ? "Ocultar Aulas" : "Mostrar Aulas"}
-        animate={{ right: showCourses ? "33.333%" : "0px" }}
+        onClick={() => setShowRoadmap((v) => !v)}
+        title={showRoadmap ? "Ocultar Roadmap" : "Mostrar Roadmap"}
+        animate={{ right: showRoadmap ? (showChat ? "33.333%" : "50%") : "0px" }}
         transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
         className="fixed z-50 cursor-pointer border-0 p-0"
-        style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showCourses ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))" }}
+        style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showRoadmap ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))" }}
       >
         <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
-          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z" fill={showCourses ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
-          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showCourses ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
+          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z" fill={showRoadmap ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
+          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showRoadmap ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingRight: 2 }}>
-          <span style={{ fontSize: 13, color: showCourses ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
-            {showCourses ? "›" : "‹"}
+          <span style={{ fontSize: 13, color: showRoadmap ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
+            {showRoadmap ? "›" : "‹"}
           </span>
         </div>
       </motion.button>
