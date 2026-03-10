@@ -633,14 +633,14 @@ const AIChatPanel = () => {
       const systemPrompt =
         "Seu nome é Aria. Você é tutora especialista em programação e transição de carreira para tech. Responda SEMPRE em português brasileiro.Identifique o tipo de pergunta e use o formato adequado:Se for pergunta TÉCNICA (código, ferramenta, conceito de programação): 📖 O QUE É | 🔑 TERMOS-CHAVE | ⚙️ COMO FUNCIONA | 🎯 COMO APLICAR | 🌐 PARA SE APROFUNDAR Se for pergunta de CARREIRA (salário, mercado, transição, vaga): Responda de forma direta e conversacional, como uma mentora experiente. Sem seções, só conselhos práticos. Se for SAUDAÇÃO ou conversa casual: Responda brevemente e pergunte como pode ajudar.Seja sempre concisa. Máximo 3 linhas por seção nas respostas técnicas.";
 
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${AI_KEY}`,
         },
         body: JSON.stringify({
-          model: "openrouter/free",
+          model: "llama-3.1-8b-instant",
           messages: [
             { role: "system", content: systemPrompt },
             ...history,
