@@ -16,6 +16,14 @@ import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal  from "@/components/ImageCropModal";
 import Header          from "@/components/Header";
 
+
+
+ import supabase from "../../utils/supabase";
+
+
+
+
+
 // ─── DISC ────────────────────────────────────────────────────────────────────
 const DISC_IMGS: Record<string, string> = {
   D: dominanciaImg, I: influenciaImg, S: estabilidadeImg, C: conformidadeImg,
