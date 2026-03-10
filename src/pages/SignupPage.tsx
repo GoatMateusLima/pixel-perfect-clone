@@ -1,25 +1,16 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { ArrowLeft, UserPlus } from "lucide-react";
-
 import supabase from "../../utils/supabase";
-import { log } from "console";
-
-
 
 const SignupPage = () => {
-  const { signup } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
-
- 
-
 
 const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

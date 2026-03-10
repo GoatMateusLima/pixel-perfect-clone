@@ -928,8 +928,6 @@ const CoursesPage = () => {
         title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
         animate={{ left: showChat ? (showRoadmap ? "33.333%" : "50%") : "0px" }}
         transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.94 }}
         className="fixed z-50 cursor-pointer border-0 p-0"
         style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showChat ? "drop-shadow(3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(3px 0 7px hsl(0 0% 0% / 0.55))" }}
       >
@@ -950,8 +948,6 @@ const CoursesPage = () => {
         title={showRoadmap ? "Ocultar Roadmap" : "Mostrar Roadmap"}
         animate={{ right: showRoadmap ? (showChat ? "33.333%" : "50%") : "0px" }}
         transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.94 }}
         className="fixed z-50 cursor-pointer border-0 p-0"
         style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showRoadmap ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))" }}
       >
