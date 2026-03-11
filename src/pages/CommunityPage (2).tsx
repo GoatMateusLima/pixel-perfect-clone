@@ -103,11 +103,20 @@ const KEY_PHOTO = "upjobs_profile_photo_v2";
 
 // ─── Tipos internos de UI ─────────────────────────────────────────────────────
 
+// Espelho da tabela pivot "comments" no Supabase
+export type DbComment = {
+  id?:            string;  // uuid PK
+  user_id?:       string;  // uuid FK
+  publication_id: string;  // uuid FK → publications
+  comment:        string;  // text
+  like?:          number;  // numeric
+};
+
 interface Comment {
-  id:          number;
+  id:          number | string;
   author:      string;
   initials:    string;
-  avatar_url?: string;   // URL da foto — profiles.avatar_url
+  avatar_url?: string;
   disc:        string;
   text:        string;
   time:        string;
@@ -115,7 +124,7 @@ interface Comment {
 
 // Post = Publication + profile JOIN + estado de UI
 interface Post extends Publication {
-  profile?:  Profile;   // dados do autor via JOIN com profiles
+  profile?:  Profile;
   liked:     boolean;
   saved:     boolean;
   comments:  Comment[];
@@ -317,35 +326,222 @@ const UserAvatar = ({
 
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
+// ─── PostModal ────────────────────────────────────────────────────────────────
+// Modal que abre ao clicar no post — carrega comentários do Supabase
+
+const PostModal = ({
+  post, onClose, onLike, onSave,
+  myAvatarUrl, myName, myDisc, myDiscRingImg, myUserId,
+}: {
+  post:          Post;
+  onClose:       () => void;
+  onLike:        (id: string) => void;
+  onSave:        (id: string) => void;
+  myAvatarUrl:   string | null;
+  myName:        string;
+  myDisc:        string;
+  myDiscRingImg: string | undefined;
+  myUserId?:     string;
+}) => {
+  const [commentText, setCommentText] = useState("");
+  const [dbComments,  setDbComments]  = useState<Comment[]>([]);
+  const [loading,     setLoading]     = useState(true);
+
+  // Carrega comentários da tabela pivot no Supabase ao abrir o modal
+  useEffect(() => {
+    if (!post.id) return;
+    const load = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("publication_id", post.id);
+      if (!error && data) {
+        setDbComments(data.map((c: DbComment) => ({
+          id:     c.id ?? Date.now(),
+          author: c.user_id ?? "Usuário",   // substituir por JOIN com profiles quando disponível
+          initials: (c.user_id ?? "U").slice(0, 2).toUpperCase(),
+          disc:   "S",
+          text:   c.comment,
+          time:   "—",
+        })));
+      }
+      setLoading(false);
+    };
+    load();
+  }, [post.id]);
+
+  // Salva comentário na tabela pivot e atualiza UI
+  const submitComment = async () => {
+    if (!commentText.trim() || !post.id) return;
+    const newDbComment: DbComment = {
+      user_id:        myUserId,
+      publication_id: post.id,
+      comment:        commentText.trim(),
+      like:           0,
+    };
+    const { error } = await supabase.from("comments").insert(newDbComment);
+    if (error) { alert(error.message); return; }
+    setDbComments((prev) => [...prev, {
+      id:       Date.now(),
+      author:   myName,
+      initials: toInitials(myName),
+      avatar_url: myAvatarUrl ?? undefined,
+      disc:     myDisc,
+      text:     commentText.trim(),
+      time:     "agora",
+    }]);
+    setCommentText("");
+  };
+
+  const authorName      = post.profile?.name      ?? "Usuário";
+  const authorAvatarUrl = post.profile?.avatar_url;
+  const authorRole      = post.profile?.role      ?? "";
+  const authorDisc      = post.profile?.disc      ?? "S";
+  const isMe            = post.creator_id === myUserId || authorName === myName;
+
+  // Copia o link do post para o clipboard usando o ID
+  const copyLink = () => {
+    const url = `${window.location.origin}/comunidade?post=${post.id}`;
+    navigator.clipboard.writeText(url);
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)" }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.2 }}
+          className="hologram-panel rounded-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header do modal */}
+          <div className="p-5 pb-0 flex items-start justify-between gap-3 flex-shrink-0">
+            <div className="flex items-start gap-3">
+              <UserAvatar
+                avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
+                name={isMe ? myName : authorName}
+                disc={isMe ? myDisc : authorDisc}
+                size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
+              />
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-accent font-semibold text-sm text-foreground">{isMe ? myName : authorName}</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
+                    style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
+                    {authorDisc} · {DISC_LABEL[authorDisc]}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
+                <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm flex-shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Conteúdo do post */}
+          <div className="px-5 py-4 flex-shrink-0">
+            <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line">{post.description}</p>
+          </div>
+          {post.midia && post.midia !== "EMPTY" && (
+            <div className="px-5 pb-4 flex-shrink-0">
+              <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 280 }}>
+                <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 280 }} />
+              </div>
+            </div>
+          )}
+
+          {/* Ações */}
+          <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3 flex-shrink-0">
+            <span>{post.like_qnt ?? 0} curtidas</span>
+            <span>{dbComments.length} comentários</span>
+          </div>
+          <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30 flex-shrink-0">
+            {[
+              { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />, active: post.liked, color: "text-rose-400", fn: () => post.id && onLike(post.id) },
+              { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved, color: "text-primary", fn: () => post.id && onSave(post.id) },
+              { label: "Copiar link",  el: <Share2 size={14} />, active: false, color: "", fn: copyLink },
+            ].map(({ label, el, active, color, fn }) => (
+              <button key={label} onClick={fn}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
+                {el} {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Comentários — carregados do Supabase */}
+          <div className="border-t border-border/30 overflow-y-auto flex-1 px-5 py-4 space-y-3">
+            {loading ? (
+              <p className="text-xs text-muted-foreground font-body text-center py-4">Carregando comentários...</p>
+            ) : dbComments.length === 0 ? (
+              <p className="text-xs text-muted-foreground font-body text-center py-4">Seja o primeiro a comentar!</p>
+            ) : (
+              dbComments.map((c) => (
+                <div key={c.id} className="flex gap-2.5">
+                  <UserAvatar avatarUrl={c.avatar_url} name={c.author} disc={c.disc} size="sm" />
+                  <div className="bg-secondary/30 rounded-sm px-3 py-2 flex-1">
+                    <p className="text-[11px] font-accent font-semibold text-foreground mb-0.5">{c.author}</p>
+                    <p className="text-xs font-body text-muted-foreground">{c.text}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input de novo comentário */}
+          <div className="flex gap-2.5 p-4 border-t border-border/30 flex-shrink-0">
+            <UserAvatar avatarUrl={myAvatarUrl} name={myName} disc={myDisc} size="sm" isMe discRingImg={myDiscRingImg} />
+            <div className="flex-1 flex gap-2">
+              <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
+                placeholder="Escreva um comentário..."
+                className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition" />
+              <button onClick={submitComment} className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110" style={{ background: "hsl(155 60% 35%)" }}>
+                <Send size={12} />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+// ─── PostCard ─────────────────────────────────────────────────────────────────
+
 const PostCard = ({
-  post, onLike, onSave, onComment,
+  post, onLike, onSave, onOpenModal,
   myAvatarUrl, myName, myDisc, myDiscRingImg,
 }: {
   post:          Post;
   onLike:        (id: string) => void;
   onSave:        (id: string) => void;
-  onComment:     (id: string, text: string) => void;
+  onOpenModal:   (post: Post) => void;
   myAvatarUrl:   string | null;
   myName:        string;
   myDisc:        string;
   myDiscRingImg: string | undefined;
 }) => {
-  const [showComments, setShowComments] = useState(false);
-  const [commentText,  setCommentText]  = useState("");
-  const [showMenu,     setShowMenu]     = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
-  const submit = () => {
-    if (!commentText.trim() || !post.id) return;
-    onComment(post.id, commentText.trim());
-    setCommentText("");
-  };
-
-  // Dados do autor vindos do JOIN com profiles
   const authorName      = post.profile?.name      ?? "Usuário";
-  const authorAvatarUrl = post.profile?.avatar_url;  // URL Supabase Storage
+  const authorAvatarUrl = post.profile?.avatar_url;
   const authorRole      = post.profile?.role      ?? "";
   const authorDisc      = post.profile?.disc      ?? "S";
   const isMe            = post.creator_id === "me" || authorName === myName;
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/comunidade?post=${post.id}`;
+    navigator.clipboard.writeText(url);
+    setShowMenu(false);
+  };
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
@@ -354,27 +550,22 @@ const PostCard = ({
 
       {/* Header */}
       <div className="p-5 pb-0 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 cursor-pointer" onClick={() => onOpenModal(post)}>
           <UserAvatar
             avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
             name={isMe ? myName : authorName}
             disc={isMe ? myDisc : authorDisc}
-            size="lg"
-            isMe={isMe}
-            discRingImg={isMe ? myDiscRingImg : undefined}
+            size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
           />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-accent font-semibold text-sm text-foreground">
-                {isMe ? myName : authorName}
-              </p>
+              <p className="font-accent font-semibold text-sm text-foreground">{isMe ? myName : authorName}</p>
               <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
                 style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
                 {authorDisc} · {DISC_LABEL[authorDisc]}
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-            {/* date = timestamptz da tabela publications */}
             <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
           </div>
         </div>
@@ -388,41 +579,39 @@ const PostCard = ({
               <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Denunciar post</button>
-                <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Copiar link</button>
+                <button onClick={copyLink} className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Copiar link</button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
 
-      {/* description = coluna text da tabela publications */}
-      <div className="px-5 py-4">
-        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line">{post.description}</p>
+      {/* Corpo clicável para abrir o modal */}
+      <div className="px-5 py-4 cursor-pointer" onClick={() => onOpenModal(post)}>
+        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">{post.description}</p>
       </div>
 
-      {/* midia = coluna text da tabela publications (URL ou base64) */}
-      {post.midia && (
-        <div className="px-5 pb-4">
+      {post.midia && post.midia !== "EMPTY" && (
+        <div className="px-5 pb-4 cursor-pointer" onClick={() => onOpenModal(post)}>
           <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 340 }}>
             <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 340 }} />
           </div>
         </div>
       )}
 
-      {/* like_qnt = coluna numeric da tabela publications */}
       <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
         <span>{post.like_qnt ?? 0} curtidas</span>
-        <button onClick={() => setShowComments(!showComments)} className="hover:text-foreground transition">
-          {post.comments.length} comentários
+        <button onClick={() => onOpenModal(post)} className="hover:text-foreground transition">
+          {post.comments.length} comentários · Ver todos
         </button>
       </div>
 
       <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
         {[
           { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,   active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike(post.id) },
-          { label: "Comentar",     el: <MessageCircle size={14} />,                                           active: false,       color: "",             fn: () => setShowComments(!showComments) },
+          { label: "Comentar",     el: <MessageCircle size={14} />,                                           active: false,       color: "",             fn: () => onOpenModal(post) },
           { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved,  color: "text-primary", fn: () => post.id && onSave(post.id) },
-          { label: "Compartilhar", el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: () => {} },
+          { label: "Copiar link",  el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
         ].map(({ label, el, active, color, fn }) => (
           <button key={label} onClick={fn}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
@@ -430,40 +619,6 @@ const PostCard = ({
           </button>
         ))}
       </div>
-
-      <AnimatePresence>
-        {showComments && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
-            className="border-t border-border/30 overflow-hidden">
-            <div className="px-5 py-4 space-y-3">
-              {post.comments.map((c) => (
-                <div key={c.id} className="flex gap-2.5">
-                  {/* Foto do comentarista via avatar_url (profiles.avatar_url) */}
-                  <UserAvatar avatarUrl={c.avatar_url} name={c.author} disc={c.disc} size="sm" />
-                  <div className="bg-secondary/30 rounded-sm px-3 py-2 flex-1">
-                    <p className="text-[11px] font-accent font-semibold text-foreground mb-0.5">{c.author}</p>
-                    <p className="text-xs font-body text-muted-foreground">{c.text}</p>
-                  </div>
-                </div>
-              ))}
-
-              <div className="flex gap-2.5 pt-1">
-                <UserAvatar avatarUrl={myAvatarUrl} name={myName} disc={myDisc} size="sm" isMe discRingImg={myDiscRingImg} />
-                <div className="flex-1 flex gap-2">
-                  <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submit()}
-                    placeholder="Escreva um comentário..."
-                    className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition" />
-                  <button onClick={submit} className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110" style={{ background: "hsl(155 60% 35%)" }}>
-                    <Send size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
@@ -511,14 +666,26 @@ const CreatePost = ({
       like_qnt:    0,
     };
 
-    const { error } = await supabase.from('publications').insert(data);
+    // select() faz o Supabase retornar a linha inserida com o ID gerado pelo banco
+    const { data: inserted, error } = await supabase
+      .from('publications')
+      .insert(data)
+      .select()
+      .single();
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    submit();
+    // Passa o ID real do banco para o handlePost atualizar a UI com o ID correto
+    onPost({
+      ...data,
+      id: inserted.id,           // ← ID real do Supabase, não o crypto.randomUUID()
+      created_at: inserted.created_at,
+    });
+    setPubli({});
+    setExpanded(false);
   }
 
   return (
@@ -733,11 +900,62 @@ const RightSidebar = () => {
 
 const CommunityPage = () => {
   const { user } = useAuth();
-  const [posts, setPosts]   = useState<Post[]>(INITIAL_POSTS);
-  const [filter, setFilter] = useState<"recentes" | "populares">("recentes");
+  const [posts, setPosts]       = useState<Post[]>(INITIAL_POSTS);
+  const [filter, setFilter]     = useState<"recentes" | "populares">("recentes");
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+  const [openPost, setOpenPost] = useState<Post | null>(null); // post aberto no modal
 
   useEffect(() => { setMyAvatarUrl(localStorage.getItem(KEY_PHOTO)); }, [user]);
+
+  // Ao abrir o modal, atualiza a URL com o ID do post (como o Twitter)
+  const openModal = (post: Post) => {
+    setOpenPost(post);
+    window.history.pushState({}, "", `/comunidade?post=${post.id}`);
+  };
+
+  // Ao fechar o modal, volta a URL para /comunidade
+  const closeModal = () => {
+    setOpenPost(null);
+    window.history.pushState({}, "", "/comunidade");
+  };
+
+  // Ao carregar a página, verifica se há ?post=uuid na URL e abre o modal com dados do banco
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get("post");
+    if (!postId) return;
+
+    const loadPost = async () => {
+      // Busca o post + profile via JOIN (quando a tabela profiles existir, adicione profile:profiles(*))
+      const { data, error } = await supabase
+        .from("publications")
+        .select("*")
+        .eq("id", postId)
+        .maybeSingle(); // .single() dá 406 se não achar exatamente 1 — .maybeSingle() retorna null sem erro
+
+      if (error) { console.error("Erro ao buscar post:", error.message); return; }
+      if (!data)  { console.warn("Post não encontrado para id:", postId); return; }
+
+      // Monta o Post com os dados reais do banco
+      const post: Post = {
+        id:          data.id,
+        created_at:  data.created_at,
+        description: data.description,
+        date:        data.date,
+        midia:       data.midia,
+        creator_id:  data.creator_id,
+        like_qnt:    data.like_qnt ?? 0,
+        profile:     undefined, // substituir por data.profile quando o JOIN existir
+        liked:       false,
+        saved:       false,
+        comments:    [],
+      };
+
+      setOpenPost(post);
+    };
+
+    loadPost();
+  }, []);
 
   const myName      = user?.name ?? "Você";
   const myDisc      = user?.assessment?.discProfile ?? "S";
@@ -751,14 +969,13 @@ const CommunityPage = () => {
   const handlePost = (publi: Publication) => {
     if (!publi.description?.trim()) return;
     setPosts((prev) => [{
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
+      id:          publi.id!,          // ← ID real vindo do Supabase
+      created_at:  publi.created_at ?? new Date().toISOString(),
       description: publi.description!,
-      date: publi.date,
-      midia: publi.midia,
-      creator_id: publi.creator_id,
-      like_qnt: 0,
-      // Perfil do usuário logado como profile (simula JOIN)
+      date:        publi.date,
+      midia:       publi.midia,
+      creator_id:  publi.creator_id,
+      like_qnt:    0,
       profile: { id: myCreatorId ?? "", name: myName, avatar_url: myAvatarUrl ?? undefined, role: myRole, disc: myDisc as "D"|"I"|"S"|"C" },
       liked: false, saved: false, comments: [],
     }, ...prev]);
@@ -770,14 +987,10 @@ const CommunityPage = () => {
   const handleSave = (id: string) =>
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, saved: !p.saved } : p));
 
-  const handleComment = (id: string, text: string) =>
+  // handleComment mantido para atualizar contagem local após comentar no modal
+  const handleComment = (id: string) =>
     setPosts((prev) => prev.map((p) =>
-      p.id === id
-        ? { ...p, comments: [...p.comments, {
-            id: Date.now(), author: myName, initials: toInitials(myName),
-            avatar_url: myAvatarUrl ?? undefined, disc: myDisc, text, time: "agora",
-          }] }
-        : p
+      p.id === id ? { ...p, comments: [...p.comments, { id: Date.now(), author: "", initials: "", disc: "", text: "", time: "" }] } : p
     ));
 
   const sortedPosts = filter === "populares"
@@ -817,13 +1030,13 @@ const CommunityPage = () => {
               </div>
             </aside>
 
-            <main className="space-y-4 min-w-0">
-              <div className="flex gap-2">
+            <main className="space-y-2 min-w-0">
+              <div className="flex gap-3 justify-center">
                 {(["recentes", "populares"] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
-                    style={f === filter ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
-                    {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+                    className={`px-20 py-1 rounded-sm text-xs font-accent font-semibold transition ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
+                    style={f === filter ? { background: "hsl(var(--primary))", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
+                    {f === "recentes" ? "🕒 Recentes" : " 🔥 Populares"}
                   </button>
                 ))}
               </div>
@@ -834,7 +1047,7 @@ const CommunityPage = () => {
               <AnimatePresence mode="popLayout">
                 {sortedPosts.map((post, i) => (
                   <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <PostCard post={post} onLike={handleLike} onSave={handleSave} onComment={handleComment}
+                    <PostCard post={post} onLike={handleLike} onSave={handleSave} onOpenModal={openModal}
                       myAvatarUrl={myAvatarUrl} myName={myName} myDisc={myDisc} myDiscRingImg={myDiscRingImg} />
                   </motion.div>
                 ))}
@@ -853,6 +1066,20 @@ const CommunityPage = () => {
           </div>
         </div>
       </div>
+      {/* Modal do post — abre ao clicar no card */}
+      {openPost && (
+        <PostModal
+          post={openPost}
+          onClose={closeModal}
+          onLike={handleLike}
+          onSave={handleSave}
+          myAvatarUrl={myAvatarUrl}
+          myName={myName}
+          myDisc={myDisc}
+          myDiscRingImg={myDiscRingImg}
+          myUserId={myCreatorId}
+        />
+      )}
     </div>
   );
 };
