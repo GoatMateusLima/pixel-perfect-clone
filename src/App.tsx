@@ -30,13 +30,13 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/login" element=<AuthRoute>{<LoginPage />}</AuthRoute> />
-            <Route path="/cadastro" element=<AuthRoute>{<SignupPage />}</AuthRoute> />
+            <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
+            <Route path="/cadastro" element={<AuthRoute><SignupPage /></AuthRoute>} />
             <Route path="/avaliacao" element={<AssessmentPage />} />
             <Route path="/resultado" element={<ResultPage />} />
-            <Route path="/perfil" element=<ProtectedRoute>{<ProfilePage />}</ProtectedRoute> />
+            <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/courses" element={<CoursesPage/>}/>
-            <Route path="/roadmap" element=<ProtectedRoute>{<RoadmapSection />}</ProtectedRoute> />
+            <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
             <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="/suporte" element={<SupportPage />} />
             <Route path="*" element={<NotFound />} />

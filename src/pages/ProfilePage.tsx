@@ -7,7 +7,7 @@ import {
   Camera, Flame, Star, Zap, Trophy, Clock, MapPin,
   Linkedin, Github, Facebook, Mail, Twitter, Instagram, Globe,
   Shield, Brain, Database, Cloud, Lock, Cpu, Layers, Code2,
-  ChevronRight, TrendingUp, CheckCircle2, Loader2,
+  ChevronRight, TrendingUp, CheckCircle2, Loader2, Sparkles,
 } from "lucide-react";
 import dominanciaImg   from "@/assets/disc/Dominancia.webp";
 import influenciaImg   from "@/assets/disc/Influencia.webp";
@@ -22,26 +22,103 @@ import supabase        from "../../utils/supabase";
 // =============================================================================
 
 /**
+ * Uma borda desbloqueada pelo usuário.
+ * Salva dentro do array `bordas` (coluna jsonb) na tabela profiles.
+ *
+ * Exemplo de como fica no banco:
+ * [
+ *   { "id": "disc-s",   "img_url": "https://...", "nome": "Estabilidade", "ativa": true  },
+ *   { "id": "curso-py", "img_url": "https://...", "nome": "Python Master", "ativa": false }
+ * ]
+ *
+ * Regra: apenas UMA borda pode ter ativa: true por vez.
+ */
+export type Borda = {
+  id:      string;
+  img_url: string;
+  nome:    string;
+  ativa:   boolean;
+};
+
+/**
+ * Uma medalha desbloqueada pelo usuário.
+ * Salva dentro do array `medalhas` (coluna jsonb) na tabela profiles.
+ *
+ * Exemplo de como fica no banco:
+ * [
+ *   { "id": 1, "ativa": true  },
+ *   { "id": 3, "ativa": true  },
+ *   { "id": 5, "ativa": false }
+ * ]
+ *
+ * Regra: até 3 medalhas podem ter ativa: true ao mesmo tempo (exibidas em destaque).
+ */
+export type MedalStatus = {
+  id:    number;   // corresponde ao id em ALL_MEDALS
+  ativa: boolean;  // true = exibida em destaque no perfil
+};
+
+/**
  * Espelha a tabela `profiles` no Supabase.
  *
- * Colunas esperadas:
- *   id          uuid  PK (mesmo id do auth.users)
- *   name        text
- *   descricao   text
- *   photo_url   text  ← URL pública do Storage (ou null)
- *   banner_url  text  ← URL pública do Storage (ou null)
- *   social      jsonb ← { linkedin?: string, github?: string, ... }
- *   medals      jsonb ← number[]  ex: [1, 3, 5]
+ * Colunas:
+ *   id        uuid  PK
+ *   name      text
+ *   descricao text
+ *   perfil    text   ← URL da foto (Storage)
+ *   banner    text   ← URL do banner (Storage)
+ *   redes     jsonb  ← { linkedin?, github?, ... }
+ *   bordas    jsonb  ← Borda[]
+ *   medalhas  jsonb  ← MedalStatus[]
  */
 export type Profile = {
-  id?:         string;
-  name?:       string;
-  descricao?:  string;
-  photo_url?:  string;
-  banner_url?: string;
-  social?:     Partial<Record<SocialKey, string>>;  // JSON com links opcionais
-  medals?:     number[];
+  id?:        string;
+  name?:      string;
+  descricao?: string;
+  perfil?:    string;
+  banner?:    string;
+  redes?:     Partial<Record<SocialKey, string>>;
+  bordas?:    Borda[];
+  medalhas?:  MedalStatus[];
 };
+
+// =============================================================================
+// HELPERS — bordas
+// =============================================================================
+
+/** Retorna a borda com ativa: true, ou null */
+function getBordaAtiva(bordas: Borda[]): Borda | null {
+  return bordas.find(b => b.ativa) ?? null;
+}
+
+/** Retorna novo array onde só a borda com o id tem ativa: true. id=null → todas false. */
+function setBordaAtiva(bordas: Borda[], id: string | null): Borda[] {
+  return bordas.map(b => ({ ...b, ativa: b.id === id }));
+}
+
+// =============================================================================
+// HELPERS — medalhas
+// =============================================================================
+
+/** Retorna as medalhas com ativa: true (máx 3) */
+function getMedalhasAtivas(medalhas: MedalStatus[]): MedalStatus[] {
+  return medalhas.filter(m => m.ativa);
+}
+
+/**
+ * Alterna o campo ativa de uma medalha específica.
+ * Se já está ativa → vira false.
+ * Se está inativa → vira true, desde que menos de 3 estejam ativas.
+ */
+function toggleMedalAtiva(medalhas: MedalStatus[], id: number): MedalStatus[] {
+  const ativas = medalhas.filter(m => m.ativa).length;
+  return medalhas.map(m => {
+    if (m.id !== id) return m;
+    if (m.ativa)     return { ...m, ativa: false };          // desativa
+    if (ativas >= 3) return m;                               // limite de 3
+    return { ...m, ativa: true };                            // ativa
+  });
+}
 
 // =============================================================================
 // CONSTANTES — DISC
@@ -59,14 +136,6 @@ const DISC_COLORS: Record<string, string> = {
 // =============================================================================
 // CONSTANTES — REDES SOCIAIS
 // =============================================================================
-
-/**
- * SocialKey: cada chave é uma propriedade dentro do JSON `social` no banco.
- * Ex: profile.social = { linkedin: "https://...", github: "https://..." }
- *
- * Como é um JSON, o usuário pode preencher só os que quiser — campos vazios
- * simplesmente não aparecem no objeto salvo.
- */
 type SocialKey = "linkedin" | "github" | "twitter" | "instagram" | "facebook" | "email" | "website";
 
 const SOCIAL_META: Record<SocialKey, { label: string; Icon: React.ElementType; placeholder: string; prefix?: string }> = {
@@ -96,7 +165,34 @@ const RARITY_COLOR: Record<string, string> = {
 };
 
 // =============================================================================
-// CONSTANTES — TIMELINE / VAGAS (mockadas)
+// MEDALHAS MOCKADAS (remove quando vier do banco)
+// =============================================================================
+/**
+ * [MOCKADO] — em produção vem do campo `medalhas` do banco.
+ * Cada medalha desbloqueada tem um objeto com id e ativa.
+ * O sistema adiciona novas medalhas automaticamente quando o usuário conclui cursos.
+ */
+const MOCK_MEDALHAS: MedalStatus[] = [
+  { id: 1, ativa: true  },
+  { id: 2, ativa: true  },
+  { id: 3, ativa: true  },
+  { id: 4, ativa: false },
+  { id: 5, ativa: false },
+  { id: 6, ativa: false },
+];
+
+// =============================================================================
+// BORDAS MOCKADAS (remove quando vier do banco)
+// =============================================================================
+const MOCK_BORDAS: Borda[] = [
+  { id: "disc-s", img_url: estabilidadeImg, nome: "Estabilidade", ativa: true  },
+  { id: "disc-d", img_url: dominanciaImg,   nome: "Dominância",   ativa: false },
+  { id: "disc-i", img_url: influenciaImg,   nome: "Influência",   ativa: false },
+  { id: "disc-c", img_url: conformidadeImg, nome: "Conformidade", ativa: false },
+];
+
+// =============================================================================
+// CONSTANTES — TIMELINE / VAGAS
 // =============================================================================
 const ACTIVITY_TIMELINE = [
   { type: "medal",  text: "Conquistou a medalha Pioneiro em IA",       time: "há 2d",   color: "hsl(25 90% 55%)"  },
@@ -116,37 +212,12 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
   C: [{ title: "Data Scientist",  company: "Itaú BBA",      salary: "R$14–22k", type: "Híbrido" }, { title: "Cyber Analyst",   company: "Tempest",       salary: "R$12–18k", type: "Remoto"  }, { title: "ML Engineer",     company: "Loft",          salary: "R$18–26k", type: "Remoto"  }],
 };
 
-const DEFAULT_MEDALS: number[] = [1, 2, 3];
 
 // =============================================================================
 // HELPER — Upload para Supabase Storage
 // =============================================================================
-/**
- * [BANCO DESCONECTADO POR ENQUANTO]
- *
- * Quando você quiser conectar:
- *   1. Crie um bucket chamado "profiles" no Supabase Storage (público ou com policy)
- *   2. Descomente o bloco abaixo e delete o `throw` de simulação
- *
- * O que essa função faz:
- *   - Recebe o dataURL gerado pelo ImageCropModal (resultado do recorte do usuário)
- *   - Converte para Blob (formato binário que o Storage aceita)
- *   - Faz upload em: profiles/{userId}/photo.webp  ou  profiles/{userId}/banner.webp
- *   - Retorna a URL pública, que é o que vai ser salvo na coluna photo_url / banner_url
- *
- * Por que dataURL → Blob e não File direto?
- *   Porque o ImageCropModal devolve um dataURL (string base64), não um File.
- *   O crop acontece no canvas do browser e a saída é sempre string.
- */
-async function uploadCroppedImage(
-  dataUrl: string,         // string base64 gerada pelo crop
-  userId: string,
-  slot: "photo" | "banner"
-): Promise<string> {
-
-  // --- SIMULAÇÃO (remova quando conectar ao banco) ---
-  // Por enquanto apenas retorna o próprio dataUrl como "URL",
-  // assim a prévia continua funcionando na tela.
+async function uploadCroppedImage(dataUrl: string, userId: string, slot: "photo" | "banner"): Promise<string> {
+  // --- SIMULAÇÃO ---
   return dataUrl;
 
   // --- CÓDIGO REAL (descomente quando conectar) ---
@@ -154,19 +225,14 @@ async function uploadCroppedImage(
   // const blob = await res.blob();
   // const ext  = blob.type.includes("png") ? "png" : "webp";
   // const path = `${userId}/${slot}.${ext}`;
-  //
-  // const { error } = await supabase.storage
-  //   .from("profiles")
-  //   .upload(path, blob, { upsert: true, contentType: blob.type });
-  //
+  // const { error } = await supabase.storage.from("profiles").upload(path, blob, { upsert: true, contentType: blob.type });
   // if (error) throw error;
-  //
   // const { data } = supabase.storage.from("profiles").getPublicUrl(path);
-  // return `${data.publicUrl}?t=${Date.now()}`; // ?t= força o browser a recarregar a imagem
+  // return `${data.publicUrl}?t=${Date.now()}`;
 }
 
 // =============================================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE
 // =============================================================================
 const ProfilePage = () => {
   const { user, logout } = useAuth();
@@ -175,229 +241,159 @@ const ProfilePage = () => {
   const photoInputRef  = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  // ---------------------------------------------------------------------------
-  // ESTADO — perfil carregado do banco
-  // ---------------------------------------------------------------------------
-  /**
-   * `profile` guarda os dados salvos no Supabase.
-   * Começa vazio ({}) e é preenchido no useEffect abaixo.
-   *
-   * [BANCO DESCONECTADO] — enquanto não conectar, começa com dados mockados.
-   */
+  // ── Perfil do banco ─────────────────────────────────────────────────────────
   const [profile,        setProfile]        = useState<Profile>({});
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving,         setSaving]         = useState(false);
   const [saveError,      setSaveError]      = useState<string | null>(null);
 
-  // ---------------------------------------------------------------------------
-  // ESTADO — draft (o que o usuário está editando, antes de confirmar)
-  // ---------------------------------------------------------------------------
+  // ── Draft ───────────────────────────────────────────────────────────────────
   const [isEditing,      setIsEditing]      = useState(false);
-
-  // Nome e descrição: campos de texto simples
   const [draftName,      setDraftName]      = useState("");
   const [draftDescricao, setDraftDescricao] = useState("");
+  const [draftPhoto,     setDraftPhoto]     = useState<string | null>(null);
+  const [draftBanner,    setDraftBanner]    = useState<string | null>(null);
+  const [draftSocial,    setDraftSocial]    = useState<Partial<Record<SocialKey, string>>>({});
+  const [draftMedalhas,    setDraftMedalhas]    = useState<MedalStatus[] | null>(null);
 
   /**
-   * Foto e banner: o fluxo é:
-   *   1. Usuário seleciona arquivo do PC/celular  →  handlePhotoFile abre o crop
-   *   2. ImageCropModal aparece, usuário ajusta o enquadramento
-   *   3. Ao confirmar, handleCropConfirm recebe o dataUrl recortado
-   *   4. O dataUrl fica em draftPhoto/draftBanner para prévia na tela
-   *   5. Na hora de salvar (handleConfirmEdit), o dataUrl vai para uploadCroppedImage
-   *      que sobe para o Storage e retorna a URL pública final
+   * draftBordas: cópia do array de bordas enquanto o usuário edita.
+   * null = não mexeu ainda nessa sessão (usa profile.bordas direto).
    *
-   * draftPhoto === null  → usuário não mexeu na foto nessa sessão de edição
-   * draftPhoto === ""    → usuário pediu para remover a foto
-   * draftPhoto === "data:image/..." → novo dataUrl recortado aguardando upload
+   * Quando o usuário clica em uma borda no picker, chamamos setAtiva()
+   * que retorna um novo array com o campo ativa atualizado corretamente.
+   * Só é salvo no banco ao confirmar.
    */
-  const [draftPhoto,  setDraftPhoto]  = useState<string | null>(null);
-  const [draftBanner, setDraftBanner] = useState<string | null>(null);
+  const [draftBordas,      setDraftBordas]      = useState<Borda[] | null>(null);
+  const [borderPickerOpen, setBorderPickerOpen] = useState(false);
 
-  /**
-   * cropSrc: dataUrl bruto do arquivo selecionado, antes do recorte
-   * cropType: qual slot está sendo recortado ("photo" ou "banner")
-   * Quando cropSrc tem valor, o ImageCropModal é exibido.
-   */
+  // ── Crop ────────────────────────────────────────────────────────────────────
   const [cropSrc,  setCropSrc]  = useState<string | null>(null);
   const [cropType, setCropType] = useState<"photo" | "banner" | null>(null);
 
-  /**
-   * draftSocial: cópia temporária do JSON de redes sociais enquanto o usuário edita.
-   * Começa preenchido com os valores salvos no banco (em handleStartEdit).
-   * Cada chave é opcional — o usuário preenche só o que quiser.
-   */
-  const [draftSocial, setDraftSocial] = useState<Partial<Record<SocialKey, string>>>({});
-
-  // Modal para editar uma rede social por vez
+  // ── Social modal ────────────────────────────────────────────────────────────
   const [socialModal, setSocialModal] = useState<SocialKey | null>(null);
   const [socialInput, setSocialInput] = useState("");
 
-  const [draftMedalIds,   setDraftMedalIds]   = useState<number[]>([]);
+  // ── Medalhas ────────────────────────────────────────────────────────────────
   const [medalPickerOpen, setMedalPickerOpen] = useState(false);
 
-  // UI helpers
+  // ── UI ──────────────────────────────────────────────────────────────────────
   const [hoverPhoto,   setHoverPhoto]   = useState(false);
   const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
 
-  // ---------------------------------------------------------------------------
-  // EFEITOS
-  // ---------------------------------------------------------------------------
+  // ── Efeitos ─────────────────────────────────────────────────────────────────
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
 
-  /**
-   * [BANCO DESCONECTADO]
-   * Quando conectar ao banco, substitua o bloco de "mockado" pelo bloco
-   * "CÓDIGO REAL" comentado abaixo.
-   */
   useEffect(() => {
     if (!user) return;
 
     // --- MOCKADO (remova quando conectar) ---
-    setProfile({ id: user.id, name: user.name, social: {}, medals: DEFAULT_MEDALS });
+    setProfile({ id: user.id, name: user.name, redes: {}, bordas: MOCK_BORDAS, medalhas: MOCK_MEDALHAS });
     setLoadingProfile(false);
 
     // --- CÓDIGO REAL (descomente quando conectar) ---
     // (async () => {
     //   setLoadingProfile(true);
-    //   const { data, error } = await supabase
-    //     .from("profiles")
-    //     .select("*")
-    //     .eq("id", user.id)
-    //     .single();
-    //
-    //   // Se ainda não tem perfil no banco, usa defaults do auth
-    //   setProfile(!error && data
-    //     ? (data as Profile)
-    //     : { id: user.id, name: user.name, social: {}, medals: DEFAULT_MEDALS }
-    //   );
+    //   const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    //   setProfile(!error && data ? (data as Profile) : { id: user.id, name: user.name, redes: {}, bordas: [], medalhas: [] });
     //   setLoadingProfile(false);
     // })();
   }, [user]);
 
   if (!user) return null;
 
-  // ---------------------------------------------------------------------------
-  // DERIVADOS
-  // ---------------------------------------------------------------------------
+  // ── Derivados ───────────────────────────────────────────────────────────────
   const a           = user.assessment;
   const discProfile = a?.discProfile ?? "S";
   const ringColor   = DISC_COLORS[discProfile] ?? "hsl(155 60% 45%)";
 
-  /**
-   * displayPhoto / displayBanner:
-   *   - Durante a edição: mostra o draft (novo dataUrl recortado) se existir,
-   *     senão mostra o que já estava salvo no banco.
-   *   - Fora da edição: mostra só o que está salvo no banco.
-   */
   const displayPhoto  = isEditing
-    ? (draftPhoto  !== null ? (draftPhoto  || null) : (profile.photo_url  ?? null))
-    : (profile.photo_url  ?? null);
+    ? (draftPhoto  !== null ? (draftPhoto  || null) : (profile.perfil  ?? null))
+    : (profile.perfil  ?? null);
   const displayBanner = isEditing
-    ? (draftBanner !== null ? (draftBanner || null) : (profile.banner_url ?? null))
-    : (profile.banner_url ?? null);
-
-  /**
-   * displaySocial:
-   *   - Durante a edição: mistura os valores do draft com os salvos no banco.
-   *     (Se o usuário mexeu num campo, usa o draft; senão usa o banco.)
-   *   - Fora da edição: usa direto o que está no banco.
-   */
+    ? (draftBanner !== null ? (draftBanner || null) : (profile.banner ?? null))
+    : (profile.banner ?? null);
   const displaySocial: Partial<Record<SocialKey, string>> = isEditing
-    ? Object.fromEntries(
-        ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : (profile.social ?? {})[k]])
-      )
-    : (profile.social ?? {});
+    ? Object.fromEntries(ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : (profile.redes ?? {})[k]]))
+    : (profile.redes ?? {});
 
-  const activeMedalIds  = isEditing ? draftMedalIds : (profile.medals ?? DEFAULT_MEDALS);
-  const featuredMedals  = activeMedalIds.map(id => ALL_MEDALS.find(m => m.id === id)!).filter(Boolean);
+  // Bordas visíveis agora: draft se estiver editando, banco caso contrário
+  const bordas: Borda[] = (isEditing ? (draftBordas ?? profile.bordas) : profile.bordas) ?? [];
+
+  // A borda com ativa: true é a que aparece no avatar
+  const bordaAtiva: Borda | null = getBordaAtiva(bordas);
+
+  // Medalhas: draft se editando, banco caso contrário
+  const medalhas: MedalStatus[] = (isEditing ? (draftMedalhas ?? profile.medalhas) : profile.medalhas) ?? [];
+  const ativasCount  = medalhas.filter(m => m.ativa).length;
+  // Resolve os objetos visuais das medalhas ativas para renderizar
+  const featuredMedals = medalhas
+    .filter(m => m.ativa)
+    .map(m => ALL_MEDALS.find(a => a.id === m.id))
+    .filter(Boolean) as typeof ALL_MEDALS[number][];
   const recommendedJobs = JOBS_BY_DISC[discProfile] ?? JOBS_BY_DISC.S;
   const filledSocials   = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
   const emptySocials    = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
-
-  // XP mockado
   const XP_TOTAL = 2340, XP_NEXT = 3000, LEVEL = 7, STREAK = 12, RANK = 48;
 
-  // ---------------------------------------------------------------------------
-  // HANDLERS — edição
-  // ---------------------------------------------------------------------------
-
-  /** Abre o modo de edição copiando os dados salvos para os drafts */
+  // ── Handlers — edição ───────────────────────────────────────────────────────
   const handleStartEdit = () => {
     setDraftName(profile.name ?? user.name ?? "");
     setDraftDescricao(profile.descricao ?? "");
-    setDraftPhoto(null);   // null = "não mexeu ainda"
+    setDraftPhoto(null);
     setDraftBanner(null);
-    setDraftSocial({});    // vazio = "não mexeu ainda"
-    setDraftMedalIds([...(profile.medals ?? DEFAULT_MEDALS)]);
+    setDraftSocial({});
+    setDraftBordas(null);
+    setBorderPickerOpen(false);
+    setDraftMedalhas(null);
     setSaveError(null);
     setIsEditing(true);
   };
 
-  /** Descarta tudo sem salvar */
   const handleCancelEdit = () => {
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({});
-    setDraftMedalIds([]); setIsEditing(false);
+    setDraftBordas(null); setBorderPickerOpen(false);
+    setDraftMedalhas(null); setIsEditing(false);
     setMedalPickerOpen(false); setSaveError(null);
   };
 
-  /**
-   * Confirma e salva.
-   *
-   * [BANCO DESCONECTADO]
-   * Por enquanto só atualiza o estado local (`profile`) para simular o save.
-   * Quando conectar, descomente o bloco "CÓDIGO REAL".
-   */
   const handleConfirmEdit = async () => {
     if (!user) return;
     setSaving(true); setSaveError(null);
 
     try {
-      // 1. Upload de foto/banner se foram recortados nessa sessão
-      //    (se draftPhoto === null, o usuário não mexeu → mantém URL existente)
-      let photo_url  = profile.photo_url  ?? null;
-      let banner_url = profile.banner_url ?? null;
+      let perfil = profile.perfil ?? null;
+      let banner = profile.banner ?? null;
+      if (draftPhoto  !== null) perfil = draftPhoto  === "" ? null : await uploadCroppedImage(draftPhoto,  user.id, "photo");
+      if (draftBanner !== null) banner = draftBanner === "" ? null : await uploadCroppedImage(draftBanner, user.id, "banner");
 
-      if (draftPhoto !== null) {
-        // "" significa que o usuário clicou em "remover foto"
-        photo_url = draftPhoto === "" ? null : await uploadCroppedImage(draftPhoto, user.id, "photo");
-      }
-      if (draftBanner !== null) {
-        banner_url = draftBanner === "" ? null : await uploadCroppedImage(draftBanner, user.id, "banner");
-      }
-
-      // 2. Monta o JSON de redes sociais
-      //    Pega o estado atual do banco e aplica só o que o usuário alterou no draft.
-      //    Strings vazias são removidas do JSON para não poluir o banco.
-      const social: Partial<Record<SocialKey, string>> = {};
+      const redes: Partial<Record<SocialKey, string>> = {};
       ALL_SOCIAL_KEYS.forEach(k => {
-        const val = k in draftSocial ? draftSocial[k] : (profile.social ?? {})[k];
-        if (val && val.trim()) social[k] = val.trim(); // só inclui se não estiver vazio
+        const val = k in draftSocial ? draftSocial[k] : (profile.redes ?? {})[k];
+        if (val && val.trim()) redes[k] = val.trim();
       });
 
-      // 3. Monta o payload completo
       const payload: Profile = {
-        id:         user.id,
-        name:       draftName.trim()       || profile.name       || null,
-        descricao:  draftDescricao.trim()  || profile.descricao  || null,
-        photo_url,
-        banner_url,
-        social,     // JSON com apenas as redes que têm valor
-        medals:     draftMedalIds,
+        id:        user.id,
+        name:      draftName.trim()      || profile.name      || null,
+        descricao: draftDescricao.trim() || profile.descricao || null,
+        perfil,
+        banner,
+        redes,
+        bordas,
+        // medalhas: não entra no payload ainda — coluna será criada depois
       };
 
-      // --- MOCKADO (remova quando conectar) ---
-      // Simula o save apenas atualizando o estado local
+      // --- MOCKADO ---
       setProfile(payload);
 
       // --- CÓDIGO REAL (descomente quando conectar) ---
-      // const { error } = await supabase
-      //   .from("profiles")
-      //   .upsert(payload, { onConflict: "id" });  // INSERT se não existe, UPDATE se existe
+      // const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
       // if (error) throw error;
       // setProfile(payload);
 
-      setIsEditing(false); setMedalPickerOpen(false);
+      setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
     } catch (err: any) {
       setSaveError(err?.message ?? "Erro ao salvar perfil.");
     } finally {
@@ -405,69 +401,47 @@ const ProfilePage = () => {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // HANDLERS — foto e banner (fluxo com crop)
-  // ---------------------------------------------------------------------------
+  // ── Handlers — borda ────────────────────────────────────────────────────────
 
   /**
-   * Quando o usuário seleciona um arquivo:
-   *   1. FileReader lê o arquivo e gera um dataUrl bruto
-   *   2. Esse dataUrl vai para cropSrc, abrindo o ImageCropModal
+   * Chamado quando o usuário clica em uma borda no picker.
+   * Usa setAtiva() para gerar um novo array onde só essa borda tem ativa: true.
+   * Armazena em draftBordas — o banco só é atualizado ao confirmar.
    */
-  const readAndOpenCrop = (file: File, type: "photo" | "banner") => {
+  const handleEscolherBorda = (id: string | null) => {
+    const base = draftBordas ?? profile.bordas ?? [];
+    setDraftBordas(setBordaAtiva(base, id));
+  };
+
+  // ── Handlers — crop ─────────────────────────────────────────────────────────
+  const readAndOpenCrop   = (file: File, type: "photo" | "banner") => {
     const reader = new FileReader();
     reader.onload = e => { setCropSrc(e.target?.result as string); setCropType(type); };
     reader.readAsDataURL(file);
   };
-  const handlePhotoFile  = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo");  e.target.value = ""; };
-  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "banner"); e.target.value = ""; };
-
-  /**
-   * Chamado pelo ImageCropModal após o usuário confirmar o recorte.
-   * Recebe o dataUrl já recortado e armazena no draft correspondente.
-   */
+  const handlePhotoFile   = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo");  e.target.value = ""; };
+  const handleBannerFile  = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "banner"); e.target.value = ""; };
   const handleCropConfirm = (dataUrl: string) => {
     if (cropType === "photo")  setDraftPhoto(dataUrl);
     if (cropType === "banner") setDraftBanner(dataUrl);
     setCropSrc(null); setCropType(null);
   };
 
-  // ---------------------------------------------------------------------------
-  // HANDLERS — redes sociais
-  // ---------------------------------------------------------------------------
-
-  /** Abre o modal de edição de uma rede com o valor atual já preenchido */
-  const openSocialModal = (key: SocialKey) => {
-    setSocialInput(displaySocial[key] ?? "");
-    setSocialModal(key);
-  };
-
-  /** Salva o valor digitado no modal de volta para o draftSocial */
-  const saveSocialModal = () => {
+  // ── Handlers — social ───────────────────────────────────────────────────────
+  const openSocialModal  = (key: SocialKey) => { setSocialInput(displaySocial[key] ?? ""); setSocialModal(key); };
+  const saveSocialModal  = () => {
     if (!socialModal) return;
     setDraftSocial(prev => ({ ...prev, [socialModal]: socialInput.trim() }));
     setSocialModal(null); setSocialInput("");
   };
+  const removeSocialLink = (key: SocialKey) => setDraftSocial(prev => ({ ...prev, [key]: "" }));
 
-  /** Remove uma rede: grava string vazia no draft (será excluída do JSON no save) */
-  const removeSocialLink = (key: SocialKey) => {
-    setDraftSocial(prev => ({ ...prev, [key]: "" }));
+  // ── Handlers — medalhas ─────────────────────────────────────────────────────
+  const handleToggleMedal = (id: number) => {
+    const base = draftMedalhas ?? profile.medalhas ?? [];
+    setDraftMedalhas(toggleMedalAtiva(base, id));
   };
 
-  // ---------------------------------------------------------------------------
-  // HANDLERS — medalhas
-  // ---------------------------------------------------------------------------
-  const toggleDraftMedal = (id: number) => {
-    setDraftMedalIds(prev => {
-      if (prev.includes(id)) return prev.filter(x => x !== id);
-      if (prev.length >= 3)  return prev; // máximo 3 em destaque
-      return [...prev, id];
-    });
-  };
-
-  // ---------------------------------------------------------------------------
-  // LOADING
-  // ---------------------------------------------------------------------------
   if (loadingProfile) {
     return (
       <div className="min-h-screen gradient-hero scanline flex items-center justify-center">
@@ -482,16 +456,12 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen gradient-hero scanline">
       <Header />
-
       <div className="max-w-7xl mx-auto px-4 pt-24 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6 items-start">
 
-          {/* ═══════════════════════════════════════════
-              COLUNA ESQUERDA
-          ════════════════════════════════════════════ */}
+          {/* ═══════════════ COLUNA ESQUERDA ═══════════════════════════════ */}
           <aside className="hidden lg:flex flex-col gap-4">
 
-            {/* XP / Nível */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
               className="hologram-panel rounded-sm p-4">
               <div className="flex items-center justify-between mb-3">
@@ -502,12 +472,10 @@ const ProfilePage = () => {
                 <span className="text-[10px] font-accent text-muted-foreground">{XP_TOTAL} / {XP_NEXT} XP</span>
               </div>
               <div className="h-2 rounded-full bg-secondary overflow-hidden mb-2">
-                <motion.div
-                  initial={{ width: 0 }} animate={{ width: `${(XP_TOTAL / XP_NEXT) * 100}%` }}
+                <motion.div initial={{ width: 0 }} animate={{ width: `${(XP_TOTAL / XP_NEXT) * 100}%` }}
                   transition={{ delay: 0.5, duration: 1.2, ease: "easeOut" }}
                   className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, hsl(45 90% 45%), hsl(45 90% 65%))" }}
-                />
+                  style={{ background: "linear-gradient(90deg, hsl(45 90% 45%), hsl(45 90% 65%))" }} />
               </div>
               <p className="text-[10px] text-muted-foreground font-body">{XP_NEXT - XP_TOTAL} XP para o nível {LEVEL + 1}</p>
               <div className="grid grid-cols-3 gap-2 mt-4">
@@ -525,7 +493,6 @@ const ProfilePage = () => {
               </div>
             </motion.div>
 
-            {/* Vagas recomendadas */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
               className="hologram-panel rounded-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-border/30 flex items-center gap-2">
@@ -564,12 +531,9 @@ const ProfilePage = () => {
             </motion.div>
           </aside>
 
-          {/* ═══════════════════════════════════════════
-              COLUNA CENTRAL
-          ════════════════════════════════════════════ */}
+          {/* ═══════════════ COLUNA CENTRAL ════════════════════════════════ */}
           <main className="space-y-6 min-w-0">
 
-            {/* ── PROFILE CARD ─────────────────────────────────────────────── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="hologram-panel rounded-sm overflow-hidden">
 
@@ -578,9 +542,7 @@ const ProfilePage = () => {
                 {displayBanner ? (
                   <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full" style={{
-                    background: `linear-gradient(135deg, ${ringColor}44 0%, ${ringColor}11 60%, hsl(210 40% 10% / 0.2) 100%)`,
-                  }}>
+                  <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${ringColor}44 0%, ${ringColor}11 60%, hsl(210 40% 10% / 0.2) 100%)` }}>
                     <div className="absolute inset-0 opacity-10"
                       style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 24px,hsl(155 60% 45%)1px),repeating-linear-gradient(90deg,transparent,transparent 24px,hsl(155 60% 45%)1px)" }} />
                   </div>
@@ -595,16 +557,26 @@ const ProfilePage = () => {
                 <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFile} />
               </div>
 
-              {/* Avatar + info */}
               <div className="px-6 pb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -40 }}>
 
-                  {/* Avatar com anel DISC */}
+                  {/* ── AVATAR ─────────────────────────────────────────────── */}
                   <div className="flex-shrink-0 relative" style={{ width: 112, height: 112 }}>
-                    {DISC_IMGS[discProfile] && (
+
+                    {/*
+                      CAMADA 1 — borda.
+                      Mostra a borda que tem ativa: true.
+                      Se nenhuma tiver ativa (bordaAtiva === null), cai no fallback da imagem DISC.
+                    */}
+                    {bordaAtiva ? (
+                      <img src={bordaAtiva.img_url} alt={bordaAtiva.nome}
+                        className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
+                    ) : DISC_IMGS[discProfile] ? (
                       <img src={DISC_IMGS[discProfile]} alt={DISC_LABELS[discProfile]}
                         className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-                    )}
+                    ) : null}
+
+                    {/* CAMADA 2 — foto do usuário */}
                     <div
                       onClick={() => isEditing && photoInputRef.current?.click()}
                       onMouseEnter={() => isEditing && setHoverPhoto(true)}
@@ -624,29 +596,34 @@ const ProfilePage = () => {
                             <span className="text-[8px] text-white font-accent">Alterar</span>
                             {displayPhoto && (
                               <button type="button" onClick={e => { e.stopPropagation(); setDraftPhoto(""); }}
-                                className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">
-                                remover
-                              </button>
+                                className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">remover</button>
                             )}
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+
+                    {/* Botão ✨ trocar borda — só no modo edição */}
+                    {isEditing && (
+                      <button type="button" onClick={() => setBorderPickerOpen(p => !p)}
+                        className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+                        style={{ zIndex: 3, background: borderPickerOpen ? ringColor : "hsl(var(--secondary))", border: "2px solid hsl(var(--background))", boxShadow: borderPickerOpen ? `0 0 8px ${ringColor}60` : "none" }}
+                        title="Trocar borda">
+                        <Sparkles size={12} style={{ color: borderPickerOpen ? "white" : "hsl(var(--muted-foreground))" }} />
+                      </button>
+                    )}
                   </div>
 
-                  {/* Nome + email + botões */}
+                  {/* Nome + botões */}
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
                     <div className="flex-1 min-w-0">
-                      {/* Nome: input no modo edição, texto estático fora */}
                       {isEditing ? (
                         <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)}
                           placeholder="Seu nome"
                           className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
                       ) : (
-                        <h1 className="font-display text-xl font-bold text-foreground truncate">
-                          {profile.name ?? user.name}
-                        </h1>
+                        <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.name}</h1>
                       )}
                       <p className="text-sm text-muted-foreground font-body">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -662,8 +639,6 @@ const ProfilePage = () => {
                         <Link to="/avaliacao" className="block mt-1 text-xs text-accent hover:underline font-accent">Completar Avaliação →</Link>
                       )}
                     </div>
-
-                    {/* Botões Editar / Confirmar / Cancelar */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <div className="flex items-center gap-2">
                         {!isEditing ? (
@@ -676,9 +651,7 @@ const ProfilePage = () => {
                             <button onClick={handleConfirmEdit} disabled={saving}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-primary-foreground disabled:opacity-60"
                               style={{ background: "hsl(155 60% 40%)" }}>
-                              {saving
-                                ? <><Loader2 size={12} className="animate-spin" /> Salvando…</>
-                                : <><Check size={12} /> Confirmar</>}
+                              {saving ? <><Loader2 size={12} className="animate-spin" /> Salvando…</> : <><Check size={12} /> Confirmar</>}
                             </button>
                             <button onClick={handleCancelEdit} disabled={saving}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors disabled:opacity-60">
@@ -691,6 +664,74 @@ const ProfilePage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* ── PICKER DE BORDA ───────────────────────────────────────
+                 * Expande abaixo do avatar só no modo edição.
+                 * Cada miniatura representa uma borda desbloqueada.
+                 * Clicar = chama handleEscolherBorda(borda.id)
+                 *   → setAtiva() percorre o array e seta ativa: true só nessa
+                 *   → todas as outras ficam ativa: false automaticamente
+                 * "Nenhuma" = handleEscolherBorda(null) → todas ficam false
+                 */}
+                <AnimatePresence>
+                  {isEditing && borderPickerOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden mt-4">
+                      <div className="rounded-sm p-3"
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)" }}>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[10px] font-accent text-muted-foreground flex items-center gap-1.5">
+                            <Sparkles size={10} /> Escolha sua borda
+                          </p>
+                          <span className="text-[9px] font-accent text-muted-foreground">
+                            {bordas.length} desbloqueada{bordas.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+
+                          {/* Opção "Nenhuma" — seta todas para ativa: false */}
+                          <button type="button" onClick={() => handleEscolherBorda(null)}
+                            className="flex flex-col items-center gap-1 group">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center transition-all"
+                              style={{
+                                background: "hsl(var(--secondary))",
+                                border: bordaAtiva === null ? `2px solid ${ringColor}` : "2px solid transparent",
+                                boxShadow: bordaAtiva === null ? `0 0 8px ${ringColor}50` : "none",
+                              }}>
+                              <X size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                            </div>
+                            <span className="text-[8px] font-accent text-muted-foreground">Nenhuma</span>
+                          </button>
+
+                          {/* Bordas desbloqueadas */}
+                          {bordas.map(borda => (
+                            <button key={borda.id} type="button"
+                              onClick={() => handleEscolherBorda(borda.id)}
+                              className="flex flex-col items-center gap-1 group">
+                              <div className="w-12 h-12 rounded-full overflow-hidden transition-all"
+                                style={{
+                                  border:   borda.ativa ? `2px solid ${ringColor}` : "2px solid transparent",
+                                  boxShadow: borda.ativa ? `0 0 8px ${ringColor}50` : "none",
+                                  outline:   borda.ativa ? `1px solid ${ringColor}40` : "none",
+                                  outlineOffset: "2px",
+                                }}>
+                                <img src={borda.img_url} alt={borda.nome}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
+                              </div>
+                              <span className="text-[8px] font-accent text-muted-foreground group-hover:text-foreground transition-colors max-w-[52px] truncate text-center">
+                                {borda.nome}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Descrição */}
                 <div className="mt-4">
@@ -705,7 +746,6 @@ const ProfilePage = () => {
 
                 {/* Redes sociais */}
                 <div className="mt-4">
-                  {/* Redes já preenchidas */}
                   {filledSocials.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {filledSocials.map(key => {
@@ -726,8 +766,6 @@ const ProfilePage = () => {
                       })}
                     </div>
                   )}
-
-                  {/* Redes vazias — aparecem só no modo edição para o usuário adicionar */}
                   {isEditing && emptySocials.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                       className="rounded-sm p-3 flex flex-wrap gap-2"
@@ -744,7 +782,6 @@ const ProfilePage = () => {
                       })}
                     </motion.div>
                   )}
-
                   {!isEditing && filledSocials.length === 0 && (
                     <p className="text-xs text-muted-foreground font-accent italic">Nenhuma rede social adicionada.</p>
                   )}
@@ -772,7 +809,6 @@ const ProfilePage = () => {
                   )}
                 </div>
               </div>
-
               <AnimatePresence>
                 {isEditing && medalPickerOpen && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
@@ -780,16 +816,17 @@ const ProfilePage = () => {
                     <div className="rounded-sm p-3 space-y-1.5"
                       style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}>
                       <p className="text-[9px] font-accent text-muted-foreground mb-2">
-                        Escolha até 3 medalhas para exibir em destaque ({draftMedalIds.length}/3)
+                        Escolha até 3 medalhas para exibir em destaque ({ativasCount}/3)
                       </p>
-                      {ALL_MEDALS.map(medal => {
+                      {medalhas.map(ms => {
+                        const medal = ALL_MEDALS.find(a => a.id === ms.id);
+                        if (!medal) return null;
                         const Icon = medal.icon;
-                        const isSelected = draftMedalIds.includes(medal.id);
                         return (
-                          <button key={medal.id} onClick={() => toggleDraftMedal(medal.id)}
-                            disabled={!isSelected && draftMedalIds.length >= 3}
+                          <button key={medal.id} onClick={() => handleToggleMedal(medal.id)}
+                            disabled={!ms.ativa && ativasCount >= 3}
                             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-left transition-all disabled:opacity-40"
-                            style={{ background: isSelected ? `${medal.color}14` : "transparent", border: `1px solid ${isSelected ? medal.color + "40" : "transparent"}` }}>
+                            style={{ background: ms.ativa ? `${medal.color}14` : "transparent", border: `1px solid ${ms.ativa ? medal.color + "40" : "transparent"}` }}>
                             <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                               style={{ background: medal.bg, border: `1px solid ${medal.border}` }}>
                               <Icon size={12} style={{ color: medal.color }} />
@@ -798,7 +835,7 @@ const ProfilePage = () => {
                               <p className="text-[11px] font-accent font-semibold text-foreground truncate">{medal.title}</p>
                               <p className="text-[9px] text-muted-foreground font-body truncate">{medal.desc}</p>
                             </div>
-                            {isSelected && <CheckCircle2 size={13} style={{ color: medal.color, flexShrink: 0 }} />}
+                            {ms.ativa && <CheckCircle2 size={13} style={{ color: medal.color, flexShrink: 0 }} />}
                           </button>
                         );
                       })}
@@ -806,7 +843,6 @@ const ProfilePage = () => {
                   </motion.div>
                 )}
               </AnimatePresence>
-
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {featuredMedals.map((medal, i) => {
                   const Icon = medal.icon;
@@ -871,12 +907,8 @@ const ProfilePage = () => {
             </motion.div>
           </main>
 
-          {/* ═══════════════════════════════════════════
-              COLUNA DIREITA
-          ════════════════════════════════════════════ */}
+          {/* ═══════════════ COLUNA DIREITA ════════════════════════════════ */}
           <aside className="hidden lg:flex flex-col gap-4">
-
-            {/* Timeline */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
               className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
@@ -902,8 +934,6 @@ const ProfilePage = () => {
                 </div>
               </div>
             </motion.div>
-
-            {/* Progresso */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
               className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -934,7 +964,7 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* ── Crop Modal ───────────────────────────────────────────────────────── */}
+      {/* Crop Modal */}
       <AnimatePresence>
         {cropSrc && cropType && (
           <ImageCropModal
@@ -948,7 +978,7 @@ const ProfilePage = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Modal de rede social ─────────────────────────────────────────────── */}
+      {/* Social Modal */}
       <AnimatePresence>
         {socialModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
