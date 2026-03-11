@@ -3,11 +3,11 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  User, BookOpen, ArrowUpRight, Pencil, Check, Plus, X, ImageIcon,
-  Camera, Flame, Star, Zap, Trophy, Target, Clock, MapPin,
+  User, ArrowUpRight, Pencil, Check, Plus, X, ImageIcon,
+  Camera, Flame, Star, Zap, Trophy, Clock, MapPin,
   Linkedin, Github, Facebook, Mail, Twitter, Instagram, Globe,
-  Shield, Code2, Brain, Database, Cloud, Lock, Cpu, Layers,
-  ChevronRight, TrendingUp, CheckCircle2,
+  Shield, Brain, Database, Cloud, Lock, Cpu, Layers, Code2,
+  ChevronRight, TrendingUp, CheckCircle2, Loader2,
 } from "lucide-react";
 import dominanciaImg   from "@/assets/disc/Dominancia.webp";
 import influenciaImg   from "@/assets/disc/Influencia.webp";
@@ -15,16 +15,37 @@ import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal  from "@/components/ImageCropModal";
 import Header          from "@/components/Header";
+import supabase        from "../../utils/supabase";
 
+// =============================================================================
+// TIPOS
+// =============================================================================
 
+/**
+ * Espelha a tabela `profiles` no Supabase.
+ *
+ * Colunas esperadas:
+ *   id          uuid  PK (mesmo id do auth.users)
+ *   name        text
+ *   descricao   text
+ *   photo_url   text  ← URL pública do Storage (ou null)
+ *   banner_url  text  ← URL pública do Storage (ou null)
+ *   social      jsonb ← { linkedin?: string, github?: string, ... }
+ *   medals      jsonb ← number[]  ex: [1, 3, 5]
+ */
+export type Profile = {
+  id?:         string;
+  name?:       string;
+  descricao?:  string;
+  photo_url?:  string;
+  banner_url?: string;
+  social?:     Partial<Record<SocialKey, string>>;  // JSON com links opcionais
+  medals?:     number[];
+};
 
- import supabase from "../../utils/supabase";
-
-
-
-
-
-// ─── DISC ────────────────────────────────────────────────────────────────────
+// =============================================================================
+// CONSTANTES — DISC
+// =============================================================================
 const DISC_IMGS: Record<string, string> = {
   D: dominanciaImg, I: influenciaImg, S: estabilidadeImg, C: conformidadeImg,
 };
@@ -34,107 +55,119 @@ const DISC_LABELS: Record<string, string> = {
 const DISC_COLORS: Record<string, string> = {
   D: "hsl(0 70% 55%)", I: "hsl(45 90% 55%)", S: "hsl(155 60% 45%)", C: "hsl(210 70% 55%)",
 };
-const DISC_TRAITS: Record<string, string[]> = {
-  D: ["Orientado a resultados", "Direto e decisivo", "Líder natural", "Alta energia"],
-  I: ["Comunicativo", "Criativo", "Persuasivo", "Entusiasta"],
-  S: ["Confiável", "Paciente", "Colaborativo", "Consistente"],
-  C: ["Analítico", "Preciso", "Detalhista", "Metódico"],
-};
-const DISC_CAREERS: Record<string, string[]> = {
-  D: ["Tech Lead", "CTO", "Product Owner", "Scrum Master"],
-  I: ["Product Manager", "UX Designer", "Dev Advocate", "Marketing Tech"],
-  S: ["DevOps Engineer", "QA Engineer", "Backend Dev", "Cloud Architect"],
-  C: ["Data Scientist", "Security Analyst", "BI Developer", "ML Engineer"],
-};
 
-// ─── Social ───────────────────────────────────────────────────────────────────
-type SocialKey = "linkedin" | "github" | "facebook" | "twitter" | "instagram" | "email" | "website";
+// =============================================================================
+// CONSTANTES — REDES SOCIAIS
+// =============================================================================
+
+/**
+ * SocialKey: cada chave é uma propriedade dentro do JSON `social` no banco.
+ * Ex: profile.social = { linkedin: "https://...", github: "https://..." }
+ *
+ * Como é um JSON, o usuário pode preencher só os que quiser — campos vazios
+ * simplesmente não aparecem no objeto salvo.
+ */
+type SocialKey = "linkedin" | "github" | "twitter" | "instagram" | "facebook" | "email" | "website";
+
 const SOCIAL_META: Record<SocialKey, { label: string; Icon: React.ElementType; placeholder: string; prefix?: string }> = {
-  linkedin:  { label: "LinkedIn",    Icon: Linkedin,  placeholder: "https://linkedin.com/in/usuario", prefix: "https://" },
-  github:    { label: "GitHub",      Icon: Github,    placeholder: "https://github.com/usuario",      prefix: "https://" },
-  facebook:  { label: "Facebook",    Icon: Facebook,  placeholder: "https://facebook.com/usuario",    prefix: "https://" },
-  twitter:   { label: "Twitter/X",   Icon: Twitter,   placeholder: "https://x.com/usuario",           prefix: "https://" },
-  instagram: { label: "Instagram",   Icon: Instagram, placeholder: "https://instagram.com/usuario",   prefix: "https://" },
-  email:     { label: "E-mail",      Icon: Mail,      placeholder: "seu@email.com",                   prefix: "mailto:"  },
-  website:   { label: "Website",     Icon: Globe,     placeholder: "https://seusite.com",             prefix: "https://" },
+  linkedin:  { label: "LinkedIn",  Icon: Linkedin,  placeholder: "https://linkedin.com/in/usuario", prefix: "https://" },
+  github:    { label: "GitHub",    Icon: Github,    placeholder: "https://github.com/usuario",      prefix: "https://" },
+  twitter:   { label: "Twitter/X", Icon: Twitter,   placeholder: "https://x.com/usuario",           prefix: "https://" },
+  instagram: { label: "Instagram", Icon: Instagram, placeholder: "https://instagram.com/usuario",   prefix: "https://" },
+  facebook:  { label: "Facebook",  Icon: Facebook,  placeholder: "https://facebook.com/usuario",    prefix: "https://" },
+  email:     { label: "E-mail",    Icon: Mail,      placeholder: "seu@email.com",                   prefix: "mailto:"  },
+  website:   { label: "Website",   Icon: Globe,     placeholder: "https://seusite.com",             prefix: "https://" },
 };
 const ALL_SOCIAL_KEYS = Object.keys(SOCIAL_META) as SocialKey[];
 
-// ─── Medalhas mockadas ────────────────────────────────────────────────────────
+// =============================================================================
+// CONSTANTES — MEDALHAS
+// =============================================================================
 const ALL_MEDALS = [
-  { id: 1, icon: Code2, title: "Primeira Linha de Código", desc: "Concluiu Fundamentos de Programação", color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.3)", date: "Jan 2025", rarity: "Comum" },
-  { id: 2, icon: Brain, title: "Mente Analítica", desc: "Concluiu Python para Data Science", color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.3)", date: "Mar 2025", rarity: "Rara" },
-  { id: 3, icon: Shield, title: "Guardião Digital", desc: "Concluiu Introdução a Cibersegurança", color: "hsl(0 70% 60%)", bg: "hsl(0 70% 60% / 0.12)", border: "hsl(0 70% 60% / 0.35)", glow: "hsl(0 70% 60% / 0.3)", date: "Mai 2025", rarity: "Épica" },
-  { id: 4, icon: Cloud, title: "Arquiteto de Nuvens", desc: "Concluiu Cloud Computing Basics", color: "hsl(45 90% 55%)", bg: "hsl(45 90% 55% / 0.12)", border: "hsl(45 90% 55% / 0.35)", glow: "hsl(45 90% 55% / 0.3)", date: "Jul 2025", rarity: "Rara" },
-  { id: 5, icon: Database, title: "Mestre dos Dados", desc: "Concluiu Fundamentos de SQL", color: "hsl(270 60% 65%)", bg: "hsl(270 60% 65% / 0.12)", border: "hsl(270 60% 65% / 0.35)", glow: "hsl(270 60% 65% / 0.3)", date: "Ago 2025", rarity: "Comum" },
-  { id: 6, icon: Cpu, title: "Pioneiro em IA", desc: "Concluiu Fundamentos de Inteligência Artificial", color: "hsl(25 90% 55%)", bg: "hsl(25 90% 55% / 0.12)", border: "hsl(25 90% 55% / 0.35)", glow: "hsl(25 90% 55% / 0.3)", date: "Out 2025", rarity: "Lendária" },
+  { id: 1, icon: Code2,    title: "Primeira Linha de Código",    desc: "Concluiu Fundamentos de Programação",             color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.3)", date: "Jan 2025", rarity: "Comum"    },
+  { id: 2, icon: Brain,    title: "Mente Analítica",             desc: "Concluiu Python para Data Science",               color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.3)", date: "Mar 2025", rarity: "Rara"     },
+  { id: 3, icon: Shield,   title: "Guardião Digital",            desc: "Concluiu Introdução a Cibersegurança",            color: "hsl(0 70% 60%)",   bg: "hsl(0 70% 60% / 0.12)",   border: "hsl(0 70% 60% / 0.35)",   glow: "hsl(0 70% 60% / 0.3)",   date: "Mai 2025", rarity: "Épica"    },
+  { id: 4, icon: Cloud,    title: "Arquiteto de Nuvens",         desc: "Concluiu Cloud Computing Basics",                 color: "hsl(45 90% 55%)",  bg: "hsl(45 90% 55% / 0.12)",  border: "hsl(45 90% 55% / 0.35)",  glow: "hsl(45 90% 55% / 0.3)",  date: "Jul 2025", rarity: "Rara"     },
+  { id: 5, icon: Database, title: "Mestre dos Dados",            desc: "Concluiu Fundamentos de SQL",                    color: "hsl(270 60% 65%)", bg: "hsl(270 60% 65% / 0.12)", border: "hsl(270 60% 65% / 0.35)", glow: "hsl(270 60% 65% / 0.3)", date: "Ago 2025", rarity: "Comum"    },
+  { id: 6, icon: Cpu,      title: "Pioneiro em IA",              desc: "Concluiu Fundamentos de Inteligência Artificial", color: "hsl(25 90% 55%)",  bg: "hsl(25 90% 55% / 0.12)",  border: "hsl(25 90% 55% / 0.35)",  glow: "hsl(25 90% 55% / 0.3)",  date: "Out 2025", rarity: "Lendária" },
 ];
-
 const RARITY_COLOR: Record<string, string> = {
-  Comum:    "hsl(215 20% 60%)",
-  Rara:     "hsl(210 70% 60%)",
-  Épica:    "hsl(270 60% 65%)",
-  Lendária: "hsl(45 90% 55%)",
+  Comum: "hsl(215 20% 60%)", Rara: "hsl(210 70% 60%)", Épica: "hsl(270 60% 65%)", Lendária: "hsl(45 90% 55%)",
 };
 
-// ─── Cursos em andamento ──────────────────────────────────────────────────────
-const MOCK_COURSES = [
-  { title: "Machine Learning Avançado", progress: 65,  icon: Brain },
-  { title: "Cloud Computing AWS",       progress: 30,  icon: Cloud },
-  { title: "Cibersegurança Ofensiva",   progress: 10,  icon: Lock  },
-];
-
-// ─── Timeline de atividade ────────────────────────────────────────────────────
+// =============================================================================
+// CONSTANTES — TIMELINE / VAGAS (mockadas)
+// =============================================================================
 const ACTIVITY_TIMELINE = [
-  { type: "medal",   text: "Conquistou a medalha Pioneiro em IA",        time: "há 2d",  color: "hsl(25 90% 55%)"  },
-  { type: "course",  text: "Avançou 15% em Machine Learning Avançado",   time: "há 3d",  color: "hsl(155 60% 45%)" },
-  { type: "post",    text: "Publicou um post na Comunidade",             time: "há 5d",  color: "hsl(210 70% 55%)" },
-  { type: "medal",   text: "Conquistou a medalha Mestre dos Dados",      time: "há 1sem",color: "hsl(270 60% 65%)" },
-  { type: "course",  text: "Concluiu Fundamentos de SQL",                time: "há 2sem",color: "hsl(155 60% 45%)" },
-  { type: "login",   text: "Completou 7 dias seguidos de estudo 🔥",     time: "há 2sem",color: "hsl(45 90% 55%)"  },
+  { type: "medal",  text: "Conquistou a medalha Pioneiro em IA",       time: "há 2d",   color: "hsl(25 90% 55%)"  },
+  { type: "course", text: "Avançou 15% em Machine Learning Avançado",  time: "há 3d",   color: "hsl(155 60% 45%)" },
+  { type: "post",   text: "Publicou um post na Comunidade",            time: "há 5d",   color: "hsl(210 70% 55%)" },
+  { type: "medal",  text: "Conquistou a medalha Mestre dos Dados",     time: "há 1sem", color: "hsl(270 60% 65%)" },
+  { type: "course", text: "Concluiu Fundamentos de SQL",               time: "há 2sem", color: "hsl(155 60% 45%)" },
+  { type: "login",  text: "Completou 7 dias seguidos de estudo 🔥",    time: "há 2sem", color: "hsl(45 90% 55%)"  },
 ];
-
 const ACTIVITY_ICON: Record<string, React.ElementType> = {
-  medal:  Trophy,
-  course: BookOpen,
-  post:   Layers,
-  login:  Flame,
+  medal: Trophy, course: Shield, post: Layers, login: Flame,
 };
-
-// ─── Vagas recomendadas ───────────────────────────────────────────────────────
 const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salary: string; type: string }>> = {
-  D: [
-    { title: "Tech Lead",       company: "Nubank",       salary: "R$18–25k", type: "Remoto" },
-    { title: "Product Owner",   company: "iFood",        salary: "R$14–20k", type: "Híbrido" },
-    { title: "Engineering Mgr", company: "Mercado Livre",salary: "R$22–30k", type: "Remoto" },
-  ],
-  I: [
-    { title: "Product Manager", company: "Hotmart",      salary: "R$12–18k", type: "Remoto" },
-    { title: "UX Lead",         company: "Conta Simples",salary: "R$10–15k", type: "Remoto" },
-    { title: "Dev Advocate",    company: "Stripe",       salary: "R$15–22k", type: "Remoto" },
-  ],
-  S: [
-    { title: "DevOps Engineer", company: "PicPay",       salary: "R$12–18k", type: "Remoto" },
-    { title: "Backend Dev Sr",  company: "Banco Inter",  salary: "R$14–20k", type: "Híbrido" },
-    { title: "Cloud Architect", company: "Totvs",        salary: "R$16–24k", type: "Remoto" },
-  ],
-  C: [
-    { title: "Data Scientist",  company: "Itaú BBA",     salary: "R$14–22k", type: "Híbrido" },
-    { title: "Cyber Analyst",   company: "Tempest",      salary: "R$12–18k", type: "Remoto" },
-    { title: "ML Engineer",     company: "Loft",         salary: "R$18–26k", type: "Remoto" },
-  ],
+  D: [{ title: "Tech Lead",       company: "Nubank",        salary: "R$18–25k", type: "Remoto"  }, { title: "Product Owner",   company: "iFood",         salary: "R$14–20k", type: "Híbrido" }, { title: "Engineering Mgr", company: "Mercado Livre", salary: "R$22–30k", type: "Remoto"  }],
+  I: [{ title: "Product Manager", company: "Hotmart",       salary: "R$12–18k", type: "Remoto"  }, { title: "UX Lead",         company: "Conta Simples", salary: "R$10–15k", type: "Remoto"  }, { title: "Dev Advocate",    company: "Stripe",        salary: "R$15–22k", type: "Remoto"  }],
+  S: [{ title: "DevOps Engineer", company: "PicPay",        salary: "R$12–18k", type: "Remoto"  }, { title: "Backend Dev Sr",  company: "Banco Inter",   salary: "R$14–20k", type: "Híbrido" }, { title: "Cloud Architect", company: "Totvs",         salary: "R$16–24k", type: "Remoto"  }],
+  C: [{ title: "Data Scientist",  company: "Itaú BBA",      salary: "R$14–22k", type: "Híbrido" }, { title: "Cyber Analyst",   company: "Tempest",       salary: "R$12–18k", type: "Remoto"  }, { title: "ML Engineer",     company: "Loft",          salary: "R$18–26k", type: "Remoto"  }],
 };
 
-// ─── Storage ──────────────────────────────────────────────────────────────────
-const KEY_PHOTO   = "upjobs_profile_photo_v2";
-const KEY_BANNER  = "upjobs_profile_banner_v1";
-const KEY_SOCIAL  = "upjobs_profile_social_v1";
-const KEY_MEDALS  = "upjobs_profile_medals_v1";
-if (typeof window !== "undefined") localStorage.removeItem("upjobs_profile_photo");
+const DEFAULT_MEDALS: number[] = [1, 2, 3];
 
-const DEFAULT_FEATURED_IDS = [1, 2, 3];
+// =============================================================================
+// HELPER — Upload para Supabase Storage
+// =============================================================================
+/**
+ * [BANCO DESCONECTADO POR ENQUANTO]
+ *
+ * Quando você quiser conectar:
+ *   1. Crie um bucket chamado "profiles" no Supabase Storage (público ou com policy)
+ *   2. Descomente o bloco abaixo e delete o `throw` de simulação
+ *
+ * O que essa função faz:
+ *   - Recebe o dataURL gerado pelo ImageCropModal (resultado do recorte do usuário)
+ *   - Converte para Blob (formato binário que o Storage aceita)
+ *   - Faz upload em: profiles/{userId}/photo.webp  ou  profiles/{userId}/banner.webp
+ *   - Retorna a URL pública, que é o que vai ser salvo na coluna photo_url / banner_url
+ *
+ * Por que dataURL → Blob e não File direto?
+ *   Porque o ImageCropModal devolve um dataURL (string base64), não um File.
+ *   O crop acontece no canvas do browser e a saída é sempre string.
+ */
+async function uploadCroppedImage(
+  dataUrl: string,         // string base64 gerada pelo crop
+  userId: string,
+  slot: "photo" | "banner"
+): Promise<string> {
 
-// ═════════════════════════════════════════════════════════════════════════════
+  // --- SIMULAÇÃO (remova quando conectar ao banco) ---
+  // Por enquanto apenas retorna o próprio dataUrl como "URL",
+  // assim a prévia continua funcionando na tela.
+  return dataUrl;
+
+  // --- CÓDIGO REAL (descomente quando conectar) ---
+  // const res  = await fetch(dataUrl);
+  // const blob = await res.blob();
+  // const ext  = blob.type.includes("png") ? "png" : "webp";
+  // const path = `${userId}/${slot}.${ext}`;
+  //
+  // const { error } = await supabase.storage
+  //   .from("profiles")
+  //   .upload(path, blob, { upsert: true, contentType: blob.type });
+  //
+  // if (error) throw error;
+  //
+  // const { data } = supabase.storage.from("profiles").getPublicUrl(path);
+  // return `${data.publicUrl}?t=${Date.now()}`; // ?t= força o browser a recarregar a imagem
+}
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
 const ProfilePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -142,115 +175,315 @@ const ProfilePage = () => {
   const photoInputRef  = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const [photoSrc,    setPhotoSrc]    = useState<string | null>(() => localStorage.getItem(KEY_PHOTO));
-  const [bannerSrc,   setBannerSrc]   = useState<string | null>(() => localStorage.getItem(KEY_BANNER));
-  const [socialLinks, setSocialLinks] = useState<Partial<Record<SocialKey, string>>>(() => {
-    try { return JSON.parse(localStorage.getItem(KEY_SOCIAL) ?? "{}"); } catch { return {}; }
-  });
-  const [featuredMedalIds, setFeaturedMedalIds] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem(KEY_MEDALS) ?? JSON.stringify(DEFAULT_FEATURED_IDS)); }
-    catch { return DEFAULT_FEATURED_IDS; }
-  });
+  // ---------------------------------------------------------------------------
+  // ESTADO — perfil carregado do banco
+  // ---------------------------------------------------------------------------
+  /**
+   * `profile` guarda os dados salvos no Supabase.
+   * Começa vazio ({}) e é preenchido no useEffect abaixo.
+   *
+   * [BANCO DESCONECTADO] — enquanto não conectar, começa com dados mockados.
+   */
+  const [profile,        setProfile]        = useState<Profile>({});
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [saving,         setSaving]         = useState(false);
+  const [saveError,      setSaveError]      = useState<string | null>(null);
 
-  const [isEditing,       setIsEditing]      = useState(false);
-  const [draftPhoto,      setDraftPhoto]     = useState<string | null>(null);
-  const [draftBanner,     setDraftBanner]    = useState<string | null>(null);
-  const [draftSocial,     setDraftSocial]    = useState<Partial<Record<SocialKey, string>>>({});
-  const [draftMedalIds,   setDraftMedalIds]  = useState<number[]>([]);
-  const [cropSrc,         setCropSrc]        = useState<string | null>(null);
-  const [cropType,        setCropType]       = useState<"photo" | "banner" | null>(null);
-  const [socialModal,     setSocialModal]    = useState<SocialKey | null>(null);
-  const [socialInput,     setSocialInput]    = useState("");
-  const [hoverPhoto,      setHoverPhoto]     = useState(false);
-  const [hoveredMedal,    setHoveredMedal]   = useState<number | null>(null);
+  // ---------------------------------------------------------------------------
+  // ESTADO — draft (o que o usuário está editando, antes de confirmar)
+  // ---------------------------------------------------------------------------
+  const [isEditing,      setIsEditing]      = useState(false);
+
+  // Nome e descrição: campos de texto simples
+  const [draftName,      setDraftName]      = useState("");
+  const [draftDescricao, setDraftDescricao] = useState("");
+
+  /**
+   * Foto e banner: o fluxo é:
+   *   1. Usuário seleciona arquivo do PC/celular  →  handlePhotoFile abre o crop
+   *   2. ImageCropModal aparece, usuário ajusta o enquadramento
+   *   3. Ao confirmar, handleCropConfirm recebe o dataUrl recortado
+   *   4. O dataUrl fica em draftPhoto/draftBanner para prévia na tela
+   *   5. Na hora de salvar (handleConfirmEdit), o dataUrl vai para uploadCroppedImage
+   *      que sobe para o Storage e retorna a URL pública final
+   *
+   * draftPhoto === null  → usuário não mexeu na foto nessa sessão de edição
+   * draftPhoto === ""    → usuário pediu para remover a foto
+   * draftPhoto === "data:image/..." → novo dataUrl recortado aguardando upload
+   */
+  const [draftPhoto,  setDraftPhoto]  = useState<string | null>(null);
+  const [draftBanner, setDraftBanner] = useState<string | null>(null);
+
+  /**
+   * cropSrc: dataUrl bruto do arquivo selecionado, antes do recorte
+   * cropType: qual slot está sendo recortado ("photo" ou "banner")
+   * Quando cropSrc tem valor, o ImageCropModal é exibido.
+   */
+  const [cropSrc,  setCropSrc]  = useState<string | null>(null);
+  const [cropType, setCropType] = useState<"photo" | "banner" | null>(null);
+
+  /**
+   * draftSocial: cópia temporária do JSON de redes sociais enquanto o usuário edita.
+   * Começa preenchido com os valores salvos no banco (em handleStartEdit).
+   * Cada chave é opcional — o usuário preenche só o que quiser.
+   */
+  const [draftSocial, setDraftSocial] = useState<Partial<Record<SocialKey, string>>>({});
+
+  // Modal para editar uma rede social por vez
+  const [socialModal, setSocialModal] = useState<SocialKey | null>(null);
+  const [socialInput, setSocialInput] = useState("");
+
+  const [draftMedalIds,   setDraftMedalIds]   = useState<number[]>([]);
   const [medalPickerOpen, setMedalPickerOpen] = useState(false);
 
+  // UI helpers
+  const [hoverPhoto,   setHoverPhoto]   = useState(false);
+  const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // EFEITOS
+  // ---------------------------------------------------------------------------
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
+
+  /**
+   * [BANCO DESCONECTADO]
+   * Quando conectar ao banco, substitua o bloco de "mockado" pelo bloco
+   * "CÓDIGO REAL" comentado abaixo.
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    // --- MOCKADO (remova quando conectar) ---
+    setProfile({ id: user.id, name: user.name, social: {}, medals: DEFAULT_MEDALS });
+    setLoadingProfile(false);
+
+    // --- CÓDIGO REAL (descomente quando conectar) ---
+    // (async () => {
+    //   setLoadingProfile(true);
+    //   const { data, error } = await supabase
+    //     .from("profiles")
+    //     .select("*")
+    //     .eq("id", user.id)
+    //     .single();
+    //
+    //   // Se ainda não tem perfil no banco, usa defaults do auth
+    //   setProfile(!error && data
+    //     ? (data as Profile)
+    //     : { id: user.id, name: user.name, social: {}, medals: DEFAULT_MEDALS }
+    //   );
+    //   setLoadingProfile(false);
+    // })();
+  }, [user]);
+
   if (!user) return null;
 
+  // ---------------------------------------------------------------------------
+  // DERIVADOS
+  // ---------------------------------------------------------------------------
   const a           = user.assessment;
   const discProfile = a?.discProfile ?? "S";
   const ringColor   = DISC_COLORS[discProfile] ?? "hsl(155 60% 45%)";
 
-  const displayPhoto  = isEditing ? (draftPhoto  !== null ? (draftPhoto  || null) : photoSrc)  : photoSrc;
-  const displayBanner = isEditing ? (draftBanner !== null ? (draftBanner || null) : bannerSrc) : bannerSrc;
-  const displaySocial: Partial<Record<SocialKey, string>> = isEditing
-    ? Object.fromEntries(ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : socialLinks[k]]))
-    : socialLinks;
-  const activeMedalIds = isEditing ? draftMedalIds : featuredMedalIds;
-  const featuredMedals = activeMedalIds.map(id => ALL_MEDALS.find(m => m.id === id)!).filter(Boolean);
+  /**
+   * displayPhoto / displayBanner:
+   *   - Durante a edição: mostra o draft (novo dataUrl recortado) se existir,
+   *     senão mostra o que já estava salvo no banco.
+   *   - Fora da edição: mostra só o que está salvo no banco.
+   */
+  const displayPhoto  = isEditing
+    ? (draftPhoto  !== null ? (draftPhoto  || null) : (profile.photo_url  ?? null))
+    : (profile.photo_url  ?? null);
+  const displayBanner = isEditing
+    ? (draftBanner !== null ? (draftBanner || null) : (profile.banner_url ?? null))
+    : (profile.banner_url ?? null);
 
+  /**
+   * displaySocial:
+   *   - Durante a edição: mistura os valores do draft com os salvos no banco.
+   *     (Se o usuário mexeu num campo, usa o draft; senão usa o banco.)
+   *   - Fora da edição: usa direto o que está no banco.
+   */
+  const displaySocial: Partial<Record<SocialKey, string>> = isEditing
+    ? Object.fromEntries(
+        ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : (profile.social ?? {})[k]])
+      )
+    : (profile.social ?? {});
+
+  const activeMedalIds  = isEditing ? draftMedalIds : (profile.medals ?? DEFAULT_MEDALS);
+  const featuredMedals  = activeMedalIds.map(id => ALL_MEDALS.find(m => m.id === id)!).filter(Boolean);
+  const recommendedJobs = JOBS_BY_DISC[discProfile] ?? JOBS_BY_DISC.S;
+  const filledSocials   = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
+  const emptySocials    = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
+
+  // XP mockado
+  const XP_TOTAL = 2340, XP_NEXT = 3000, LEVEL = 7, STREAK = 12, RANK = 48;
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS — edição
+  // ---------------------------------------------------------------------------
+
+  /** Abre o modo de edição copiando os dados salvos para os drafts */
   const handleStartEdit = () => {
-    setDraftPhoto(null); setDraftBanner(null); setDraftSocial({});
-    setDraftMedalIds([...featuredMedalIds]);
+    setDraftName(profile.name ?? user.name ?? "");
+    setDraftDescricao(profile.descricao ?? "");
+    setDraftPhoto(null);   // null = "não mexeu ainda"
+    setDraftBanner(null);
+    setDraftSocial({});    // vazio = "não mexeu ainda"
+    setDraftMedalIds([...(profile.medals ?? DEFAULT_MEDALS)]);
+    setSaveError(null);
     setIsEditing(true);
   };
+
+  /** Descarta tudo sem salvar */
   const handleCancelEdit = () => {
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({});
-    setDraftMedalIds([]); setIsEditing(false); setMedalPickerOpen(false);
-  };
-  const handleConfirmEdit = () => {
-    const fp = draftPhoto  !== null ? (draftPhoto  || null) : photoSrc;
-    const fb = draftBanner !== null ? (draftBanner || null) : bannerSrc;
-    const fs: Partial<Record<SocialKey, string>> = {};
-    ALL_SOCIAL_KEYS.forEach(k => { const v = k in draftSocial ? draftSocial[k] : socialLinks[k]; if (v) fs[k] = v; });
-    if (fp) localStorage.setItem(KEY_PHOTO, fp);   else localStorage.removeItem(KEY_PHOTO);
-    if (fb) localStorage.setItem(KEY_BANNER, fb);  else localStorage.removeItem(KEY_BANNER);
-    localStorage.setItem(KEY_SOCIAL, JSON.stringify(fs));
-    localStorage.setItem(KEY_MEDALS, JSON.stringify(draftMedalIds));
-    setPhotoSrc(fp); setBannerSrc(fb); setSocialLinks(fs);
-    setFeaturedMedalIds(draftMedalIds);
-    setIsEditing(false); setMedalPickerOpen(false);
+    setDraftMedalIds([]); setIsEditing(false);
+    setMedalPickerOpen(false); setSaveError(null);
   };
 
-  const readAndOpenCrop  = (file: File, type: "photo" | "banner") => {
+  /**
+   * Confirma e salva.
+   *
+   * [BANCO DESCONECTADO]
+   * Por enquanto só atualiza o estado local (`profile`) para simular o save.
+   * Quando conectar, descomente o bloco "CÓDIGO REAL".
+   */
+  const handleConfirmEdit = async () => {
+    if (!user) return;
+    setSaving(true); setSaveError(null);
+
+    try {
+      // 1. Upload de foto/banner se foram recortados nessa sessão
+      //    (se draftPhoto === null, o usuário não mexeu → mantém URL existente)
+      let photo_url  = profile.photo_url  ?? null;
+      let banner_url = profile.banner_url ?? null;
+
+      if (draftPhoto !== null) {
+        // "" significa que o usuário clicou em "remover foto"
+        photo_url = draftPhoto === "" ? null : await uploadCroppedImage(draftPhoto, user.id, "photo");
+      }
+      if (draftBanner !== null) {
+        banner_url = draftBanner === "" ? null : await uploadCroppedImage(draftBanner, user.id, "banner");
+      }
+
+      // 2. Monta o JSON de redes sociais
+      //    Pega o estado atual do banco e aplica só o que o usuário alterou no draft.
+      //    Strings vazias são removidas do JSON para não poluir o banco.
+      const social: Partial<Record<SocialKey, string>> = {};
+      ALL_SOCIAL_KEYS.forEach(k => {
+        const val = k in draftSocial ? draftSocial[k] : (profile.social ?? {})[k];
+        if (val && val.trim()) social[k] = val.trim(); // só inclui se não estiver vazio
+      });
+
+      // 3. Monta o payload completo
+      const payload: Profile = {
+        id:         user.id,
+        name:       draftName.trim()       || profile.name       || null,
+        descricao:  draftDescricao.trim()  || profile.descricao  || null,
+        photo_url,
+        banner_url,
+        social,     // JSON com apenas as redes que têm valor
+        medals:     draftMedalIds,
+      };
+
+      // --- MOCKADO (remova quando conectar) ---
+      // Simula o save apenas atualizando o estado local
+      setProfile(payload);
+
+      // --- CÓDIGO REAL (descomente quando conectar) ---
+      // const { error } = await supabase
+      //   .from("profiles")
+      //   .upsert(payload, { onConflict: "id" });  // INSERT se não existe, UPDATE se existe
+      // if (error) throw error;
+      // setProfile(payload);
+
+      setIsEditing(false); setMedalPickerOpen(false);
+    } catch (err: any) {
+      setSaveError(err?.message ?? "Erro ao salvar perfil.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS — foto e banner (fluxo com crop)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Quando o usuário seleciona um arquivo:
+   *   1. FileReader lê o arquivo e gera um dataUrl bruto
+   *   2. Esse dataUrl vai para cropSrc, abrindo o ImageCropModal
+   */
+  const readAndOpenCrop = (file: File, type: "photo" | "banner") => {
     const reader = new FileReader();
-    reader.onload = (e) => { setCropSrc(e.target?.result as string); setCropType(type); };
+    reader.onload = e => { setCropSrc(e.target?.result as string); setCropType(type); };
     reader.readAsDataURL(file);
   };
   const handlePhotoFile  = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo");  e.target.value = ""; };
   const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "banner"); e.target.value = ""; };
+
+  /**
+   * Chamado pelo ImageCropModal após o usuário confirmar o recorte.
+   * Recebe o dataUrl já recortado e armazena no draft correspondente.
+   */
   const handleCropConfirm = (dataUrl: string) => {
     if (cropType === "photo")  setDraftPhoto(dataUrl);
     if (cropType === "banner") setDraftBanner(dataUrl);
     setCropSrc(null); setCropType(null);
   };
-  const openSocialModal = (key: SocialKey) => { setSocialInput(displaySocial[key] ?? ""); setSocialModal(key); };
-  const saveSocialLink  = () => {
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS — redes sociais
+  // ---------------------------------------------------------------------------
+
+  /** Abre o modal de edição de uma rede com o valor atual já preenchido */
+  const openSocialModal = (key: SocialKey) => {
+    setSocialInput(displaySocial[key] ?? "");
+    setSocialModal(key);
+  };
+
+  /** Salva o valor digitado no modal de volta para o draftSocial */
+  const saveSocialModal = () => {
     if (!socialModal) return;
-    setDraftSocial(p => ({ ...p, [socialModal]: socialInput.trim() }));
+    setDraftSocial(prev => ({ ...prev, [socialModal]: socialInput.trim() }));
     setSocialModal(null); setSocialInput("");
   };
-  const removeSocialLink = (key: SocialKey) => setDraftSocial(p => ({ ...p, [key]: "" }));
 
+  /** Remove uma rede: grava string vazia no draft (será excluída do JSON no save) */
+  const removeSocialLink = (key: SocialKey) => {
+    setDraftSocial(prev => ({ ...prev, [key]: "" }));
+  };
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS — medalhas
+  // ---------------------------------------------------------------------------
   const toggleDraftMedal = (id: number) => {
     setDraftMedalIds(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
-      if (prev.length >= 3) return prev;
+      if (prev.length >= 3)  return prev; // máximo 3 em destaque
       return [...prev, id];
     });
   };
 
-  const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
-  const emptySocials  = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
+  // ---------------------------------------------------------------------------
+  // LOADING
+  // ---------------------------------------------------------------------------
+  if (loadingProfile) {
+    return (
+      <div className="min-h-screen gradient-hero scanline flex items-center justify-center">
+        <Loader2 size={32} className="text-primary animate-spin" />
+      </div>
+    );
+  }
 
-  const recommendedJobs = JOBS_BY_DISC[discProfile] ?? JOBS_BY_DISC.S;
-  const discTraits      = DISC_TRAITS[discProfile]  ?? DISC_TRAITS.S;
-
-  // XP e nível mockados
-  const XP_TOTAL = 2340;
-  const XP_NEXT  = 3000;
-  const LEVEL    = 7;
-  const STREAK   = 12;
-  const RANK     = 48;
-
+  // ===========================================================================
+  // RENDER
+  // ===========================================================================
   return (
     <div className="min-h-screen gradient-hero scanline">
       <Header />
 
       <div className="max-w-7xl mx-auto px-4 pt-24 pb-16">
-
-        {/* ── Grid 3 colunas ── */}
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6 items-start">
 
           {/* ═══════════════════════════════════════════
@@ -270,16 +503,13 @@ const ProfilePage = () => {
               </div>
               <div className="h-2 rounded-full bg-secondary overflow-hidden mb-2">
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(XP_TOTAL / XP_NEXT) * 100}%` }}
+                  initial={{ width: 0 }} animate={{ width: `${(XP_TOTAL / XP_NEXT) * 100}%` }}
                   transition={{ delay: 0.5, duration: 1.2, ease: "easeOut" }}
                   className="h-full rounded-full"
                   style={{ background: "linear-gradient(90deg, hsl(45 90% 45%), hsl(45 90% 65%))" }}
                 />
               </div>
               <p className="text-[10px] text-muted-foreground font-body">{XP_NEXT - XP_TOTAL} XP para o nível {LEVEL + 1}</p>
-
-              {/* Stats rápidos */}
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {[
                   { icon: Flame,  label: "Streak",  value: `${STREAK}d`,          color: "hsl(25 90% 55%)"  },
@@ -308,9 +538,7 @@ const ProfilePage = () => {
               </div>
               <div className="divide-y divide-border/20">
                 {recommendedJobs.map((job, i) => (
-                  <motion.div key={i}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
+                  <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + i * 0.07 }}
                     whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }}
                     className="px-4 py-3 cursor-pointer transition group">
@@ -334,7 +562,6 @@ const ProfilePage = () => {
                 </button>
               </div>
             </motion.div>
-
           </aside>
 
           {/* ═══════════════════════════════════════════
@@ -342,7 +569,7 @@ const ProfilePage = () => {
           ════════════════════════════════════════════ */}
           <main className="space-y-6 min-w-0">
 
-            {/* ── PROFILE CARD ── */}
+            {/* ── PROFILE CARD ─────────────────────────────────────────────── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="hologram-panel rounded-sm overflow-hidden">
 
@@ -372,39 +599,34 @@ const ProfilePage = () => {
               <div className="px-6 pb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -40 }}>
 
-                  {/* Avatar com DISC ring */}
+                  {/* Avatar com anel DISC */}
                   <div className="flex-shrink-0 relative" style={{ width: 112, height: 112 }}>
-                    {DISC_IMGS[discProfile] ? (
+                    {DISC_IMGS[discProfile] && (
                       <img src={DISC_IMGS[discProfile]} alt={DISC_LABELS[discProfile]}
                         className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-                    ) : (
-                      <div className="absolute inset-0 rounded-full"
-                        style={{ background: ringColor, zIndex: 1, boxShadow: `0 0 18px ${ringColor}60` }} />
                     )}
-                    
-                    {/* 👇 Aqui está a correção: trocamos o <button> por uma <div> */}
                     <div
                       onClick={() => isEditing && photoInputRef.current?.click()}
                       onMouseEnter={() => isEditing && setHoverPhoto(true)}
                       onMouseLeave={() => setHoverPhoto(false)}
-                      className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center focus:outline-none"
+                      className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center"
                       style={{ width: 80, height: 80, top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 2, border: "3px solid hsl(var(--background))", cursor: isEditing ? "pointer" : "default" }}>
-                      
                       {displayPhoto
                         ? <img src={displayPhoto} alt="Foto" className="w-full h-full object-cover" />
                         : <User size={28} className="text-muted-foreground" />
                       }
-                      
                       <AnimatePresence>
                         {isEditing && hoverPhoto && (
                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full"
-                            style={{ background: "rgba(0,0,0,0.55)" }}>
+                            style={{ background: "rgba(0,0,0,0.6)" }}>
                             <Camera size={16} className="text-white" />
                             <span className="text-[8px] text-white font-accent">Alterar</span>
                             {displayPhoto && (
-                              <button type="button" onClick={(e) => { e.stopPropagation(); setDraftPhoto(""); }}
-                                className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">remover</button>
+                              <button type="button" onClick={e => { e.stopPropagation(); setDraftPhoto(""); }}
+                                className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">
+                                remover
+                              </button>
                             )}
                           </motion.div>
                         )}
@@ -413,14 +635,22 @@ const ProfilePage = () => {
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
                   </div>
 
-                  {/* Nome + botões */}
+                  {/* Nome + email + botões */}
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
-                    <div>
-                      <h1 className="font-display text-xl font-bold text-foreground">{user.name}</h1>
+                    <div className="flex-1 min-w-0">
+                      {/* Nome: input no modo edição, texto estático fora */}
+                      {isEditing ? (
+                        <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)}
+                          placeholder="Seu nome"
+                          className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
+                      ) : (
+                        <h1 className="font-display text-xl font-bold text-foreground truncate">
+                          {profile.name ?? user.name}
+                        </h1>
+                      )}
                       <p className="text-sm text-muted-foreground font-body">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground"
-                          style={{ backgroundColor: ringColor }}>
+                        <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground" style={{ backgroundColor: ringColor }}>
                           {DISC_LABELS[discProfile]}
                         </span>
                         <span className="text-[10px] font-accent text-accent">Nível {LEVEL}</span>
@@ -432,34 +662,53 @@ const ProfilePage = () => {
                         <Link to="/avaliacao" className="block mt-1 text-xs text-accent hover:underline font-accent">Completar Avaliação →</Link>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {!isEditing ? (
-                        <button onClick={handleStartEdit}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-foreground border border-border hover:border-primary hover:text-primary transition-colors">
-                          <Pencil size={12} /> Editar Perfil
-                        </button>
-                      ) : (
-                        <>
-                          <button onClick={handleConfirmEdit}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-primary-foreground"
-                            style={{ background: "hsl(155 60% 40%)" }}>
-                            <Check size={12} /> Confirmar
+
+                    {/* Botões Editar / Confirmar / Cancelar */}
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        {!isEditing ? (
+                          <button onClick={handleStartEdit}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-foreground border border-border hover:border-primary hover:text-primary transition-colors">
+                            <Pencil size={12} /> Editar Perfil
                           </button>
-                          <button onClick={handleCancelEdit}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors">
-                            <X size={12} /> Cancelar
-                          </button>
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <button onClick={handleConfirmEdit} disabled={saving}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-primary-foreground disabled:opacity-60"
+                              style={{ background: "hsl(155 60% 40%)" }}>
+                              {saving
+                                ? <><Loader2 size={12} className="animate-spin" /> Salvando…</>
+                                : <><Check size={12} /> Confirmar</>}
+                            </button>
+                            <button onClick={handleCancelEdit} disabled={saving}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors disabled:opacity-60">
+                              <X size={12} /> Cancelar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {saveError && <p className="text-[10px] text-red-400 font-accent text-right max-w-[200px]">{saveError}</p>}
                     </div>
                   </div>
                 </div>
 
-                {/* Social links */}
-                <div className="mt-5">
+                {/* Descrição */}
+                <div className="mt-4">
+                  {isEditing ? (
+                    <textarea value={draftDescricao} onChange={e => setDraftDescricao(e.target.value)}
+                      placeholder="Escreva uma bio curta sobre você…" rows={3}
+                      className="w-full bg-secondary border border-border rounded-sm px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none" />
+                  ) : profile.descricao ? (
+                    <p className="text-sm font-body text-muted-foreground leading-relaxed">{profile.descricao}</p>
+                  ) : null}
+                </div>
+
+                {/* Redes sociais */}
+                <div className="mt-4">
+                  {/* Redes já preenchidas */}
                   {filledSocials.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
-                      {filledSocials.map((key) => {
+                      {filledSocials.map(key => {
                         const { Icon, label, prefix } = SOCIAL_META[key];
                         const href = displaySocial[key]!;
                         const fullHref = href.startsWith("http") || href.startsWith("mailto") ? href : (prefix ?? "") + href;
@@ -477,12 +726,14 @@ const ProfilePage = () => {
                       })}
                     </div>
                   )}
+
+                  {/* Redes vazias — aparecem só no modo edição para o usuário adicionar */}
                   {isEditing && emptySocials.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                       className="rounded-sm p-3 flex flex-wrap gap-2"
                       style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
                       <span className="w-full text-[10px] text-muted-foreground font-accent mb-1">Adicionar redes sociais</span>
-                      {emptySocials.map((key) => {
+                      {emptySocials.map(key => {
                         const { Icon, label } = SOCIAL_META[key];
                         return (
                           <button key={key} onClick={() => openSocialModal(key)}
@@ -493,6 +744,7 @@ const ProfilePage = () => {
                       })}
                     </motion.div>
                   )}
+
                   {!isEditing && filledSocials.length === 0 && (
                     <p className="text-xs text-muted-foreground font-accent italic">Nenhuma rede social adicionada.</p>
                   )}
@@ -500,7 +752,7 @@ const ProfilePage = () => {
               </div>
             </motion.div>
 
-            {/* ── MEDALHAS ── */}
+            {/* ── MEDALHAS ─────────────────────────────────────────────────── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
               className="hologram-panel rounded-sm p-6">
               <div className="flex items-center justify-between mb-5">
@@ -508,13 +760,9 @@ const ProfilePage = () => {
                   <Trophy size={18} className="text-accent" /> Conquistas
                 </h2>
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-accent text-muted-foreground">
-                    {ALL_MEDALS.length} medalhas
-                  </span>
-                  {/* botão "Editar medalhas" — só aparece no modo edição */}
+                  <span className="text-[11px] font-accent text-muted-foreground">{ALL_MEDALS.length} medalhas</span>
                   {isEditing && (
-                    <button
-                      onClick={() => setMedalPickerOpen(p => !p)}
+                    <button onClick={() => setMedalPickerOpen(p => !p)}
                       className="flex items-center gap-1.5 text-[10px] font-accent px-2 py-1 rounded-sm border transition-all"
                       style={medalPickerOpen
                         ? { background: `${ringColor}20`, color: ringColor, border: `1px solid ${ringColor}50` }
@@ -525,32 +773,23 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* ── Medal picker — expande ao clicar em "Editar medalhas" ── */}
               <AnimatePresence>
                 {isEditing && medalPickerOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden mb-5"
-                  >
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden mb-5">
                     <div className="rounded-sm p-3 space-y-1.5"
                       style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}>
                       <p className="text-[9px] font-accent text-muted-foreground mb-2">
                         Escolha até 3 medalhas para exibir em destaque ({draftMedalIds.length}/3)
                       </p>
-                      {ALL_MEDALS.map((medal) => {
+                      {ALL_MEDALS.map(medal => {
                         const Icon = medal.icon;
                         const isSelected = draftMedalIds.includes(medal.id);
                         return (
-                          <button key={medal.id}
-                            onClick={() => toggleDraftMedal(medal.id)}
+                          <button key={medal.id} onClick={() => toggleDraftMedal(medal.id)}
                             disabled={!isSelected && draftMedalIds.length >= 3}
                             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-left transition-all disabled:opacity-40"
-                            style={{
-                              background: isSelected ? `${medal.color}14` : "transparent",
-                              border: `1px solid ${isSelected ? medal.color + "40" : "transparent"}`,
-                            }}>
+                            style={{ background: isSelected ? `${medal.color}14` : "transparent", border: `1px solid ${isSelected ? medal.color + "40" : "transparent"}` }}>
                             <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                               style={{ background: medal.bg, border: `1px solid ${medal.border}` }}>
                               <Icon size={12} style={{ color: medal.color }} />
@@ -568,46 +807,24 @@ const ProfilePage = () => {
                 )}
               </AnimatePresence>
 
-              {/* ── 3 medalhas em destaque (mesmo visual original) ── */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {featuredMedals.map((medal, i) => {
                   const Icon = medal.icon;
                   const isHovered = hoveredMedal === medal.id;
                   return (
-                    <motion.div
-                      key={medal.id}
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
+                    <motion.div key={medal.id}
+                      initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.2 + i * 0.07 }}
                       onMouseEnter={() => setHoveredMedal(medal.id)}
                       onMouseLeave={() => setHoveredMedal(null)}
-                      className="relative rounded-sm p-4 flex flex-col items-center text-center cursor-default transition-all duration-200 group"
-                      style={{
-                        background: isHovered ? medal.bg : `${medal.color}08`,
-                        border: `1px solid ${isHovered ? medal.border : medal.color + "20"}`,
-                        boxShadow: isHovered ? `0 0 18px ${medal.glow}` : "none",
-                      }}
-                    >
-                      <AnimatePresence>
-                        {isHovered && (
-                          <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 rounded-sm pointer-events-none"
-                            style={{ background: `radial-gradient(ellipse at 50% 0%, ${medal.color}15 0%, transparent 70%)` }}
-                          />
-                        )}
-                      </AnimatePresence>
-
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2 relative"
+                      className="relative rounded-sm p-4 flex flex-col items-center text-center transition-all duration-200"
+                      style={{ background: isHovered ? medal.bg : `${medal.color}08`, border: `1px solid ${isHovered ? medal.border : medal.color + "20"}`, boxShadow: isHovered ? `0 0 18px ${medal.glow}` : "none" }}>
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
                         style={{ background: medal.bg, border: `2px solid ${medal.border}`, boxShadow: `0 0 12px ${medal.glow}` }}>
                         <Icon size={22} style={{ color: medal.color }} />
-                        <div className="absolute inset-0 rounded-full"
-                          style={{ background: `radial-gradient(circle at 35% 30%, ${medal.color}25, transparent 60%)` }} />
                       </div>
-
                       <p className="text-[11px] font-accent font-semibold text-foreground leading-tight mb-0.5">{medal.title}</p>
                       <p className="text-[9px] text-muted-foreground font-body leading-tight mb-2">{medal.desc}</p>
-
                       <div className="flex items-center gap-1.5 flex-wrap justify-center">
                         <span className="text-[8px] font-accent font-bold px-1.5 py-0.5 rounded-sm"
                           style={{ color: RARITY_COLOR[medal.rarity], background: `${RARITY_COLOR[medal.rarity]}15`, border: `1px solid ${RARITY_COLOR[medal.rarity]}30` }}>
@@ -620,12 +837,10 @@ const ProfilePage = () => {
                     </motion.div>
                   );
                 })}
-
-
               </div>
             </motion.div>
 
-            {/* ── Certificados ── */}
+            {/* ── CERTIFICADOS ─────────────────────────────────────────────── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
               className="hologram-panel rounded-sm p-6">
               <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2">
@@ -661,7 +876,7 @@ const ProfilePage = () => {
           ════════════════════════════════════════════ */}
           <aside className="hidden lg:flex flex-col gap-4">
 
-            {/* Timeline de atividade */}
+            {/* Timeline */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
               className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
@@ -673,11 +888,8 @@ const ProfilePage = () => {
                   {ACTIVITY_TIMELINE.map((item, i) => {
                     const Icon = ACTIVITY_ICON[item.type] ?? Clock;
                     return (
-                      <motion.div key={i}
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + i * 0.06 }}
-                        className="relative">
+                      <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + i * 0.06 }} className="relative">
                         <div className="absolute -left-5 top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"
                           style={{ background: `${item.color}20`, border: `1.5px solid ${item.color}60` }}>
                           <Icon size={7} style={{ color: item.color }} />
@@ -691,7 +903,7 @@ const ProfilePage = () => {
               </div>
             </motion.div>
 
-            {/* Progresso geral */}
+            {/* Progresso */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
               className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -699,10 +911,10 @@ const ProfilePage = () => {
               </h3>
               <div className="space-y-3">
                 {[
-                  { label: "Trilhas concluídas", value: 4,  total: 12, color: "hsl(155 60% 45%)" },
-                  { label: "Aulas assistidas",   value: 38, total: 80, color: "hsl(25 90% 55%)"  },
-                  { label: "Exercícios feitos",  value: 62, total: 100,color: "hsl(210 70% 55%)" },
-                  { label: "Dias de estudo",     value: 42, total: 90, color: "hsl(45 90% 55%)"  },
+                  { label: "Trilhas concluídas", value: 4,  total: 12,  color: "hsl(155 60% 45%)" },
+                  { label: "Aulas assistidas",   value: 38, total: 80,  color: "hsl(25 90% 55%)"  },
+                  { label: "Exercícios feitos",  value: 62, total: 100, color: "hsl(210 70% 55%)" },
+                  { label: "Dias de estudo",     value: 42, total: 90,  color: "hsl(45 90% 55%)"  },
                 ].map(({ label, value, total, color }) => (
                   <div key={label}>
                     <div className="flex justify-between items-center mb-1">
@@ -710,31 +922,25 @@ const ProfilePage = () => {
                       <span className="text-[10px] font-accent font-semibold" style={{ color }}>{value}/{total}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(value / total) * 100}%` }}
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${(value / total) * 100}%` }}
                         transition={{ delay: 0.6, duration: 0.8 }}
-                        className="h-full rounded-full"
-                        style={{ background: color }}
-                      />
+                        className="h-full rounded-full" style={{ background: color }} />
                     </div>
                   </div>
                 ))}
               </div>
             </motion.div>
-
           </aside>
         </div>
       </div>
 
-      {/* ── Crop Modal ── */}
-{/* ── Crop Modal ── */}
+      {/* ── Crop Modal ───────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {cropSrc && cropType && (
           <ImageCropModal
             src={cropSrc}
             shape={cropType === "photo" ? "circle" : "rect"}
-            outputWidth={cropType === "photo" ? 400 : 1200}
+            outputWidth={cropType  === "photo" ? 400 : 1200}
             outputHeight={cropType === "photo" ? 400 : 320}
             onConfirm={handleCropConfirm}
             onCancel={() => { setCropSrc(null); setCropType(null); }}
@@ -742,7 +948,7 @@ const ProfilePage = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Social Modal ── */}
+      {/* ── Modal de rede social ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {socialModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -751,7 +957,7 @@ const ProfilePage = () => {
             onClick={() => setSocialModal(null)}>
             <motion.div initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
               className="hologram-panel rounded-sm p-6 w-full max-w-sm"
-              onClick={(e) => e.stopPropagation()}>
+              onClick={e => e.stopPropagation()}>
               {(() => {
                 const { Icon, label, placeholder } = SOCIAL_META[socialModal];
                 return (
@@ -761,8 +967,8 @@ const ProfilePage = () => {
                       <h3 className="font-display font-bold text-foreground">Adicionar {label}</h3>
                     </div>
                     <input autoFocus type="text" value={socialInput}
-                      onChange={(e) => setSocialInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && saveSocialLink()}
+                      onChange={e => setSocialInput(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && saveSocialModal()}
                       placeholder={placeholder}
                       className="w-full bg-secondary border border-border rounded-sm px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
                     <div className="flex gap-2 mt-4 justify-end">
@@ -770,7 +976,7 @@ const ProfilePage = () => {
                         className="px-3 py-1.5 text-xs font-accent text-muted-foreground border border-border rounded-sm hover:text-foreground">
                         Cancelar
                       </button>
-                      <button onClick={saveSocialLink}
+                      <button onClick={saveSocialModal}
                         className="px-3 py-1.5 text-xs font-accent font-semibold text-primary-foreground rounded-sm"
                         style={{ background: "hsl(155 60% 40%)" }}>
                         Salvar
