@@ -15,6 +15,9 @@ import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal  from "@/components/ImageCropModal";
 import Header          from "@/components/Header";
+
+
+
 import supabase        from "../../utils/supabase";
 
 // =============================================================================
