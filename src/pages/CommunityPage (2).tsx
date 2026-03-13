@@ -1,11 +1,11 @@
+
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Heart, MessageCircle, Share2, ImageIcon, X, Send,
-  Bookmark, MoreHorizontal, TrendingUp, Users, Zap,
+  ImageIcon, X, TrendingUp, Users, Zap,
   Trophy, BookOpen, ExternalLink, Clock, ChevronRight, Flame,
 } from "lucide-react";
-import Header from "@/components/Header";
+import Header   from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
 
@@ -14,147 +14,30 @@ import influenciaImg   from "@/assets/disc/Influencia.webp";
 import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 
-// ─── Tipo: tabela publications (Supabase) ─────────────────────────────────────
-export type Publication = {
-  id?:          string;   // uuid PK
-  created_at?:  string;   // timestamptz
-  description?: string;   // text
-  date?:        string;   // timestamptz
-  midia?:       string;   // text — URL ou base64 da imagem do POST
-  creator_id?:  string;   // uuid FK → profiles
-  like_qnt?:    number;   // numeric
-};
+// Componentes extraídos
+import PostCard, {
+  Publication, Post,
+  DISC_IMGS, DISC_COLOR, DISC_LABEL,
+  UserAvatar, toInitials,
+} from "../components/PostCard";
+import PostModal from "../components/PostModal";
 
-export function CreatePublication() {
-  const { user, signOutUser } = useAuth(); // obtendo o usuário logado e a função de logout
-
-  const [publi, setPubli] = useState<Publication>({});
-
-  async function handleDescriptionChange() {
-    const agora: string = new Date().toISOString(); // string ISO 8601 — Supabase converte para timestamptz automaticamente
-
-    const data = {
-      description: publi.description,
-      midia:       publi.midia ?? "EMPTY",
-      date:        agora,
-      creator_id:  user?.id,
-      like_qnt:    0,
-    };
-
-    console.log("data enviado ao Supabase:", data); // DEBUG
-    const {error} = await supabase.from('publications').insert(data);
-
-    if(error){ // corrigido: "error" minúsculo — Error maiúsculo é a classe global do JS e nunca é falsy
-      alert(error.message);
-      return;
-    }
-
-  }
-
-  return (
-    <>
-      <input
-        type="text"
-        placeholder="Escreva aqui o que você tem em mente..."
-        value={publi.description ?? ""} // ?? "" necessário no TypeScript para input controlado
-        onChange={(e) => setPubli({ ...publi, description: e.target.value })} //setando o valor escrito
-      />
-      <input
-        type="text"
-        placeholder="Adicione uma imagem (opcional)"
-        value={publi.midia ?? ""} // ?? "" necessário no TypeScript para input controlado
-        onChange={(e) => setPubli({ ...publi, midia: e.target.value })}
-      />
-      {/* Botão conectado à sua função — só ativa se description tiver conteúdo */}
-      <button
-        onClick={handleDescriptionChange}
-        disabled={!publi.description?.trim()}
-      >
-        Publicar
-      </button>
-    </>
-  );
-}
-
-// ─── Tipo: tabela profiles (Supabase — ainda não criada) ──────────────────────
-// Quando o Supabase retornar, virá via JOIN:
-//   .from('publications').select('*, profile:profiles(*)')
-export type Profile = {
-  id:           string;   // uuid PK = auth.users.id
-  name:         string;   // text
-  avatar_url?:  string;   // text — URL do Supabase Storage (foto de perfil)
-  role?:        string;   // text
-  disc?:        "D" | "I" | "S" | "C";
-};
-
-const DISC_IMGS: Record<string, string> = {
-  D: dominanciaImg, I: influenciaImg,
-  S: estabilidadeImg, C: conformidadeImg,
-};
-const DISC_COLOR: Record<string, string> = {
-  D: "hsl(0 70% 55%)", I: "hsl(45 90% 55%)",
-  S: "hsl(155 60% 45%)", C: "hsl(210 70% 55%)",
-};
-const DISC_LABEL: Record<string, string> = {
-  D: "Dominância", I: "Influência", S: "Estabilidade", C: "Conformidade",
-};
-
-const KEY_PHOTO = "upjobs_profile_photo_v2";
-
-// ─── Tipos internos de UI ─────────────────────────────────────────────────────
-
-// Espelho da tabela pivot "comments" no Supabase
-export type DbComment = {
-  id?:            string;  // uuid PK
-  user_id?:       string;  // uuid FK
-  publication_id: string;  // uuid FK → publications
-  comment:        string;  // text
-  like?:          number;  // numeric
-};
-
-interface Comment {
-  id:          number | string;
-  author:      string;
-  initials:    string;
-  avatar_url?: string;
-  disc:        string;
-  text:        string;
-  time:        string;
-}
-
-// Post = Publication + profile JOIN + estado de UI
-interface Post extends Publication {
-  profile?:  Profile;
-  liked:     boolean;
-  saved:     boolean;
-  comments:  Comment[];
-}
+// ─── Tipos internos ───────────────────────────────────────────────────────────
 
 interface NewsItem {
   id: number; title: string; category: string;
   categoryColor: string; time: string; url: string; image: string; hot?: boolean;
 }
 
-// ─── DADOS MOCKADOS ───────────────────────────────────────────────────────────
-// Simula: supabase.from('publications').select('*, profile:profiles(*)')
-// profile.avatar_url é uma URL de imagem renderizada diretamente via <img>
+// ─── Dados mockados ───────────────────────────────────────────────────────────
 
 const INITIAL_POSTS: Post[] = [
   {
     id: "a1b2c3d4-0001-0000-0000-000000000001",
     created_at: "2026-03-11T10:00:00.000+00:00",
     description: "Acabei de fechar minha primeira vaga remota como PM em uma startup de fintech 🚀\n\nDepois de 4 meses na trilha UpJobs, saí de R$28/h presencial para R$95/h remoto. A calculadora de Marcius me abriu os olhos: eu estava perdendo 38% da minha hora só com deslocamento.\n\nSe você ainda está na dúvida, o custo de oportunidade real é mais pesado do que parece. Não espere mais.",
-    date: "2026-03-11T10:00:00.000+00:00",
-    midia: undefined,
-    creator_id: "user-uuid-larissa-0001",
-    like_qnt: 142,
-    profile: {
-      id: "user-uuid-larissa-0001",
-      name: "Larissa Mendes",
-      avatar_url: "https://i.pravatar.cc/150?u=larissa",
-      role: "Product Manager · UpJobs Academy",
-      disc: "I",
-    },
+    date: "2026-03-11T10:00:00.000+00:00", midia: undefined, creator_id: "user-uuid-larissa-0001", like_qnt: 142,
+    profile: { id: "user-uuid-larissa-0001", name: "Larissa Mendes", avatar_url: "https://i.pravatar.cc/150?u=larissa", role: "Product Manager · UpJobs Academy", disc: "I" },
     liked: false, saved: false,
     comments: [
       { id: 1, author: "Rafael Costa",  initials: "RC", avatar_url: "https://i.pravatar.cc/150?u=rafael", disc: "D", text: "Incrível! Qual stack você aprendeu para a posição?", time: "há 1h" },
@@ -165,55 +48,25 @@ const INITIAL_POSTS: Post[] = [
     id: "a1b2c3d4-0002-0000-0000-000000000002",
     created_at: "2026-03-11T07:00:00.000+00:00",
     description: "Dica rápida para quem está aprendendo Python para Data Science:\n\n→ Não comece pelo pandas, comece pela lógica\n→ Kaggle competitions > tutoriais em loop\n→ Um projeto real vale 10 cursos completos\n\nMeu portfólio no GitHub foi o que realmente me contratou. Nenhum certificado chegou perto.",
-    date: "2026-03-11T07:00:00.000+00:00",
-    midia: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=800&q=80",
-    creator_id: "user-uuid-marcos-0002",
-    like_qnt: 87,
-    profile: {
-      id: "user-uuid-marcos-0002",
-      name: "Marcos Vinicius",
-      avatar_url: "https://i.pravatar.cc/150?u=marcos",
-      role: "Dev Backend · Freelancer",
-      disc: "C",
-    },
+    date: "2026-03-11T07:00:00.000+00:00", midia: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=800&q=80", creator_id: "user-uuid-marcos-0002", like_qnt: 87,
+    profile: { id: "user-uuid-marcos-0002", name: "Marcos Vinicius", avatar_url: "https://i.pravatar.cc/150?u=marcos", role: "Dev Backend · Freelancer", disc: "C" },
     liked: false, saved: false,
-    comments: [
-      { id: 1, author: "Ana Julia", initials: "AJ", avatar_url: "https://i.pravatar.cc/150?u=anajulia", disc: "I", text: "Esse ponto sobre o GitHub é real demais 🔥", time: "há 3h" },
-    ],
+    comments: [{ id: 1, author: "Ana Julia", initials: "AJ", avatar_url: "https://i.pravatar.cc/150?u=anajulia", disc: "I", text: "Esse ponto sobre o GitHub é real demais 🔥", time: "há 3h" }],
   },
   {
     id: "a1b2c3d4-0003-0000-0000-000000000003",
     created_at: "2026-03-10T12:00:00.000+00:00",
     description: "Insight do dia: a maioria das pessoas subestima UX Writing.\n\nNão é só nomear botões. É arquitetura cognitiva. É reduzir a carga mental do usuário em cada micro-decisão.\n\nQuando você entende isso, sua taxa de conversão muda de patamar.",
-    date: "2026-03-10T12:00:00.000+00:00",
-    midia: undefined,
-    creator_id: "user-uuid-fernanda-0003",
-    like_qnt: 203,
-    profile: {
-      id: "user-uuid-fernanda-0003",
-      name: "Fernanda Lima",
-      avatar_url: "https://i.pravatar.cc/150?u=fernanda",
-      role: "UX Designer · Remoto",
-      disc: "S",
-    },
-    liked: true, saved: true,
-    comments: [],
+    date: "2026-03-10T12:00:00.000+00:00", midia: undefined, creator_id: "user-uuid-fernanda-0003", like_qnt: 203,
+    profile: { id: "user-uuid-fernanda-0003", name: "Fernanda Lima", avatar_url: "https://i.pravatar.cc/150?u=fernanda", role: "UX Designer · Remoto", disc: "S" },
+    liked: true, saved: true, comments: [],
   },
   {
     id: "a1b2c3d4-0004-0000-0000-000000000004",
     created_at: "2026-03-09T09:00:00.000+00:00",
     description: "O mercado de cibersegurança no Brasil vai precisar de +150.000 profissionais até 2026 segundo a ISC².\n\nVaga sobrando. Salário alto. Trabalho 100% remoto.\n\nE ainda tem gente perguntando se vale a pena investir em carreira tech? 😅",
-    date: "2026-03-09T09:00:00.000+00:00",
-    midia: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80",
-    creator_id: "user-uuid-diego-0004",
-    like_qnt: 318,
-    profile: {
-      id: "user-uuid-diego-0004",
-      name: "Diego Almeida",
-      avatar_url: "https://i.pravatar.cc/150?u=diego",
-      role: "Cybersecurity Analyst",
-      disc: "D",
-    },
+    date: "2026-03-09T09:00:00.000+00:00", midia: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80", creator_id: "user-uuid-diego-0004", like_qnt: 318,
+    profile: { id: "user-uuid-diego-0004", name: "Diego Almeida", avatar_url: "https://i.pravatar.cc/150?u=diego", role: "Cybersecurity Analyst", disc: "D" },
     liked: false, saved: false,
     comments: [
       { id: 1, author: "Larissa Mendes",  initials: "LM", avatar_url: "https://i.pravatar.cc/150?u=larissa", disc: "I", text: "Mercado de cyber é absurdo mesmo!", time: "há 1d" },
@@ -223,17 +76,20 @@ const INITIAL_POSTS: Post[] = [
 ];
 
 const MOCK_NEWS: NewsItem[] = [
-  { id: 1, title: "Samsung lança Galaxy S26 com IA embarcada e Exynos 2600", category: "IA & Devices", categoryColor: "hsl(45 90% 55%)", time: "há 2h", url: "https://video.canaltech.com.br/video/hands-on/samsung-anuncia-linha-galaxy-s26-com-recursos-de-ia-e-exynos-2600-22627/", image: "https://t.ctcdn.com.br/VkKue7mxnh7puDyb4TNPTVOiXecY=/640x360/smart/i1104977.jpeg", hot: true },
-  { id: 2, title: "OpenAI anuncia GPT-5 com raciocínio avançado para empresas", category: "Inteligência Artificial", categoryColor: "hsl(155 60% 45%)", time: "há 5h", url: "https://canaltech.com.br/inteligencia-artificial/", image: "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=400&q=80", hot: true },
-  { id: 3, title: "Cloud no Brasil cresce 34% e gera 80 mil vagas em 2025", category: "Mercado Tech", categoryColor: "hsl(210 70% 55%)", time: "há 8h", url: "https://canaltech.com.br/mercado/", image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80" },
-  { id: 4, title: "Engenheiros de IA lideram ranking de salários remotos no Brasil", category: "Carreira", categoryColor: "hsl(25 90% 55%)", time: "há 12h", url: "https://canaltech.com.br/carreira/", image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&q=80" },
-  { id: 5, title: "Meta investe US$ 65 bi em data centers para treinar modelos de IA", category: "Big Tech", categoryColor: "hsl(270 60% 60%)", time: "há 1d", url: "https://canaltech.com.br/empresa/meta/", image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80" },
-  { id: 6, title: "Brasil registra alta de 65% em ataques ransomware em 2025", category: "Cibersegurança", categoryColor: "hsl(0 70% 55%)", time: "há 1d", url: "https://canaltech.com.br/seguranca/", image: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=400&q=80" },
+  { id: 1, title: "Samsung lança Galaxy S26 com IA embarcada e Exynos 2600",          category: "IA & Devices",           categoryColor: "hsl(45 90% 55%)",  time: "há 2h",  url: "https://video.canaltech.com.br/video/hands-on/samsung-anuncia-linha-galaxy-s26-com-recursos-de-ia-e-exynos-2600-22627/", image: "https://t.ctcdn.com.br/VkKue7mxnh7puDyb4TNPTVOiXecY=/640x360/smart/i1104977.jpeg", hot: true },
+  { id: 2, title: "OpenAI anuncia GPT-5 com raciocínio avançado para empresas",        category: "Inteligência Artificial", categoryColor: "hsl(155 60% 45%)", time: "há 5h",  url: "https://canaltech.com.br/inteligencia-artificial/", image: "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=400&q=80", hot: true },
+  { id: 3, title: "Cloud no Brasil cresce 34% e gera 80 mil vagas em 2025",            category: "Mercado Tech",            categoryColor: "hsl(210 70% 55%)", time: "há 8h",  url: "https://canaltech.com.br/mercado/",               image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80" },
+  { id: 4, title: "Engenheiros de IA lideram ranking de salários remotos no Brasil",   category: "Carreira",                categoryColor: "hsl(25 90% 55%)",  time: "há 12h", url: "https://canaltech.com.br/carreira/",              image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&q=80" },
+  { id: 5, title: "Meta investe US$ 65 bi em data centers para treinar modelos de IA", category: "Big Tech",                categoryColor: "hsl(270 60% 60%)", time: "há 1d",  url: "https://canaltech.com.br/empresa/meta/",          image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80" },
+  { id: 6, title: "Brasil registra alta de 65% em ataques ransomware em 2025",         category: "Cibersegurança",          categoryColor: "hsl(0 70% 55%)",   time: "há 1d",  url: "https://canaltech.com.br/seguranca/",             image: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=400&q=80" },
 ];
 
 const TRENDING = [
-  { tag: "#RemoteWork", posts: 1240 }, { tag: "#InteligenciaArtificial", posts: 987 },
-  { tag: "#FreelancerBR", posts: 754 }, { tag: "#DataScience", posts: 612 }, { tag: "#CarreiraTech", posts: 501 },
+  { tag: "#RemoteWork",             posts: 1240 },
+  { tag: "#InteligenciaArtificial", posts: 987  },
+  { tag: "#FreelancerBR",           posts: 754  },
+  { tag: "#DataScience",            posts: 612  },
+  { tag: "#CarreiraTech",           posts: 501  },
 ];
 
 const TOP_MEMBERS = [
@@ -242,386 +98,46 @@ const TOP_MEMBERS = [
   { name: "Fernanda Lima",  avatar_url: "https://i.pravatar.cc/150?u=fernanda",initials: "FL", disc: "S", posts: 29, badge: "🥉" },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const KEY_PHOTO = "upjobs_profile_photo_v2";
 
-const formatRelativeTime = (dateStr?: string): string => {
-  if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-  if (mins  < 60) return `há ${mins}min`;
-  if (hours < 24) return `há ${hours}h`;
-  return `há ${days}d`;
-};
+// ─── CreatePublication (preservada intacta) ───────────────────────────────────
 
-const toInitials = (name?: string) =>
-  (name ?? "??").split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+export function CreatePublication() {
+  const { user } = useAuth();
+  const [publi, setPubli] = useState<Publication>({});
 
-// ─── UserAvatar ───────────────────────────────────────────────────────────────
-// Avatar universal para todos os usuários.
-//
-// Lógica de renderização:
-//   1. Se avatarUrl existir → <img src={avatarUrl}> (URL do Supabase Storage / profiles.avatar_url)
-//   2. Senão → iniciais geradas de profiles.name
-//
-// Para o usuário logado (isMe=true) aplica o anel DISC com imagem (layout do ProfilePage).
-// Para outros usuários aplica anel DISC colorido simples.
+    // ─── USE EFFECT────────────────────────────────────────────────────────────────
 
-const UserAvatar = ({
-  avatarUrl, name, disc, size = "md", isMe = false, discRingImg,
-}: {
-  avatarUrl?:   string | null;
-  name?:        string;
-  disc?:        string;
-  size?:        "sm" | "md" | "lg";
-  isMe?:        boolean;
-  discRingImg?: string;
-}) => {
-  const discColor = DISC_COLOR[disc ?? "S"] ?? DISC_COLOR.S;
-  const initials  = toInitials(name);
-  const cfg = {
-    sm: { outer: 28, inner: 20, textSize: "text-[8px]", wh: "w-7 h-7" },
-    md: { outer: 36, inner: 26, textSize: "text-[9px]", wh: "w-9 h-9" },
-    lg: { outer: 48, inner: 34, textSize: "text-xs",    wh: "w-12 h-12" },
-  }[size];
+  
 
-  const inner = (
-    avatarUrl
-      ? <img
-          src={avatarUrl}
-          alt={name ?? "avatar"}
-          className="w-full h-full object-cover"
-          // Se a URL quebrar, mostra as iniciais via fallback
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-        />
-      : <span>{initials}</span>
-  );
 
-  // Usuário logado — anel DISC com imagem (igual ao ProfilePage)
-  if (isMe && discRingImg) {
-    return (
-      <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: cfg.outer, height: cfg.outer }}>
-        <img src={discRingImg} alt="DISC" className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-        <div
-          className={`absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize} z-10`}
-          style={{ width: cfg.inner, height: cfg.inner, top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: avatarUrl ? undefined : "hsl(var(--secondary))", border: "2px solid hsl(var(--background))", color: discColor }}
-        >
-          {inner}
-        </div>
-      </div>
-    );
+  async function handleDescriptionChange() {
+    const data = {
+      description: publi.description,
+      midia:       publi.midia ?? "EMPTY",
+      date:        new Date().toISOString(),
+      creator_id:  user?.id,
+      like_qnt:    0,
+    };
+    const { error } = await supabase.from('publications').insert(data);
+    if (error) { alert(error.message); return; }
   }
 
-  // Outros usuários — foto (URL) com anel DISC colorido
   return (
-    <div
-      className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
-      style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`, background: avatarUrl ? undefined : `linear-gradient(135deg, ${discColor}33, ${discColor}15)`, color: discColor }}
-    >
-      {inner}
-    </div>
+    <>
+      <input type="text" placeholder="Escreva aqui o que você tem em mente..."
+        value={publi.description ?? ""}
+        onChange={(e) => setPubli({ ...publi, description: e.target.value })} />
+      <input type="text" placeholder="Adicione uma imagem (opcional)"
+        value={publi.midia ?? ""}
+        onChange={(e) => setPubli({ ...publi, midia: e.target.value })} />
+      <button onClick={handleDescriptionChange} disabled={!publi.description?.trim()}>
+        Publicar
+      </button>
+    </>
   );
-};
+}
 
-// ─── PostCard ─────────────────────────────────────────────────────────────────
-
-// ─── PostModal ────────────────────────────────────────────────────────────────
-// Modal que abre ao clicar no post — carrega comentários do Supabase
-
-const PostModal = ({
-  post, onClose, onLike, onSave,
-  myAvatarUrl, myName, myDisc, myDiscRingImg, myUserId,
-}: {
-  post:          Post;
-  onClose:       () => void;
-  onLike:        (id: string) => void;
-  onSave:        (id: string) => void;
-  myAvatarUrl:   string | null;
-  myName:        string;
-  myDisc:        string;
-  myDiscRingImg: string | undefined;
-  myUserId?:     string;
-}) => {
-  const [commentText, setCommentText] = useState("");
-  const [dbComments,  setDbComments]  = useState<Comment[]>([]);
-  const [loading,     setLoading]     = useState(true);
-
-  // Carrega comentários da tabela pivot no Supabase ao abrir o modal
-  useEffect(() => {
-    if (!post.id) return;
-    const load = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("comments")
-        .select("*")
-        .eq("publication_id", post.id);
-      if (!error && data) {
-        setDbComments(data.map((c: DbComment) => ({
-          id:     c.id ?? Date.now(),
-          author: c.user_id ?? "Usuário",   // substituir por JOIN com profiles quando disponível
-          initials: (c.user_id ?? "U").slice(0, 2).toUpperCase(),
-          disc:   "S",
-          text:   c.comment,
-          time:   "—",
-        })));
-      }
-      setLoading(false);
-    };
-    load();
-  }, [post.id]);
-
-  // Salva comentário na tabela pivot e atualiza UI
-  const submitComment = async () => {
-    if (!commentText.trim() || !post.id) return;
-    const newDbComment: DbComment = {
-      user_id:        myUserId,
-      publication_id: post.id,
-      comment:        commentText.trim(),
-      like:           0,
-    };
-    const { error } = await supabase.from("comments").insert(newDbComment);
-    if (error) { alert(error.message); return; }
-    setDbComments((prev) => [...prev, {
-      id:       Date.now(),
-      author:   myName,
-      initials: toInitials(myName),
-      avatar_url: myAvatarUrl ?? undefined,
-      disc:     myDisc,
-      text:     commentText.trim(),
-      time:     "agora",
-    }]);
-    setCommentText("");
-  };
-
-  const authorName      = post.profile?.name      ?? "Usuário";
-  const authorAvatarUrl = post.profile?.avatar_url;
-  const authorRole      = post.profile?.role      ?? "";
-  const authorDisc      = post.profile?.disc      ?? "S";
-  const isMe            = post.creator_id === myUserId || authorName === myName;
-
-  // Copia o link do post para o clipboard usando o ID
-  const copyLink = () => {
-    const url = `${window.location.origin}/comunidade?post=${post.id}`;
-    navigator.clipboard.writeText(url);
-  };
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: "rgba(0,0,0,0.75)" }}
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.2 }}
-          className="hologram-panel rounded-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header do modal */}
-          <div className="p-5 pb-0 flex items-start justify-between gap-3 flex-shrink-0">
-            <div className="flex items-start gap-3">
-              <UserAvatar
-                avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
-                name={isMe ? myName : authorName}
-                disc={isMe ? myDisc : authorDisc}
-                size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
-              />
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-accent font-semibold text-sm text-foreground">{isMe ? myName : authorName}</p>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                    style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
-                    {authorDisc} · {DISC_LABEL[authorDisc]}
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-                <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm flex-shrink-0">
-              <X size={16} />
-            </button>
-          </div>
-
-          {/* Conteúdo do post */}
-          <div className="px-5 py-4 flex-shrink-0">
-            <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line">{post.description}</p>
-          </div>
-          {post.midia && post.midia !== "EMPTY" && (
-            <div className="px-5 pb-4 flex-shrink-0">
-              <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 280 }}>
-                <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 280 }} />
-              </div>
-            </div>
-          )}
-
-          {/* Ações */}
-          <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3 flex-shrink-0">
-            <span>{post.like_qnt ?? 0} curtidas</span>
-            <span>{dbComments.length} comentários</span>
-          </div>
-          <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30 flex-shrink-0">
-            {[
-              { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />, active: post.liked, color: "text-rose-400", fn: () => post.id && onLike(post.id) },
-              { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved, color: "text-primary", fn: () => post.id && onSave(post.id) },
-              { label: "Copiar link",  el: <Share2 size={14} />, active: false, color: "", fn: copyLink },
-            ].map(({ label, el, active, color, fn }) => (
-              <button key={label} onClick={fn}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
-                {el} {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Comentários — carregados do Supabase */}
-          <div className="border-t border-border/30 overflow-y-auto flex-1 px-5 py-4 space-y-3">
-            {loading ? (
-              <p className="text-xs text-muted-foreground font-body text-center py-4">Carregando comentários...</p>
-            ) : dbComments.length === 0 ? (
-              <p className="text-xs text-muted-foreground font-body text-center py-4">Seja o primeiro a comentar!</p>
-            ) : (
-              dbComments.map((c) => (
-                <div key={c.id} className="flex gap-2.5">
-                  <UserAvatar avatarUrl={c.avatar_url} name={c.author} disc={c.disc} size="sm" />
-                  <div className="bg-secondary/30 rounded-sm px-3 py-2 flex-1">
-                    <p className="text-[11px] font-accent font-semibold text-foreground mb-0.5">{c.author}</p>
-                    <p className="text-xs font-body text-muted-foreground">{c.text}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Input de novo comentário */}
-          <div className="flex gap-2.5 p-4 border-t border-border/30 flex-shrink-0">
-            <UserAvatar avatarUrl={myAvatarUrl} name={myName} disc={myDisc} size="sm" isMe discRingImg={myDiscRingImg} />
-            <div className="flex-1 flex gap-2">
-              <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
-                placeholder="Escreva um comentário..."
-                className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition" />
-              <button onClick={submitComment} className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110" style={{ background: "hsl(155 60% 35%)" }}>
-                <Send size={12} />
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-};
-
-// ─── PostCard ─────────────────────────────────────────────────────────────────
-
-const PostCard = ({
-  post, onLike, onSave, onOpenModal,
-  myAvatarUrl, myName, myDisc, myDiscRingImg,
-}: {
-  post:          Post;
-  onLike:        (id: string) => void;
-  onSave:        (id: string) => void;
-  onOpenModal:   (post: Post) => void;
-  myAvatarUrl:   string | null;
-  myName:        string;
-  myDisc:        string;
-  myDiscRingImg: string | undefined;
-}) => {
-  const [showMenu, setShowMenu] = useState(false);
-
-  const authorName      = post.profile?.name      ?? "Usuário";
-  const authorAvatarUrl = post.profile?.avatar_url;
-  const authorRole      = post.profile?.role      ?? "";
-  const authorDisc      = post.profile?.disc      ?? "S";
-  const isMe            = post.creator_id === "me" || authorName === myName;
-
-  const copyLink = () => {
-    const url = `${window.location.origin}/comunidade?post=${post.id}`;
-    navigator.clipboard.writeText(url);
-    setShowMenu(false);
-  };
-
-  return (
-    <motion.div layout initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
-      className="hologram-panel rounded-sm overflow-hidden">
-
-      {/* Header */}
-      <div className="p-5 pb-0 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 cursor-pointer" onClick={() => onOpenModal(post)}>
-          <UserAvatar
-            avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
-            name={isMe ? myName : authorName}
-            disc={isMe ? myDisc : authorDisc}
-            size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
-          />
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-accent font-semibold text-sm text-foreground">{isMe ? myName : authorName}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
-                {authorDisc} · {DISC_LABEL[authorDisc]}
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-            <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
-          </div>
-        </div>
-
-        <div className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm">
-            <MoreHorizontal size={16} />
-          </button>
-          <AnimatePresence>
-            {showMenu && (
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
-                <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Denunciar post</button>
-                <button onClick={copyLink} className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Copiar link</button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Corpo clicável para abrir o modal */}
-      <div className="px-5 py-4 cursor-pointer" onClick={() => onOpenModal(post)}>
-        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">{post.description}</p>
-      </div>
-
-      {post.midia && post.midia !== "EMPTY" && (
-        <div className="px-5 pb-4 cursor-pointer" onClick={() => onOpenModal(post)}>
-          <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 340 }}>
-            <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 340 }} />
-          </div>
-        </div>
-      )}
-
-      <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
-        <span>{post.like_qnt ?? 0} curtidas</span>
-        <button onClick={() => onOpenModal(post)} className="hover:text-foreground transition">
-          {post.comments.length} comentários · Ver todos
-        </button>
-      </div>
-
-      <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
-        {[
-          { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,   active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike(post.id) },
-          { label: "Comentar",     el: <MessageCircle size={14} />,                                           active: false,       color: "",             fn: () => onOpenModal(post) },
-          { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved,  color: "text-primary", fn: () => post.id && onSave(post.id) },
-          { label: "Copiar link",  el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
-        ].map(({ label, el, active, color, fn }) => (
-          <button key={label} onClick={fn}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
-            {el} {label}
-          </button>
-        ))}
-      </div>
-    </motion.div>
-  );
-};
 
 // ─── CreatePost ───────────────────────────────────────────────────────────────
 
@@ -636,7 +152,7 @@ const CreatePost = ({
   myCreatorId?:  string;
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const [publi, setPubli] = useState<Publication>({});
+  const [publi,    setPubli]    = useState<Publication>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -647,43 +163,18 @@ const CreatePost = ({
     reader.readAsDataURL(file);
   };
 
-  // submit atualiza a UI local após salvar no banco
-  const submit = () => {
-    if (!publi.description?.trim()) return;
-    onPost({ description: publi.description.trim(), date: new Date().toISOString(), midia: publi.midia, creator_id: myCreatorId, like_qnt: 0 });
-    setPubli({});
-    setExpanded(false);
-  };
-
-  // Sua função — salva no Supabase e chama submit para atualizar a UI
-  // submit é declarado acima, então pode ser chamado aqui sem erro de hoisting
   async function handleDescriptionChange() {
     const data = {
       description: publi.description,
       midia:       publi.midia ?? "EMPTY",
-      date:        new Date().toLocaleString("sv-SE", { timeZone: "America/Sao_Paulo" }).replace(" ", "T") + "-03:00", // timestamptz com fuso de Brasília
+      date:        new Date().toLocaleString("sv-SE", { timeZone: "America/Sao_Paulo" }).replace(" ", "T") + "-03:00",
       creator_id:  myCreatorId,
       like_qnt:    0,
     };
-
-    // select() faz o Supabase retornar a linha inserida com o ID gerado pelo banco
     const { data: inserted, error } = await supabase
-      .from('publications')
-      .insert(data)
-      .select()
-      .single();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    // Passa o ID real do banco para o handlePost atualizar a UI com o ID correto
-    onPost({
-      ...data,
-      id: inserted.id,           // ← ID real do Supabase, não o crypto.randomUUID()
-      created_at: inserted.created_at,
-    });
+      .from('publications').insert(data).select().single();
+    if (error) { alert(error.message); return; }
+    onPost({ ...data, id: inserted.id, created_at: inserted.created_at });
     setPubli({});
     setExpanded(false);
   }
@@ -705,7 +196,6 @@ const CreatePost = ({
                 placeholder="Compartilhe um insight, conquista ou dúvida com a comunidade..."
                 rows={4}
                 className="w-full px-4 py-3 rounded-sm bg-secondary/30 border border-border/50 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition resize-none" />
-
               <AnimatePresence>
                 {publi.midia && (
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -718,7 +208,6 @@ const CreatePost = ({
                   </motion.div>
                 )}
               </AnimatePresence>
-
               <div className="flex items-center justify-between">
                 <button onClick={() => fileRef.current?.click()}
                   className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40">
@@ -745,32 +234,75 @@ const CreatePost = ({
   );
 };
 
-// ─── LeftSidebar ─────────────────────────────────────────────────────────────
+// ─── LeftSidebar ──────────────────────────────────────────────────────────────
+//
+// Banner:
+//   Busca profiles.banner do Supabase para o usuário logado.
+//   Mesma coluna usada pelo ProfilePage — ficam sempre sincronizados.
+//   Fallback: gradiente DISC com grid sutil (igual ao ProfilePage sem banner).
 
 const LeftSidebar = ({
-  myAvatarUrl, myName, myDisc, myRole, myHourValue, myCourseProgress, myCourseTitle,
+  myAvatarUrl, myName, myDisc, myRole, myHourValue,
+  myCourseProgress, myCourseTitle, myUserId,
 }: {
-  myAvatarUrl: string | null; myName: string; myDisc: string;
-  myRole: string; myHourValue: string; myCourseProgress: number; myCourseTitle: string;
+  myAvatarUrl:      string | null;
+  myName:           string;
+  myDisc:           string;
+  myRole:           string;
+  myHourValue:      string;
+  myCourseProgress: number;
+  myCourseTitle:    string;
+  myUserId?:        string;
 }) => {
   const discImg   = DISC_IMGS[myDisc];
   const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
+
+  // Busca o banner da tabela profiles (coluna `banner`)
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!myUserId) return;
+    const fetchBanner = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("banner")
+        .eq("id", myUserId)
+        .maybeSingle();
+      if (!error && data?.banner) setBannerUrl(data.banner);
+      // null → fallback com gradiente DISC
+    };
+    fetchBanner();
+  }, [myUserId]);
 
   return (
     <div className="space-y-4">
       <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
         className="hologram-panel rounded-sm overflow-hidden">
-        <div className="h-16 w-full" style={{ background: `linear-gradient(135deg, ${discColor}44 0%, hsl(200 70% 50% / 0.2) 100%)` }} />
+
+        {/* Banner: imagem real ou gradiente DISC */}
+        <div className="h-16 w-full overflow-hidden">
+          {bannerUrl ? (
+            <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full relative"
+              style={{ background: `linear-gradient(135deg, ${discColor}44 0%, ${discColor}11 60%, hsl(210 40% 10% / 0.2) 100%)` }}>
+              <div className="absolute inset-0 opacity-10"
+                style={{ backgroundImage: `repeating-linear-gradient(0deg,transparent,transparent 24px,${discColor}1px),repeating-linear-gradient(90deg,transparent,transparent 24px,${discColor}1px)` }} />
+            </div>
+          )}
+        </div>
+
         <div className="px-4 pb-4">
           <div className="flex items-end gap-3 -mt-7 mb-3">
-            {/* Mini avatar com anel DISC — idêntico ao ProfilePage */}
             <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 56, height: 56 }}>
               {discImg
                 ? <img src={discImg} alt="DISC" className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
                 : <div className="absolute inset-0 rounded-full" style={{ background: discColor, zIndex: 1 }} />
               }
               <div className="absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-xs z-10"
-                style={{ width: 40, height: 40, top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: myAvatarUrl ? undefined : "hsl(var(--secondary))", border: "2.5px solid hsl(var(--background))", color: discColor }}>
+                style={{ width: 40, height: 40, top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+                  background: myAvatarUrl ? undefined : "hsl(var(--secondary))",
+                  border: "2.5px solid hsl(var(--background))", color: discColor }}>
                 {myAvatarUrl
                   ? <img src={myAvatarUrl} alt={myName} className="w-full h-full object-cover" />
                   : <span>{toInitials(myName)}</span>
@@ -782,12 +314,15 @@ const LeftSidebar = ({
               <p className="text-[10px] text-muted-foreground font-body mt-0.5">{myRole}</p>
             </div>
           </div>
+
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] px-2 py-0.5 rounded-sm font-accent font-semibold" style={{ background: `${discColor}18`, color: discColor, border: `1px solid ${discColor}40` }}>
+            <span className="text-[10px] px-2 py-0.5 rounded-sm font-accent font-semibold"
+              style={{ background: `${discColor}18`, color: discColor, border: `1px solid ${discColor}40` }}>
               {myDisc} · {DISC_LABEL[myDisc] ?? "—"}
             </span>
             <span className="text-[10px] font-accent text-accent font-semibold">{myHourValue}</span>
           </div>
+
           <div>
             <div className="flex justify-between items-center mb-1">
               <p className="text-[10px] text-muted-foreground font-accent flex items-center gap-1"><BookOpen size={10} /> Trilha atual</p>
@@ -823,7 +358,6 @@ const LeftSidebar = ({
           {TOP_MEMBERS.map((m) => (
             <div key={m.name} className="flex items-center gap-2.5">
               <span className="text-sm">{m.badge}</span>
-              {/* Foto dos membros via avatar_url */}
               <UserAvatar avatarUrl={m.avatar_url} name={m.name} disc={m.disc} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-accent font-semibold text-foreground truncate">{m.name}</p>
@@ -898,69 +432,133 @@ const RightSidebar = () => {
 
 // ─── CommunityPage ────────────────────────────────────────────────────────────
 
+// Quantos posts buscar por página
+const PAGE_SIZE = 10;
+
 const CommunityPage = () => {
   const { user } = useAuth();
-  const [posts, setPosts]       = useState<Post[]>(INITIAL_POSTS);
-  const [filter, setFilter]     = useState<"recentes" | "populares">("recentes");
-  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
-  const [openPost, setOpenPost] = useState<Post | null>(null); // post aberto no modal
+  const [posts,          setPosts]         = useState<Post[]>([]);
+  const [loadingPosts,   setLoadingPosts]   = useState(true);
+  const [loadingMore,    setLoadingMore]    = useState(false);
+  const [hasMore,        setHasMore]        = useState(true);
+  const [page,           setPage]           = useState(0);       // página atual (0-based)
+  const [filter,         setFilter]         = useState<"recentes" | "populares">("recentes");
+  const [myAvatarUrl,    setMyAvatarUrl]     = useState<string | null>(null);
+  const [openPost,       setOpenPost]       = useState<Post | null>(null);
 
   useEffect(() => { setMyAvatarUrl(localStorage.getItem(KEY_PHOTO)); }, [user]);
 
-  // Ao abrir o modal, atualiza a URL com o ID do post (como o Twitter)
+  // ── Helper: converte row do banco → Post de UI ───────────────────────────────
+  const rowToPost = (row: any): Post => ({
+    id:          row.id,
+    created_at:  row.created_at,
+    description: row.description,
+    date:        row.date,
+    midia:       row.midia,
+    creator_id:  row.creator_id,
+    like_qnt:    row.like_qnt ?? 0,
+    profile:     row.profile ?? undefined,  // preenchido quando o JOIN profiles existir
+    liked:       false,
+    saved:       false,
+    comments:    [],
+  });
+
+  // ── Carrega a primeira página ao montar ──────────────────────────────────────
+  // Quando a tabela profiles existir, troque select("*") por:
+  //   select("*, profile:profiles(id, name, avatar_url, role, disc)")
+  useEffect(() => {
+    const fetchInitial = async () => {
+      setLoadingPosts(true);
+
+      const { data, error } = await supabase
+        .from("publications")
+        .select("*")
+        .order("date", { ascending: false })
+        .range(0, PAGE_SIZE - 1);          // range(from, to) — ambos inclusivos
+
+      if (error) {
+        console.error("Erro ao carregar publicações:", error.message);
+        setPosts(INITIAL_POSTS);           // fallback mock se o banco falhar
+        setHasMore(false);
+        setLoadingPosts(false);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setPosts(INITIAL_POSTS);           // banco vazio → mostra mock
+        setHasMore(false);
+        setLoadingPosts(false);
+        return;
+      }
+
+      setPosts(data.map(rowToPost));
+      setPage(1);
+      setHasMore(data.length === PAGE_SIZE); // se veio menos que PAGE_SIZE, não tem mais
+      setLoadingPosts(false);
+    };
+
+    fetchInitial();
+  }, []);
+
+  // ── Carrega mais posts (botão "Carregar mais") ───────────────────────────────
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+
+    const from = page * PAGE_SIZE;
+    const to   = from + PAGE_SIZE - 1;
+
+    const { data, error } = await supabase
+      .from("publications")
+      .select("*")
+      .order("date", { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error("Erro ao carregar mais:", error.message);
+      setLoadingMore(false);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setHasMore(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    setPosts((prev) => [...prev, ...data.map(rowToPost)]);
+    setPage((p) => p + 1);
+    setHasMore(data.length === PAGE_SIZE);
+    setLoadingMore(false);
+  };
+
   const openModal = (post: Post) => {
     setOpenPost(post);
     window.history.pushState({}, "", `/comunidade?post=${post.id}`);
   };
-
-  // Ao fechar o modal, volta a URL para /comunidade
   const closeModal = () => {
     setOpenPost(null);
     window.history.pushState({}, "", "/comunidade");
   };
 
-  // Ao carregar a página, verifica se há ?post=uuid na URL e abre o modal com dados do banco
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const postId = params.get("post");
     if (!postId) return;
-
     const loadPost = async () => {
-      // Busca o post + profile via JOIN (quando a tabela profiles existir, adicione profile:profiles(*))
       const { data, error } = await supabase
-        .from("publications")
-        .select("*")
-        .eq("id", postId)
-        .maybeSingle(); // .single() dá 406 se não achar exatamente 1 — .maybeSingle() retorna null sem erro
-
+        .from("publications").select("*").eq("id", postId).maybeSingle();
       if (error) { console.error("Erro ao buscar post:", error.message); return; }
-      if (!data)  { console.warn("Post não encontrado para id:", postId); return; }
-
-      // Monta o Post com os dados reais do banco
-      const post: Post = {
-        id:          data.id,
-        created_at:  data.created_at,
-        description: data.description,
-        date:        data.date,
-        midia:       data.midia,
-        creator_id:  data.creator_id,
-        like_qnt:    data.like_qnt ?? 0,
-        profile:     undefined, // substituir por data.profile quando o JOIN existir
-        liked:       false,
-        saved:       false,
-        comments:    [],
-      };
-
-      setOpenPost(post);
+      if (!data)  { console.warn("Post não encontrado:", postId); return; }
+      setOpenPost({ ...data, like_qnt: data.like_qnt ?? 0, profile: undefined, liked: false, saved: false, comments: [] });
     };
-
     loadPost();
   }, []);
 
-  const myName      = user?.name ?? "Você";
-  const myDisc      = user?.assessment?.discProfile ?? "S";
-  const myCreatorId = user?.id;
-  const myHourValue = user?.assessment?.valorHoraLiquida ? `R$ ${user.assessment.valorHoraLiquida.toFixed(0)}/h` : "—";
+  const myName           = user?.name ?? "Você";
+  const myDisc           = user?.assessment?.discProfile ?? "S";
+  const myCreatorId      = user?.id;
+  const myHourValue      = user?.assessment?.valorHoraLiquida ? `R$ ${user.assessment.valorHoraLiquida.toFixed(0)}/h` : "—";
   const myRole           = "Membro · UpJobs";
   const myCourseProgress = 65;
   const myCourseTitle    = "Machine Learning Avançado";
@@ -969,7 +567,7 @@ const CommunityPage = () => {
   const handlePost = (publi: Publication) => {
     if (!publi.description?.trim()) return;
     setPosts((prev) => [{
-      id:          publi.id!,          // ← ID real vindo do Supabase
+      id:          publi.id!,
       created_at:  publi.created_at ?? new Date().toISOString(),
       description: publi.description!,
       date:        publi.date,
@@ -982,16 +580,11 @@ const CommunityPage = () => {
   };
 
   const handleLike = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, like_qnt: (p.like_qnt ?? 0) + (p.liked ? -1 : 1) } : p));
+    setPosts((prev) => prev.map((p) => p.id === id
+      ? { ...p, liked: !p.liked, like_qnt: (p.like_qnt ?? 0) + (p.liked ? -1 : 1) } : p));
 
   const handleSave = (id: string) =>
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, saved: !p.saved } : p));
-
-  // handleComment mantido para atualizar contagem local após comentar no modal
-  const handleComment = (id: string) =>
-    setPosts((prev) => prev.map((p) =>
-      p.id === id ? { ...p, comments: [...p.comments, { id: Date.now(), author: "", initials: "", disc: "", text: "", time: "" }] } : p
-    ));
 
   const sortedPosts = filter === "populares"
     ? [...posts].sort((a, b) => (b.like_qnt ?? 0) - (a.like_qnt ?? 0))
@@ -1002,6 +595,7 @@ const CommunityPage = () => {
       <Header />
       <div className="px-4 pt-24 pb-16">
         <div className="max-w-7xl mx-auto">
+
           <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
             className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
@@ -1023,20 +617,25 @@ const CommunityPage = () => {
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6">
+
             <aside className="hidden lg:block">
               <div className="sticky top-24">
-                <LeftSidebar myAvatarUrl={myAvatarUrl} myName={myName} myDisc={myDisc}
-                  myRole={myRole} myHourValue={myHourValue} myCourseProgress={myCourseProgress} myCourseTitle={myCourseTitle} />
+                <LeftSidebar
+                  myAvatarUrl={myAvatarUrl} myName={myName} myDisc={myDisc}
+                  myRole={myRole} myHourValue={myHourValue}
+                  myCourseProgress={myCourseProgress} myCourseTitle={myCourseTitle}
+                  myUserId={myCreatorId}
+                />
               </div>
             </aside>
 
-            <main className="space-y-2 min-w-0">
-              <div className="flex gap-3 justify-center">
+            <main className="space-y-4 min-w-0">
+              <div className="flex gap-2">
                 {(["recentes", "populares"] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-20 py-1 rounded-sm text-xs font-accent font-semibold transition ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
-                    style={f === filter ? { background: "hsl(var(--primary))", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
-                    {f === "recentes" ? "🕒 Recentes" : " 🔥 Populares"}
+                    className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
+                    style={f === filter ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
+                    {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
                   </button>
                 ))}
               </div>
@@ -1044,20 +643,68 @@ const CommunityPage = () => {
               <CreatePost onPost={handlePost} myAvatarUrl={myAvatarUrl} myName={myName}
                 myDisc={myDisc} myDiscRingImg={myDiscRingImg} myCreatorId={myCreatorId} />
 
-              <AnimatePresence mode="popLayout">
-                {sortedPosts.map((post, i) => (
-                  <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <PostCard post={post} onLike={handleLike} onSave={handleSave} onOpenModal={openModal}
-                      myAvatarUrl={myAvatarUrl} myName={myName} myDisc={myDisc} myDiscRingImg={myDiscRingImg} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              {loadingPosts ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="hologram-panel rounded-sm p-5 animate-pulse">
+                      <div className="flex gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-secondary/60" />
+                        <div className="flex-1 space-y-2 pt-1">
+                          <div className="h-3 bg-secondary/60 rounded w-1/3" />
+                          <div className="h-2 bg-secondary/40 rounded w-1/4" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-secondary/50 rounded w-full" />
+                        <div className="h-3 bg-secondary/50 rounded w-5/6" />
+                        <div className="h-3 bg-secondary/40 rounded w-3/4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sortedPosts.length === 0 ? (
+                <div className="hologram-panel rounded-sm p-10 text-center">
+                  <p className="text-sm text-muted-foreground font-body">Nenhuma publicação ainda. Seja o primeiro!</p>
+                </div>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {sortedPosts.map((post, i) => (
+                    <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                      <PostCard
+                        post={post}
+                        onLike={handleLike}
+                        onSave={handleSave}
+                        onOpenModal={openModal}
+                        myAvatarUrl={myAvatarUrl}
+                        myName={myName}
+                        myDisc={myDisc}
+                        myDiscRingImg={myDiscRingImg}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
 
-              <div className="text-center pt-2">
-                <button className="text-xs font-accent text-muted-foreground hover:text-foreground transition px-6 py-2 rounded-sm border border-border/40 hover:border-border">
-                  Carregar mais posts
-                </button>
-              </div>
+              {/* Botão "Carregar mais" — paginação real */}
+              {hasMore && !loadingPosts && (
+                <div className="text-center pt-2">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="text-xs font-accent text-muted-foreground hover:text-foreground transition px-6 py-2 rounded-sm border border-border/40 hover:border-border disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto">
+                    {loadingMore ? (
+                      <><span className="w-3 h-3 rounded-full border-2 border-muted-foreground border-t-primary animate-spin inline-block" /> Carregando…</>
+                    ) : (
+                      "Carregar mais posts"
+                    )}
+                  </button>
+                </div>
+              )}
+              {!hasMore && posts.length > 0 && !loadingPosts && (
+                <p className="text-center text-[11px] text-muted-foreground font-body py-4 opacity-60">
+                  Você chegou ao fim 🎉
+                </p>
+              )}
             </main>
 
             <aside className="hidden lg:block">
@@ -1066,7 +713,7 @@ const CommunityPage = () => {
           </div>
         </div>
       </div>
-      {/* Modal do post — abre ao clicar no card */}
+
       {openPost && (
         <PostModal
           post={openPost}
