@@ -20,3 +20,15 @@ tabela, campo, tupla
 
 
 /courses
+
+
+  useEffect(() => {
+
+    syncProfile(user.id);
+    
+
+  },[]);
+
+  function syncProfile(user: string){
+    const (data, error) = supabase.from('profiles').select('*');
+  };
