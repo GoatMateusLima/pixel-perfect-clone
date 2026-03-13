@@ -3,66 +3,94 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Share2, ImageIcon, X, Send,
   Bookmark, MoreHorizontal, TrendingUp, Users, Zap,
-  Trophy, BookOpen, ExternalLink, Clock, ChevronRight, Flame, User,
+  Trophy, BookOpen, ExternalLink, Clock, ChevronRight, Flame,
 } from "lucide-react";
 import Header from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
+import supabase from "../../utils/supabase.ts";
 
-// ─── Imagens DISC (mesmas do ProfilePage) ─────────────────────────────────────
 import dominanciaImg   from "@/assets/disc/Dominancia.webp";
 import influenciaImg   from "@/assets/disc/Influencia.webp";
 import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 
-const DISC_IMGS: Record<string, string> = {
-  D: dominanciaImg,
-  I: influenciaImg,
-  S: estabilidadeImg,
-  C: conformidadeImg,
+// ─── Tipo: tabela publications (Supabase) ─────────────────────────────────────
+export type Publication = {
+  id?:          string;   // uuid PK
+  created_at?:  string;   // timestamptz
+  description?: string;   // text
+  date?:        string;   // timestamptz
+  midia?:       string;   // text — URL ou base64 da imagem do POST
+  creator_id?:  string;   // uuid FK → profiles
+  like_qnt?:    number;   // numeric
 };
 
-// ─── Chave do localStorage ────────────────────────────────────────────────────
-const KEY_PHOTO = "upjobs_profile_photo_v2";
+export function CreatePublication() {
+  const { user, signOutUser } = useAuth(); // obtendo o usuário logado e a função de logout
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+  const [publi, setPubli] = useState<Publication>({});
 
-interface Comment {
-  id: number;
-  author: string;
-  avatar: string;
-  disc: string;
-  text: string;
-  time: string;
+  async function handleDescriptionChange() {
+    const agora: string = new Date().toISOString(); // string ISO 8601 — Supabase converte para timestamptz automaticamente
+
+    const data = {
+      description: publi.description,
+      midia:       publi.midia ?? "EMPTY",
+      date:        agora,
+      creator_id:  user?.id,
+      like_qnt:    0,
+    };
+
+    console.log("data enviado ao Supabase:", data); // DEBUG
+    const {error} = await supabase.from('publications').insert(data);
+
+    if(error){ // corrigido: "error" minúsculo — Error maiúsculo é a classe global do JS e nunca é falsy
+      alert(error.message);
+      return;
+    }
+
+  }
+
+  return (
+    <>
+      <input
+        type="text"
+        placeholder="Escreva aqui o que você tem em mente..."
+        value={publi.description ?? ""} // ?? "" necessário no TypeScript para input controlado
+        onChange={(e) => setPubli({ ...publi, description: e.target.value })} //setando o valor escrito
+      />
+      <input
+        type="text"
+        placeholder="Adicione uma imagem (opcional)"
+        value={publi.midia ?? ""} // ?? "" necessário no TypeScript para input controlado
+        onChange={(e) => setPubli({ ...publi, midia: e.target.value })}
+      />
+      {/* Botão conectado à sua função — só ativa se description tiver conteúdo */}
+      <button
+        onClick={handleDescriptionChange}
+        disabled={!publi.description?.trim()}
+      >
+        Publicar
+      </button>
+    </>
+  );
 }
 
-interface Post {
-  id: number;
-  author: string;
-  avatar: string;
-  role: string;
-  disc: "D" | "I" | "S" | "C";
-  time: string;
-  content: string;
-  image?: string;
-  likes: number;
-  liked: boolean;
-  saved: boolean;
-  comments: Comment[];
-}
+// ─── Tipo: tabela profiles (Supabase — ainda não criada) ──────────────────────
+// Quando o Supabase retornar, virá via JOIN:
+//   .from('publications').select('*, profile:profiles(*)')
+export type Profile = {
+  id:           string;   // uuid PK = auth.users.id
+  name:         string;   // text
+  avatar_url?:  string;   // text — URL do Supabase Storage (foto de perfil)
+  role?:        string;   // text
+  disc?:        "D" | "I" | "S" | "C";
+};
 
-interface NewsItem {
-  id: number;
-  title: string;
-  category: string;
-  categoryColor: string;
-  time: string;
-  url: string;
-  image: string;
-  hot?: boolean;
-}
-
-// ─── DISC helpers ─────────────────────────────────────────────────────────────
-
+const DISC_IMGS: Record<string, string> = {
+  D: dominanciaImg, I: influenciaImg,
+  S: estabilidadeImg, C: conformidadeImg,
+};
 const DISC_COLOR: Record<string, string> = {
   D: "hsl(0 70% 55%)", I: "hsl(45 90% 55%)",
   S: "hsl(155 60% 45%)", C: "hsl(210 70% 55%)",
@@ -71,424 +99,526 @@ const DISC_LABEL: Record<string, string> = {
   D: "Dominância", I: "Influência", S: "Estabilidade", C: "Conformidade",
 };
 
+const KEY_PHOTO = "upjobs_profile_photo_v2";
+
+// ─── Tipos internos de UI ─────────────────────────────────────────────────────
+
+// Espelho da tabela pivot "comments" no Supabase
+export type DbComment = {
+  id?:            string;  // uuid PK
+  user_id?:       string;  // uuid FK
+  publication_id: string;  // uuid FK → publications
+  comment:        string;  // text
+  like?:          number;  // numeric
+};
+
+interface Comment {
+  id:          number | string;
+  author:      string;
+  initials:    string;
+  avatar_url?: string;
+  disc:        string;
+  text:        string;
+  time:        string;
+}
+
+// Post = Publication + profile JOIN + estado de UI
+interface Post extends Publication {
+  profile?:  Profile;
+  liked:     boolean;
+  saved:     boolean;
+  comments:  Comment[];
+}
+
+interface NewsItem {
+  id: number; title: string; category: string;
+  categoryColor: string; time: string; url: string; image: string; hot?: boolean;
+}
+
 // ─── DADOS MOCKADOS ───────────────────────────────────────────────────────────
+// Simula: supabase.from('publications').select('*, profile:profiles(*)')
+// profile.avatar_url é uma URL de imagem renderizada diretamente via <img>
 
 const INITIAL_POSTS: Post[] = [
   {
-    id: 1,
-    author: "Larissa Mendes",
-    avatar: "LM",
-    role: "Product Manager · UpJobs Academy",
-    disc: "I",
-    time: "há 2h",
-    content:
-      "Acabei de fechar minha primeira vaga remota como PM em uma startup de fintech 🚀\n\nDepois de 4 meses na trilha UpJobs, saí de R$28/h presencial para R$95/h remoto. A calculadora de Marcius me abriu os olhos: eu estava perdendo 38% da minha hora só com deslocamento.\n\nSe você ainda está na dúvida, o custo de oportunidade real é mais pesado do que parece. Não espere mais.",
-    likes: 142,
-    liked: false,
-    saved: false,
+    id: "a1b2c3d4-0001-0000-0000-000000000001",
+    created_at: "2026-03-11T10:00:00.000+00:00",
+    description: "Acabei de fechar minha primeira vaga remota como PM em uma startup de fintech 🚀\n\nDepois de 4 meses na trilha UpJobs, saí de R$28/h presencial para R$95/h remoto. A calculadora de Marcius me abriu os olhos: eu estava perdendo 38% da minha hora só com deslocamento.\n\nSe você ainda está na dúvida, o custo de oportunidade real é mais pesado do que parece. Não espere mais.",
+    date: "2026-03-11T10:00:00.000+00:00",
+    midia: undefined,
+    creator_id: "user-uuid-larissa-0001",
+    like_qnt: 142,
+    profile: {
+      id: "user-uuid-larissa-0001",
+      name: "Larissa Mendes",
+      avatar_url: "https://i.pravatar.cc/150?u=larissa",
+      role: "Product Manager · UpJobs Academy",
+      disc: "I",
+    },
+    liked: false, saved: false,
     comments: [
-      { id: 1, author: "Rafael Costa", avatar: "RC", disc: "D", text: "Incrível! Qual stack você aprendeu para a posição?", time: "há 1h" },
-      { id: 2, author: "Camila Torres", avatar: "CT", disc: "S", text: "Parabéns! Isso me dá esperança 💚", time: "há 45min" },
+      { id: 1, author: "Rafael Costa",  initials: "RC", avatar_url: "https://i.pravatar.cc/150?u=rafael", disc: "D", text: "Incrível! Qual stack você aprendeu para a posição?", time: "há 1h" },
+      { id: 2, author: "Camila Torres", initials: "CT", avatar_url: "https://i.pravatar.cc/150?u=camila", disc: "S", text: "Parabéns! Isso me dá esperança 💚", time: "há 45min" },
     ],
   },
   {
-    id: 2,
-    author: "Marcos Vinicius",
-    avatar: "MV",
-    role: "Dev Backend · Freelancer",
-    disc: "C",
-    time: "há 5h",
-    content:
-      "Dica rápida para quem está aprendendo Python para Data Science:\n\n→ Não comece pelo pandas, comece pela lógica\n→ Kaggle competitions > tutoriais em loop\n→ Um projeto real vale 10 cursos completos\n\nMeu portfólio no GitHub foi o que realmente me contratou. Nenhum certificado chegou perto.",
-    image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=800&q=80",
-    likes: 87,
-    liked: false,
-    saved: false,
+    id: "a1b2c3d4-0002-0000-0000-000000000002",
+    created_at: "2026-03-11T07:00:00.000+00:00",
+    description: "Dica rápida para quem está aprendendo Python para Data Science:\n\n→ Não comece pelo pandas, comece pela lógica\n→ Kaggle competitions > tutoriais em loop\n→ Um projeto real vale 10 cursos completos\n\nMeu portfólio no GitHub foi o que realmente me contratou. Nenhum certificado chegou perto.",
+    date: "2026-03-11T07:00:00.000+00:00",
+    midia: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=800&q=80",
+    creator_id: "user-uuid-marcos-0002",
+    like_qnt: 87,
+    profile: {
+      id: "user-uuid-marcos-0002",
+      name: "Marcos Vinicius",
+      avatar_url: "https://i.pravatar.cc/150?u=marcos",
+      role: "Dev Backend · Freelancer",
+      disc: "C",
+    },
+    liked: false, saved: false,
     comments: [
-      { id: 1, author: "Ana Julia", avatar: "AJ", disc: "I", text: "Esse ponto sobre o GitHub é real demais 🔥", time: "há 3h" },
+      { id: 1, author: "Ana Julia", initials: "AJ", avatar_url: "https://i.pravatar.cc/150?u=anajulia", disc: "I", text: "Esse ponto sobre o GitHub é real demais 🔥", time: "há 3h" },
     ],
   },
   {
-    id: 3,
-    author: "Fernanda Lima",
-    avatar: "FL",
-    role: "UX Designer · Remoto",
-    disc: "S",
-    time: "há 1d",
-    content:
-      "Insight do dia: a maioria das pessoas subestima UX Writing.\n\nNão é só nomear botões. É arquitetura cognitiva. É reduzir a carga mental do usuário em cada micro-decisão.\n\nQuando você entende isso, sua taxa de conversão muda de patamar.",
-    likes: 203,
-    liked: true,
-    saved: true,
+    id: "a1b2c3d4-0003-0000-0000-000000000003",
+    created_at: "2026-03-10T12:00:00.000+00:00",
+    description: "Insight do dia: a maioria das pessoas subestima UX Writing.\n\nNão é só nomear botões. É arquitetura cognitiva. É reduzir a carga mental do usuário em cada micro-decisão.\n\nQuando você entende isso, sua taxa de conversão muda de patamar.",
+    date: "2026-03-10T12:00:00.000+00:00",
+    midia: undefined,
+    creator_id: "user-uuid-fernanda-0003",
+    like_qnt: 203,
+    profile: {
+      id: "user-uuid-fernanda-0003",
+      name: "Fernanda Lima",
+      avatar_url: "https://i.pravatar.cc/150?u=fernanda",
+      role: "UX Designer · Remoto",
+      disc: "S",
+    },
+    liked: true, saved: true,
     comments: [],
   },
   {
-    id: 4,
-    author: "Diego Almeida",
-    avatar: "DA",
-    role: "Cybersecurity Analyst",
-    disc: "D",
-    time: "há 2d",
-    content:
-      "O mercado de cibersegurança no Brasil vai precisar de +150.000 profissionais até 2026 segundo a ISC².\n\nVaga sobrando. Salário alto. Trabalho 100% remoto.\n\nE ainda tem gente perguntando se vale a pena investir em carreira tech? 😅",
-    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80",
-    likes: 318,
-    liked: false,
-    saved: false,
+    id: "a1b2c3d4-0004-0000-0000-000000000004",
+    created_at: "2026-03-09T09:00:00.000+00:00",
+    description: "O mercado de cibersegurança no Brasil vai precisar de +150.000 profissionais até 2026 segundo a ISC².\n\nVaga sobrando. Salário alto. Trabalho 100% remoto.\n\nE ainda tem gente perguntando se vale a pena investir em carreira tech? 😅",
+    date: "2026-03-09T09:00:00.000+00:00",
+    midia: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80",
+    creator_id: "user-uuid-diego-0004",
+    like_qnt: 318,
+    profile: {
+      id: "user-uuid-diego-0004",
+      name: "Diego Almeida",
+      avatar_url: "https://i.pravatar.cc/150?u=diego",
+      role: "Cybersecurity Analyst",
+      disc: "D",
+    },
+    liked: false, saved: false,
     comments: [
-      { id: 1, author: "Larissa Mendes", avatar: "LM", disc: "I", text: "Mercado de cyber é absurdo mesmo!", time: "há 1d" },
-      { id: 2, author: "Marcos Vinicius", avatar: "MV", disc: "C", text: "Falta mão de obra qualificada — confirmado!", time: "há 22h" },
+      { id: 1, author: "Larissa Mendes",  initials: "LM", avatar_url: "https://i.pravatar.cc/150?u=larissa", disc: "I", text: "Mercado de cyber é absurdo mesmo!", time: "há 1d" },
+      { id: 2, author: "Marcos Vinicius", initials: "MV", avatar_url: "https://i.pravatar.cc/150?u=marcos",  disc: "C", text: "Falta mão de obra qualificada — confirmado!", time: "há 22h" },
     ],
   },
 ];
 
 const MOCK_NEWS: NewsItem[] = [
-  {
-    id: 1,
-    title: "Samsung lança Galaxy S26 com IA embarcada e Exynos 2600",
-    category: "IA & Devices",
-    categoryColor: "hsl(45 90% 55%)",
-    time: "há 2h",
-    url: "https://video.canaltech.com.br/video/hands-on/samsung-anuncia-linha-galaxy-s26-com-recursos-de-ia-e-exynos-2600-22627/",
-    image: "https://t.ctcdn.com.br/VkKue7mxnh7puDyb4TNPTVOiXeY=/640x360/smart/i1104977.jpeg",
-    hot: true,
-  },
-  {
-    id: 2,
-    title: "OpenAI anuncia GPT-5 com raciocínio avançado para empresas",
-    category: "Inteligência Artificial",
-    categoryColor: "hsl(155 60% 45%)",
-    time: "há 5h",
-    url: "https://canaltech.com.br/inteligencia-artificial/",
-    image: "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=400&q=80",
-    hot: true,
-  },
-  {
-    id: 3,
-    title: "Cloud no Brasil cresce 34% e gera 80 mil vagas em 2025",
-    category: "Mercado Tech",
-    categoryColor: "hsl(210 70% 55%)",
-    time: "há 8h",
-    url: "https://canaltech.com.br/mercado/",
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80",
-  },
-  {
-    id: 4,
-    title: "Engenheiros de IA lideram ranking de salários remotos no Brasil",
-    category: "Carreira",
-    categoryColor: "hsl(25 90% 55%)",
-    time: "há 12h",
-    url: "https://canaltech.com.br/carreira/",
-    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&q=80",
-  },
-  {
-    id: 5,
-    title: "Meta investe US$ 65 bi em data centers para treinar modelos de IA",
-    category: "Big Tech",
-    categoryColor: "hsl(270 60% 60%)",
-    time: "há 1d",
-    url: "https://canaltech.com.br/empresa/meta/",
-    image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80",
-  },
-  {
-    id: 6,
-    title: "Brasil registra alta de 65% em ataques ransomware em 2025",
-    category: "Cibersegurança",
-    categoryColor: "hsl(0 70% 55%)",
-    time: "há 1d",
-    url: "https://canaltech.com.br/seguranca/",
-    image: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=400&q=80",
-  },
+  { id: 1, title: "Samsung lança Galaxy S26 com IA embarcada e Exynos 2600", category: "IA & Devices", categoryColor: "hsl(45 90% 55%)", time: "há 2h", url: "https://video.canaltech.com.br/video/hands-on/samsung-anuncia-linha-galaxy-s26-com-recursos-de-ia-e-exynos-2600-22627/", image: "https://t.ctcdn.com.br/VkKue7mxnh7puDyb4TNPTVOiXecY=/640x360/smart/i1104977.jpeg", hot: true },
+  { id: 2, title: "OpenAI anuncia GPT-5 com raciocínio avançado para empresas", category: "Inteligência Artificial", categoryColor: "hsl(155 60% 45%)", time: "há 5h", url: "https://canaltech.com.br/inteligencia-artificial/", image: "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=400&q=80", hot: true },
+  { id: 3, title: "Cloud no Brasil cresce 34% e gera 80 mil vagas em 2025", category: "Mercado Tech", categoryColor: "hsl(210 70% 55%)", time: "há 8h", url: "https://canaltech.com.br/mercado/", image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80" },
+  { id: 4, title: "Engenheiros de IA lideram ranking de salários remotos no Brasil", category: "Carreira", categoryColor: "hsl(25 90% 55%)", time: "há 12h", url: "https://canaltech.com.br/carreira/", image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&q=80" },
+  { id: 5, title: "Meta investe US$ 65 bi em data centers para treinar modelos de IA", category: "Big Tech", categoryColor: "hsl(270 60% 60%)", time: "há 1d", url: "https://canaltech.com.br/empresa/meta/", image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80" },
+  { id: 6, title: "Brasil registra alta de 65% em ataques ransomware em 2025", category: "Cibersegurança", categoryColor: "hsl(0 70% 55%)", time: "há 1d", url: "https://canaltech.com.br/seguranca/", image: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=400&q=80" },
 ];
 
 const TRENDING = [
-  { tag: "#RemoteWork", posts: 1240 },
-  { tag: "#InteligenciaArtificial", posts: 987 },
-  { tag: "#FreelancerBR", posts: 754 },
-  { tag: "#DataScience", posts: 612 },
-  { tag: "#CarreiraTech", posts: 501 },
+  { tag: "#RemoteWork", posts: 1240 }, { tag: "#InteligenciaArtificial", posts: 987 },
+  { tag: "#FreelancerBR", posts: 754 }, { tag: "#DataScience", posts: 612 }, { tag: "#CarreiraTech", posts: 501 },
 ];
 
 const TOP_MEMBERS = [
-  { name: "Larissa Mendes", avatar: "LM", disc: "I", posts: 48, badge: "🥇" },
-  { name: "Diego Almeida",  avatar: "DA", disc: "D", posts: 37, badge: "🥈" },
-  { name: "Fernanda Lima",  avatar: "FL", disc: "S", posts: 29, badge: "🥉" },
+  { name: "Larissa Mendes", avatar_url: "https://i.pravatar.cc/150?u=larissa", initials: "LM", disc: "I", posts: 48, badge: "🥇" },
+  { name: "Diego Almeida",  avatar_url: "https://i.pravatar.cc/150?u=diego",   initials: "DA", disc: "D", posts: 37, badge: "🥈" },
+  { name: "Fernanda Lima",  avatar_url: "https://i.pravatar.cc/150?u=fernanda",initials: "FL", disc: "S", posts: 29, badge: "🥉" },
 ];
 
-// ─── Avatar genérico (outros usuários — sem DISC ring image) ─────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const Avatar = ({
-  initials, disc, size = "md",
-}: {
-  initials: string;
-  disc: string;
-  size?: "sm" | "md" | "lg";
-}) => {
-  const sz = size === "sm" ? "w-7 h-7 text-[10px]" : size === "lg" ? "w-12 h-12 text-base" : "w-9 h-9 text-xs";
-  return (
-    <div
-      className={`${sz} rounded-full flex items-center justify-center font-display font-bold flex-shrink-0`}
-      style={{
-        background: `linear-gradient(135deg, ${DISC_COLOR[disc] ?? DISC_COLOR.S}33, ${DISC_COLOR[disc] ?? DISC_COLOR.S}15)`,
-        border: `2px solid ${DISC_COLOR[disc] ?? DISC_COLOR.S}60`,
-        color: DISC_COLOR[disc] ?? DISC_COLOR.S,
-        boxShadow: `0 0 10px ${DISC_COLOR[disc] ?? DISC_COLOR.S}25`,
-      }}
-    >
-      {initials}
-    </div>
-  );
+const formatRelativeTime = (dateStr?: string): string => {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (mins  < 60) return `há ${mins}min`;
+  if (hours < 24) return `há ${hours}h`;
+  return `há ${days}d`;
 };
 
-// ─── MyAvatar — igual ao ProfilePage: DISC ring image + foto por cima ─────────
-//
-//  Estrutura (idêntica ao ProfilePage):
-//  ┌─────────────── outerSize ──────────────────┐
-//  │  [DISC ring image — cobre tudo, circular]  │
-//  │       ┌──── innerSize (centralizado) ────┐  │
-//  │       │  foto do perfil / iniciais / ícone│  │
-//  │       └────────────────────────────────┘  │
-//  └────────────────────────────────────────────┘
+const toInitials = (name?: string) =>
+  (name ?? "??").split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-const MyAvatar = ({
-  photoSrc, name, disc, size = "md",
+// ─── UserAvatar ───────────────────────────────────────────────────────────────
+// Avatar universal para todos os usuários.
+//
+// Lógica de renderização:
+//   1. Se avatarUrl existir → <img src={avatarUrl}> (URL do Supabase Storage / profiles.avatar_url)
+//   2. Senão → iniciais geradas de profiles.name
+//
+// Para o usuário logado (isMe=true) aplica o anel DISC com imagem (layout do ProfilePage).
+// Para outros usuários aplica anel DISC colorido simples.
+
+const UserAvatar = ({
+  avatarUrl, name, disc, size = "md", isMe = false, discRingImg,
 }: {
-  photoSrc: string | null;
-  name: string;
-  disc: string;
-  size?: "sm" | "md" | "lg";
+  avatarUrl?:   string | null;
+  name?:        string;
+  disc?:        string;
+  size?:        "sm" | "md" | "lg";
+  isMe?:        boolean;
+  discRingImg?: string;
 }) => {
-  // Dimensões que espelham o ProfilePage (112px outer / 80px inner)
-  // mas escaladas para sm/md/lg
+  const discColor = DISC_COLOR[disc ?? "S"] ?? DISC_COLOR.S;
+  const initials  = toInitials(name);
   const cfg = {
-    sm: { outer: 28, inner: 20, iconSize: 10, textSize: "text-[8px]" },
-    md: { outer: 36, inner: 26, iconSize: 13, textSize: "text-[9px]" },
-    lg: { outer: 48, inner: 34, iconSize: 16, textSize: "text-xs"    },
+    sm: { outer: 28, inner: 20, textSize: "text-[8px]", wh: "w-7 h-7" },
+    md: { outer: 36, inner: 26, textSize: "text-[9px]", wh: "w-9 h-9" },
+    lg: { outer: 48, inner: 34, textSize: "text-xs",    wh: "w-12 h-12" },
   }[size];
 
-  const discImg = DISC_IMGS[disc];
-  const initials = name?.slice(0, 2).toUpperCase() ?? "VC";
+  const inner = (
+    avatarUrl
+      ? <img
+          src={avatarUrl}
+          alt={name ?? "avatar"}
+          className="w-full h-full object-cover"
+          // Se a URL quebrar, mostra as iniciais via fallback
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+      : <span>{initials}</span>
+  );
 
+  // Usuário logado — anel DISC com imagem (igual ao ProfilePage)
+  if (isMe && discRingImg) {
+    return (
+      <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: cfg.outer, height: cfg.outer }}>
+        <img src={discRingImg} alt="DISC" className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
+        <div
+          className={`absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize} z-10`}
+          style={{ width: cfg.inner, height: cfg.inner, top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: avatarUrl ? undefined : "hsl(var(--secondary))", border: "2px solid hsl(var(--background))", color: discColor }}
+        >
+          {inner}
+        </div>
+      </div>
+    );
+  }
+
+  // Outros usuários — foto (URL) com anel DISC colorido
   return (
     <div
-      className="relative flex-shrink-0 flex items-center justify-center"
-      style={{ width: cfg.outer, height: cfg.outer }}
+      className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
+      style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`, background: avatarUrl ? undefined : `linear-gradient(135deg, ${discColor}33, ${discColor}15)`, color: discColor }}
     >
-      {/* ── Anel DISC (imagem, igual ao ProfilePage) ── */}
-      {discImg ? (
-        <img
-          src={discImg}
-          alt={DISC_LABEL[disc] ?? "DISC"}
-          className="absolute inset-0 w-full h-full rounded-full object-cover"
-          style={{ zIndex: 1 }}
-        />
-      ) : (
-        /* fallback: anel colorido sólido */
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: DISC_COLOR[disc] ?? DISC_COLOR.S,
-            zIndex: 1,
-            boxShadow: `0 0 12px ${DISC_COLOR[disc] ?? DISC_COLOR.S}50`,
-          }}
-        />
-      )}
-
-      {/* ── Foto / iniciais / ícone (por cima do anel) ── */}
-      <div
-        className={`
-          absolute rounded-full overflow-hidden flex items-center justify-center
-          font-display font-bold ${cfg.textSize} z-10
-        `}
-        style={{
-          width: cfg.inner,
-          height: cfg.inner,
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          background: photoSrc ? undefined : "hsl(var(--secondary))",
-          border: "2px solid hsl(var(--background))",
-          color: DISC_COLOR[disc] ?? DISC_COLOR.S,
-        }}
-      >
-        {photoSrc ? (
-          <img src={photoSrc} alt="Foto" className="w-full h-full object-cover" />
-        ) : initials ? (
-          <span>{initials}</span>
-        ) : (
-          <User size={cfg.iconSize} />
-        )}
-      </div>
+      {inner}
     </div>
   );
 };
 
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
-const PostCard = ({
-  post, onLike, onSave, onComment, myPhotoSrc, myName, myDisc,
-}: {
-  post: Post;
-  onLike: (id: number) => void;
-  onSave: (id: number) => void;
-  onComment: (id: number, text: string) => void;
-  myPhotoSrc: string | null;
-  myName: string;
-  myDisc: string;
-}) => {
-  const [showComments, setShowComments] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [showMenu, setShowMenu] = useState(false);
+// ─── PostModal ────────────────────────────────────────────────────────────────
+// Modal que abre ao clicar no post — carrega comentários do Supabase
 
-  const submit = () => {
-    if (!commentText.trim()) return;
-    onComment(post.id, commentText.trim());
+const PostModal = ({
+  post, onClose, onLike, onSave,
+  myAvatarUrl, myName, myDisc, myDiscRingImg, myUserId,
+}: {
+  post:          Post;
+  onClose:       () => void;
+  onLike:        (id: string) => void;
+  onSave:        (id: string) => void;
+  myAvatarUrl:   string | null;
+  myName:        string;
+  myDisc:        string;
+  myDiscRingImg: string | undefined;
+  myUserId?:     string;
+}) => {
+  const [commentText, setCommentText] = useState("");
+  const [dbComments,  setDbComments]  = useState<Comment[]>([]);
+  const [loading,     setLoading]     = useState(true);
+
+  // Carrega comentários da tabela pivot no Supabase ao abrir o modal
+  useEffect(() => {
+    if (!post.id) return;
+    const load = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("publication_id", post.id);
+      if (!error && data) {
+        setDbComments(data.map((c: DbComment) => ({
+          id:     c.id ?? Date.now(),
+          author: c.user_id ?? "Usuário",   // substituir por JOIN com profiles quando disponível
+          initials: (c.user_id ?? "U").slice(0, 2).toUpperCase(),
+          disc:   "S",
+          text:   c.comment,
+          time:   "—",
+        })));
+      }
+      setLoading(false);
+    };
+    load();
+  }, [post.id]);
+
+  // Salva comentário na tabela pivot e atualiza UI
+  const submitComment = async () => {
+    if (!commentText.trim() || !post.id) return;
+    const newDbComment: DbComment = {
+      user_id:        myUserId,
+      publication_id: post.id,
+      comment:        commentText.trim(),
+      like:           0,
+    };
+    const { error } = await supabase.from("comments").insert(newDbComment);
+    if (error) { alert(error.message); return; }
+    setDbComments((prev) => [...prev, {
+      id:       Date.now(),
+      author:   myName,
+      initials: toInitials(myName),
+      avatar_url: myAvatarUrl ?? undefined,
+      disc:     myDisc,
+      text:     commentText.trim(),
+      time:     "agora",
+    }]);
     setCommentText("");
   };
 
-  const isMe = post.avatar === "VC" || post.author === myName;
+  const authorName      = post.profile?.name      ?? "Usuário";
+  const authorAvatarUrl = post.profile?.avatar_url;
+  const authorRole      = post.profile?.role      ?? "";
+  const authorDisc      = post.profile?.disc      ?? "S";
+  const isMe            = post.creator_id === myUserId || authorName === myName;
+
+  // Copia o link do post para o clipboard usando o ID
+  const copyLink = () => {
+    const url = `${window.location.origin}/comunidade?post=${post.id}`;
+    navigator.clipboard.writeText(url);
+  };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12, scale: 0.97 }}
-      transition={{ duration: 0.35 }}
-      className="hologram-panel rounded-sm overflow-hidden"
-    >
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)" }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.2 }}
+          className="hologram-panel rounded-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header do modal */}
+          <div className="p-5 pb-0 flex items-start justify-between gap-3 flex-shrink-0">
+            <div className="flex items-start gap-3">
+              <UserAvatar
+                avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
+                name={isMe ? myName : authorName}
+                disc={isMe ? myDisc : authorDisc}
+                size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
+              />
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-accent font-semibold text-sm text-foreground">{isMe ? myName : authorName}</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
+                    style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
+                    {authorDisc} · {DISC_LABEL[authorDisc]}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
+                <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm flex-shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Conteúdo do post */}
+          <div className="px-5 py-4 flex-shrink-0">
+            <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line">{post.description}</p>
+          </div>
+          {post.midia && post.midia !== "EMPTY" && (
+            <div className="px-5 pb-4 flex-shrink-0">
+              <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 280 }}>
+                <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 280 }} />
+              </div>
+            </div>
+          )}
+
+          {/* Ações */}
+          <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3 flex-shrink-0">
+            <span>{post.like_qnt ?? 0} curtidas</span>
+            <span>{dbComments.length} comentários</span>
+          </div>
+          <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30 flex-shrink-0">
+            {[
+              { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />, active: post.liked, color: "text-rose-400", fn: () => post.id && onLike(post.id) },
+              { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved, color: "text-primary", fn: () => post.id && onSave(post.id) },
+              { label: "Copiar link",  el: <Share2 size={14} />, active: false, color: "", fn: copyLink },
+            ].map(({ label, el, active, color, fn }) => (
+              <button key={label} onClick={fn}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
+                {el} {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Comentários — carregados do Supabase */}
+          <div className="border-t border-border/30 overflow-y-auto flex-1 px-5 py-4 space-y-3">
+            {loading ? (
+              <p className="text-xs text-muted-foreground font-body text-center py-4">Carregando comentários...</p>
+            ) : dbComments.length === 0 ? (
+              <p className="text-xs text-muted-foreground font-body text-center py-4">Seja o primeiro a comentar!</p>
+            ) : (
+              dbComments.map((c) => (
+                <div key={c.id} className="flex gap-2.5">
+                  <UserAvatar avatarUrl={c.avatar_url} name={c.author} disc={c.disc} size="sm" />
+                  <div className="bg-secondary/30 rounded-sm px-3 py-2 flex-1">
+                    <p className="text-[11px] font-accent font-semibold text-foreground mb-0.5">{c.author}</p>
+                    <p className="text-xs font-body text-muted-foreground">{c.text}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input de novo comentário */}
+          <div className="flex gap-2.5 p-4 border-t border-border/30 flex-shrink-0">
+            <UserAvatar avatarUrl={myAvatarUrl} name={myName} disc={myDisc} size="sm" isMe discRingImg={myDiscRingImg} />
+            <div className="flex-1 flex gap-2">
+              <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
+                placeholder="Escreva um comentário..."
+                className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition" />
+              <button onClick={submitComment} className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110" style={{ background: "hsl(155 60% 35%)" }}>
+                <Send size={12} />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+// ─── PostCard ─────────────────────────────────────────────────────────────────
+
+const PostCard = ({
+  post, onLike, onSave, onOpenModal,
+  myAvatarUrl, myName, myDisc, myDiscRingImg,
+}: {
+  post:          Post;
+  onLike:        (id: string) => void;
+  onSave:        (id: string) => void;
+  onOpenModal:   (post: Post) => void;
+  myAvatarUrl:   string | null;
+  myName:        string;
+  myDisc:        string;
+  myDiscRingImg: string | undefined;
+}) => {
+  const [showMenu, setShowMenu] = useState(false);
+
+  const authorName      = post.profile?.name      ?? "Usuário";
+  const authorAvatarUrl = post.profile?.avatar_url;
+  const authorRole      = post.profile?.role      ?? "";
+  const authorDisc      = post.profile?.disc      ?? "S";
+  const isMe            = post.creator_id === "me" || authorName === myName;
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/comunidade?post=${post.id}`;
+    navigator.clipboard.writeText(url);
+    setShowMenu(false);
+  };
+
+  return (
+    <motion.div layout initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
+      className="hologram-panel rounded-sm overflow-hidden">
+
       {/* Header */}
       <div className="p-5 pb-0 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          {isMe ? (
-            <MyAvatar photoSrc={myPhotoSrc} name={myName} disc={myDisc} size="lg" />
-          ) : (
-            <Avatar initials={post.avatar} disc={post.disc} size="lg" />
-          )}
+        <div className="flex items-start gap-3 cursor-pointer" onClick={() => onOpenModal(post)}>
+          <UserAvatar
+            avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
+            name={isMe ? myName : authorName}
+            disc={isMe ? myDisc : authorDisc}
+            size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
+          />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-accent font-semibold text-sm text-foreground">{post.author}</p>
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                style={{
-                  background: `${DISC_COLOR[post.disc]}18`,
-                  color: DISC_COLOR[post.disc],
-                  border: `1px solid ${DISC_COLOR[post.disc]}40`,
-                }}
-              >
-                {post.disc} · {DISC_LABEL[post.disc]}
+              <p className="font-accent font-semibold text-sm text-foreground">{isMe ? myName : authorName}</p>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
+                style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
+                {authorDisc} · {DISC_LABEL[authorDisc]}
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground font-body mt-0.5">{post.role}</p>
-            <p className="text-[10px] text-muted-foreground font-body opacity-60">{post.time}</p>
+            <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
+            <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
           </div>
         </div>
 
-        {/* Menu */}
         <div className="relative">
           <button onClick={() => setShowMenu(!showMenu)} className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm">
             <MoreHorizontal size={16} />
           </button>
           <AnimatePresence>
             {showMenu && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body"
-              >
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Denunciar post</button>
-                <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Copiar link</button>
+                <button onClick={copyLink} className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">Copiar link</button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="px-5 py-4">
-        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line">{post.content}</p>
+      {/* Corpo clicável para abrir o modal */}
+      <div className="px-5 py-4 cursor-pointer" onClick={() => onOpenModal(post)}>
+        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">{post.description}</p>
       </div>
 
-      {post.image && (
-        <div className="px-5 pb-4">
+      {post.midia && post.midia !== "EMPTY" && (
+        <div className="px-5 pb-4 cursor-pointer" onClick={() => onOpenModal(post)}>
           <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 340 }}>
-            <img src={post.image} alt="Post" className="w-full object-cover" style={{ maxHeight: 340 }} />
+            <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 340 }} />
           </div>
         </div>
       )}
 
-      {/* Stats */}
       <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
-        <span>{post.likes} curtidas</span>
-        <button onClick={() => setShowComments(!showComments)} className="hover:text-foreground transition">
-          {post.comments.length} comentários
+        <span>{post.like_qnt ?? 0} curtidas</span>
+        <button onClick={() => onOpenModal(post)} className="hover:text-foreground transition">
+          {post.comments.length} comentários · Ver todos
         </button>
       </div>
 
-      {/* Actions */}
       <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
         {[
-          { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => onLike(post.id) },
-          { label: "Comentar",     el: <MessageCircle size={14} />,                                            active: false,       color: "",             fn: () => setShowComments(!showComments) },
-          { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => onSave(post.id) },
-          { label: "Compartilhar", el: <Share2 size={14} />,                                                  active: false,       color: "",             fn: () => {} },
+          { label: "Curtir",       el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,   active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike(post.id) },
+          { label: "Comentar",     el: <MessageCircle size={14} />,                                           active: false,       color: "",             fn: () => onOpenModal(post) },
+          { label: "Salvar",       el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />, active: post.saved,  color: "text-primary", fn: () => post.id && onSave(post.id) },
+          { label: "Copiar link",  el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
         ].map(({ label, el, active, color, fn }) => (
-          <button
-            key={label}
-            onClick={fn}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}
-          >
+          <button key={label} onClick={fn}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
             {el} {label}
           </button>
         ))}
       </div>
-
-      {/* Comments */}
-      <AnimatePresence>
-        {showComments && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-            className="border-t border-border/30 overflow-hidden"
-          >
-            <div className="px-5 py-4 space-y-3">
-              {post.comments.map((c) => (
-                <div key={c.id} className="flex gap-2.5">
-                  <Avatar initials={c.avatar} disc={c.disc} size="sm" />
-                  <div className="bg-secondary/30 rounded-sm px-3 py-2 flex-1">
-                    <p className="text-[11px] font-accent font-semibold text-foreground mb-0.5">{c.author}</p>
-                    <p className="text-xs font-body text-muted-foreground">{c.text}</p>
-                  </div>
-                </div>
-              ))}
-
-              {/* Input comentário com MyAvatar */}
-              <div className="flex gap-2.5 pt-1">
-                <MyAvatar photoSrc={myPhotoSrc} name={myName} disc={myDisc} size="sm" />
-                <div className="flex-1 flex gap-2">
-                  <input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submit()}
-                    placeholder="Escreva um comentário..."
-                    className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition"
-                  />
-                  <button
-                    onClick={submit}
-                    className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110"
-                    style={{ background: "hsl(155 60% 35%)" }}
-                  >
-                    <Send size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
@@ -496,93 +626,113 @@ const PostCard = ({
 // ─── CreatePost ───────────────────────────────────────────────────────────────
 
 const CreatePost = ({
-  onPost, myPhotoSrc, myName, myDisc,
+  onPost, myAvatarUrl, myName, myDisc, myDiscRingImg, myCreatorId,
 }: {
-  onPost: (content: string, image?: string) => void;
-  myPhotoSrc: string | null;
-  myName: string;
-  myDisc: string;
+  onPost:        (publi: Publication) => void;
+  myAvatarUrl:   string | null;
+  myName:        string;
+  myDisc:        string;
+  myDiscRingImg: string | undefined;
+  myCreatorId?:  string;
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const [content, setContent] = useState("");
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [publi, setPubli] = useState<Publication>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.onload = (ev) => setPubli((prev) => ({ ...prev, midia: ev.target?.result as string }));
     reader.readAsDataURL(file);
   };
 
+  // submit atualiza a UI local após salvar no banco
   const submit = () => {
-    if (!content.trim()) return;
-    onPost(content.trim(), imagePreview ?? undefined);
-    setContent(""); setImagePreview(null); setExpanded(false);
+    if (!publi.description?.trim()) return;
+    onPost({ description: publi.description.trim(), date: new Date().toISOString(), midia: publi.midia, creator_id: myCreatorId, like_qnt: 0 });
+    setPubli({});
+    setExpanded(false);
   };
+
+  // Sua função — salva no Supabase e chama submit para atualizar a UI
+  // submit é declarado acima, então pode ser chamado aqui sem erro de hoisting
+  async function handleDescriptionChange() {
+    const data = {
+      description: publi.description,
+      midia:       publi.midia ?? "EMPTY",
+      date:        new Date().toLocaleString("sv-SE", { timeZone: "America/Sao_Paulo" }).replace(" ", "T") + "-03:00", // timestamptz com fuso de Brasília
+      creator_id:  myCreatorId,
+      like_qnt:    0,
+    };
+
+    // select() faz o Supabase retornar a linha inserida com o ID gerado pelo banco
+    const { data: inserted, error } = await supabase
+      .from('publications')
+      .insert(data)
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    // Passa o ID real do banco para o handlePost atualizar a UI com o ID correto
+    onPost({
+      ...data,
+      id: inserted.id,           // ← ID real do Supabase, não o crypto.randomUUID()
+      created_at: inserted.created_at,
+    });
+    setPubli({});
+    setExpanded(false);
+  }
 
   return (
     <motion.div layout className="hologram-panel rounded-sm p-5">
       <div className="flex gap-3 items-start">
-        <MyAvatar photoSrc={myPhotoSrc} name={myName} disc={myDisc} size="lg" />
+        <UserAvatar avatarUrl={myAvatarUrl} name={myName} disc={myDisc} size="lg" isMe discRingImg={myDiscRingImg} />
         <div className="flex-1">
           {!expanded ? (
-            <button
-              onClick={() => setExpanded(true)}
-              className="w-full text-left px-4 py-2.5 rounded-sm bg-secondary/40 border border-border/40 text-sm font-body text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 transition"
-            >
+            <button onClick={() => setExpanded(true)}
+              className="w-full text-left px-4 py-2.5 rounded-sm bg-secondary/40 border border-border/40 text-sm font-body text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 transition">
               No que você está pensando?
             </button>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-              <textarea
-                autoFocus
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
+              <textarea autoFocus value={publi.description ?? ""}
+                onChange={(e) => setPubli((prev) => ({ ...prev, description: e.target.value }))}
                 placeholder="Compartilhe um insight, conquista ou dúvida com a comunidade..."
                 rows={4}
-                className="w-full px-4 py-3 rounded-sm bg-secondary/30 border border-border/50 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition resize-none"
-              />
+                className="w-full px-4 py-3 rounded-sm bg-secondary/30 border border-border/50 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition resize-none" />
+
               <AnimatePresence>
-                {imagePreview && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative rounded-sm overflow-hidden border border-border/40"
-                  >
-                    <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-cover" />
-                    <button
-                      onClick={() => { setImagePreview(null); if (fileRef.current) fileRef.current.value = ""; }}
-                      className="absolute top-2 right-2 p-1 rounded-full bg-background/80 text-foreground hover:bg-background transition"
-                    >
+                {publi.midia && (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                    className="relative rounded-sm overflow-hidden border border-border/40">
+                    <img src={publi.midia} alt="Preview" className="w-full max-h-64 object-cover" />
+                    <button onClick={() => { setPubli((prev) => ({ ...prev, midia: undefined })); if (fileRef.current) fileRef.current.value = ""; }}
+                      className="absolute top-2 right-2 p-1 rounded-full bg-background/80 text-foreground hover:bg-background transition">
                       <X size={14} />
                     </button>
                   </motion.div>
                 )}
               </AnimatePresence>
+
               <div className="flex items-center justify-between">
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40"
-                >
+                <button onClick={() => fileRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40">
                   <ImageIcon size={14} /> Adicionar imagem
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => { setContent(""); setImagePreview(null); setExpanded(false); }}
-                    className="px-3 py-1.5 text-xs font-accent text-muted-foreground border border-border rounded-sm hover:text-foreground transition"
-                  >
+                  <button onClick={() => { setPubli({}); setExpanded(false); }}
+                    className="px-3 py-1.5 text-xs font-accent text-muted-foreground border border-border rounded-sm hover:text-foreground transition">
                     Cancelar
                   </button>
-                  <button
-                    onClick={submit}
-                    disabled={!content.trim()}
+                  <button onClick={handleDescriptionChange} disabled={!publi.description?.trim()}
                     className="px-4 py-1.5 text-xs font-accent font-bold text-primary-foreground rounded-sm transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed box-glow-accent"
-                    style={{ background: "hsl(25 90% 55%)" }}
-                  >
+                    style={{ background: "hsl(25 90% 55%)" }}>
                     Publicar
                   </button>
                 </div>
@@ -595,128 +745,65 @@ const CreatePost = ({
   );
 };
 
-// ─── Sidebar Esquerda ─────────────────────────────────────────────────────────
+// ─── LeftSidebar ─────────────────────────────────────────────────────────────
 
 const LeftSidebar = ({
-  myPhotoSrc, myName, myDisc, myRole, myHourValue, myCourseProgress, myCourseTitle,
+  myAvatarUrl, myName, myDisc, myRole, myHourValue, myCourseProgress, myCourseTitle,
 }: {
-  myPhotoSrc: string | null;
-  myName: string;
-  myDisc: string;
-  myRole: string;
-  myHourValue: string;
-  myCourseProgress: number;
-  myCourseTitle: string;
+  myAvatarUrl: string | null; myName: string; myDisc: string;
+  myRole: string; myHourValue: string; myCourseProgress: number; myCourseTitle: string;
 }) => {
-  const discImg = DISC_IMGS[myDisc];
+  const discImg   = DISC_IMGS[myDisc];
   const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
 
   return (
     <div className="space-y-4">
-
-      {/* ── Mini Perfil com DISC ring igual ao ProfilePage ── */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.1 }}
-        className="hologram-panel rounded-sm overflow-hidden"
-      >
-        {/* Banner */}
-        <div
-          className="h-16 w-full"
-          style={{
-            background: `linear-gradient(135deg, ${discColor}44 0%, hsl(200 70% 50% / 0.2) 100%)`,
-          }}
-        />
-
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
+        className="hologram-panel rounded-sm overflow-hidden">
+        <div className="h-16 w-full" style={{ background: `linear-gradient(135deg, ${discColor}44 0%, hsl(200 70% 50% / 0.2) 100%)` }} />
         <div className="px-4 pb-4">
-          {/* Avatar com DISC ring — estrutura idêntica ao ProfilePage */}
           <div className="flex items-end gap-3 -mt-7 mb-3">
-            <div
-              className="relative flex-shrink-0 flex items-center justify-center"
-              style={{ width: 56, height: 56 }}
-            >
-              {/* Anel DISC (imagem circular) */}
-              {discImg ? (
-                <img
-                  src={discImg}
-                  alt={DISC_LABEL[myDisc] ?? "DISC"}
-                  className="absolute inset-0 w-full h-full rounded-full object-cover"
-                  style={{ zIndex: 1 }}
-                />
-              ) : (
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{ background: discColor, zIndex: 1, boxShadow: `0 0 14px ${discColor}50` }}
-                />
-              )}
-
-              {/* Foto / iniciais por cima do anel */}
-              <div
-                className="absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-xs z-10"
-                style={{
-                  width: 40,
-                  height: 40,
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  background: myPhotoSrc ? undefined : "hsl(var(--secondary))",
-                  border: "2.5px solid hsl(var(--background))",
-                  color: discColor,
-                }}
-              >
-                {myPhotoSrc
-                  ? <img src={myPhotoSrc} alt="Foto" className="w-full h-full object-cover" />
-                  : <span>{myName.slice(0, 2).toUpperCase()}</span>
+            {/* Mini avatar com anel DISC — idêntico ao ProfilePage */}
+            <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 56, height: 56 }}>
+              {discImg
+                ? <img src={discImg} alt="DISC" className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
+                : <div className="absolute inset-0 rounded-full" style={{ background: discColor, zIndex: 1 }} />
+              }
+              <div className="absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-xs z-10"
+                style={{ width: 40, height: 40, top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: myAvatarUrl ? undefined : "hsl(var(--secondary))", border: "2.5px solid hsl(var(--background))", color: discColor }}>
+                {myAvatarUrl
+                  ? <img src={myAvatarUrl} alt={myName} className="w-full h-full object-cover" />
+                  : <span>{toInitials(myName)}</span>
                 }
               </div>
             </div>
-
             <div className="mb-0.5">
               <p className="font-accent font-semibold text-sm text-foreground leading-none">{myName || "Você"}</p>
               <p className="text-[10px] text-muted-foreground font-body mt-0.5">{myRole}</p>
             </div>
           </div>
-
-          {/* DISC badge + hora */}
           <div className="flex items-center justify-between mb-3">
-            <span
-              className="text-[10px] px-2 py-0.5 rounded-sm font-accent font-semibold"
-              style={{ background: `${discColor}18`, color: discColor, border: `1px solid ${discColor}40` }}
-            >
+            <span className="text-[10px] px-2 py-0.5 rounded-sm font-accent font-semibold" style={{ background: `${discColor}18`, color: discColor, border: `1px solid ${discColor}40` }}>
               {myDisc} · {DISC_LABEL[myDisc] ?? "—"}
             </span>
             <span className="text-[10px] font-accent text-accent font-semibold">{myHourValue}</span>
           </div>
-
-          {/* Progresso da trilha */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <p className="text-[10px] text-muted-foreground font-accent flex items-center gap-1">
-                <BookOpen size={10} /> Trilha atual
-              </p>
+              <p className="text-[10px] text-muted-foreground font-accent flex items-center gap-1"><BookOpen size={10} /> Trilha atual</p>
               <span className="text-[10px] text-primary font-accent">{myCourseProgress}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${myCourseProgress}%` }}
-                transition={{ delay: 0.6, duration: 1 }}
-                className="h-full rounded-full"
-                style={{ background: "linear-gradient(90deg, hsl(155 60% 35%), hsl(155 60% 55%))" }}
-              />
+              <motion.div initial={{ width: 0 }} animate={{ width: `${myCourseProgress}%` }} transition={{ delay: 0.6, duration: 1 }}
+                className="h-full rounded-full" style={{ background: "linear-gradient(90deg, hsl(155 60% 35%), hsl(155 60% 55%))" }} />
             </div>
             <p className="text-[10px] text-muted-foreground font-body mt-1 truncate">{myCourseTitle}</p>
           </div>
         </div>
       </motion.div>
 
-      {/* Tópicos em Alta */}
-      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-        className="hologram-panel rounded-sm p-4">
-        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-          <Flame size={14} className="text-accent" /> Tópicos em Alta
-        </h3>
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="hologram-panel rounded-sm p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Flame size={14} className="text-accent" /> Tópicos em Alta</h3>
         <div className="space-y-2.5">
           {TRENDING.map((t, i) => (
             <motion.button key={t.tag} whileHover={{ x: 3 }} className="w-full flex items-center justify-between text-left group">
@@ -730,17 +817,14 @@ const LeftSidebar = ({
         </div>
       </motion.div>
 
-      {/* Membros em Destaque */}
-      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-        className="hologram-panel rounded-sm p-4">
-        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-          <Trophy size={14} className="text-accent" /> Membros em Destaque
-        </h3>
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="hologram-panel rounded-sm p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Trophy size={14} className="text-accent" /> Membros em Destaque</h3>
         <div className="space-y-3">
           {TOP_MEMBERS.map((m) => (
             <div key={m.name} className="flex items-center gap-2.5">
               <span className="text-sm">{m.badge}</span>
-              <Avatar initials={m.avatar} disc={m.disc} size="sm" />
+              {/* Foto dos membros via avatar_url */}
+              <UserAvatar avatarUrl={m.avatar_url} name={m.name} disc={m.disc} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-accent font-semibold text-foreground truncate">{m.name}</p>
                 <p className="text-[10px] text-muted-foreground font-body">{m.posts} posts este mês</p>
@@ -750,12 +834,8 @@ const LeftSidebar = ({
         </div>
       </motion.div>
 
-      {/* Stats */}
-      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-        className="hologram-panel rounded-sm p-4">
-        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-          <Zap size={14} className="text-primary" /> Comunidade Hoje
-        </h3>
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="hologram-panel rounded-sm p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Comunidade Hoje</h3>
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: "Membros", value: "2.4k", color: "hsl(155 60% 45%)" },
@@ -774,62 +854,43 @@ const LeftSidebar = ({
   );
 };
 
-// ─── Sidebar Direita — Notícias ───────────────────────────────────────────────
+// ─── RightSidebar ─────────────────────────────────────────────────────────────
 
 const RightSidebar = () => {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? MOCK_NEWS : MOCK_NEWS.slice(0, 4);
-
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
       className="hologram-panel rounded-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-border/30 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <TrendingUp size={14} className="text-accent" />
-          <h3 className="font-display text-sm font-bold text-foreground">Tech & Carreira</h3>
-        </div>
-        <a href="https://canaltech.com.br" target="_blank" rel="noopener noreferrer"
-          className="text-[10px] text-muted-foreground hover:text-primary font-body flex items-center gap-1 transition">
-          Canaltech <ExternalLink size={9} />
-        </a>
+        <div className="flex items-center gap-2"><TrendingUp size={14} className="text-accent" /><h3 className="font-display text-sm font-bold text-foreground">Tech & Carreira</h3></div>
+        <a href="https://canaltech.com.br" target="_blank" rel="noopener noreferrer" className="text-[10px] text-muted-foreground hover:text-primary font-body flex items-center gap-1 transition">Canaltech <ExternalLink size={9} /></a>
       </div>
-
       <div className="divide-y divide-border/20">
         <AnimatePresence>
           {visible.map((news, i) => (
             <motion.a key={news.id} href={news.url} target="_blank" rel="noopener noreferrer"
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.05 }}
-              whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }}
-              className="block px-4 py-3 group transition">
+              whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }} className="block px-4 py-3 group transition">
               <div className="flex gap-3">
                 <div className="w-16 h-[52px] rounded-sm overflow-hidden flex-shrink-0 bg-secondary/40 relative">
                   <img src={news.image} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
-                  {news.hot && (
-                    <span className="absolute top-0.5 left-0.5 text-[8px] font-accent font-bold px-1 rounded-sm leading-tight"
-                      style={{ background: "hsl(25 90% 55%)", color: "#fff" }}>HOT</span>
-                  )}
+                  {news.hot && <span className="absolute top-0.5 left-0.5 text-[8px] font-accent font-bold px-1 rounded-sm leading-tight" style={{ background: "hsl(25 90% 55%)", color: "#fff" }}>HOT</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-[9px] font-accent font-semibold px-1.5 py-0.5 rounded-sm mb-1.5 inline-block"
-                    style={{ background: `${news.categoryColor}18`, color: news.categoryColor, border: `1px solid ${news.categoryColor}30` }}>
-                    {news.category}
-                  </span>
+                    style={{ background: `${news.categoryColor}18`, color: news.categoryColor, border: `1px solid ${news.categoryColor}30` }}>{news.category}</span>
                   <p className="text-[11px] font-body text-foreground leading-tight line-clamp-2 group-hover:text-primary transition">{news.title}</p>
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <Clock size={8} className="text-muted-foreground" />
-                    <span className="text-[9px] text-muted-foreground font-body">{news.time}</span>
-                  </div>
+                  <div className="flex items-center gap-1 mt-1.5"><Clock size={8} className="text-muted-foreground" /><span className="text-[9px] text-muted-foreground font-body">{news.time}</span></div>
                 </div>
               </div>
             </motion.a>
           ))}
         </AnimatePresence>
       </div>
-
       <button onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-2.5 text-[11px] font-accent font-semibold text-muted-foreground hover:text-primary transition flex items-center justify-center gap-1 border-t border-border/30">
-        {expanded ? "Ver menos" : "Ver todas as notícias"}
-        <ChevronRight size={11} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
+        {expanded ? "Ver menos" : "Ver todas as notícias"}<ChevronRight size={11} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
       </button>
     </motion.div>
   );
@@ -839,65 +900,108 @@ const RightSidebar = () => {
 
 const CommunityPage = () => {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
-  const [filter, setFilter] = useState<"recentes" | "populares">("recentes");
-  const [myPhotoSrc, setMyPhotoSrc] = useState<string | null>(null);
+  const [posts, setPosts]       = useState<Post[]>(INITIAL_POSTS);
+  const [filter, setFilter]     = useState<"recentes" | "populares">("recentes");
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+  const [openPost, setOpenPost] = useState<Post | null>(null); // post aberto no modal
 
+  useEffect(() => { setMyAvatarUrl(localStorage.getItem(KEY_PHOTO)); }, [user]);
+
+  // Ao abrir o modal, atualiza a URL com o ID do post (como o Twitter)
+  const openModal = (post: Post) => {
+    setOpenPost(post);
+    window.history.pushState({}, "", `/comunidade?post=${post.id}`);
+  };
+
+  // Ao fechar o modal, volta a URL para /comunidade
+  const closeModal = () => {
+    setOpenPost(null);
+    window.history.pushState({}, "", "/comunidade");
+  };
+
+  // Ao carregar a página, verifica se há ?post=uuid na URL e abre o modal com dados do banco
   useEffect(() => {
-    setMyPhotoSrc(localStorage.getItem(KEY_PHOTO));
-  }, [user]);
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get("post");
+    if (!postId) return;
 
-  const myName  = user?.name ?? "Você";
-  const myDisc  = user?.assessment?.discProfile ?? "S";
-  const myHourValue = user?.assessment?.valorHoraLiquida
-    ? `R$ ${user.assessment.valorHoraLiquida.toFixed(0)}/h`
-    : "—";
+    const loadPost = async () => {
+      // Busca o post + profile via JOIN (quando a tabela profiles existir, adicione profile:profiles(*))
+      const { data, error } = await supabase
+        .from("publications")
+        .select("*")
+        .eq("id", postId)
+        .maybeSingle(); // .single() dá 406 se não achar exatamente 1 — .maybeSingle() retorna null sem erro
+
+      if (error) { console.error("Erro ao buscar post:", error.message); return; }
+      if (!data)  { console.warn("Post não encontrado para id:", postId); return; }
+
+      // Monta o Post com os dados reais do banco
+      const post: Post = {
+        id:          data.id,
+        created_at:  data.created_at,
+        description: data.description,
+        date:        data.date,
+        midia:       data.midia,
+        creator_id:  data.creator_id,
+        like_qnt:    data.like_qnt ?? 0,
+        profile:     undefined, // substituir por data.profile quando o JOIN existir
+        liked:       false,
+        saved:       false,
+        comments:    [],
+      };
+
+      setOpenPost(post);
+    };
+
+    loadPost();
+  }, []);
+
+  const myName      = user?.name ?? "Você";
+  const myDisc      = user?.assessment?.discProfile ?? "S";
+  const myCreatorId = user?.id;
+  const myHourValue = user?.assessment?.valorHoraLiquida ? `R$ ${user.assessment.valorHoraLiquida.toFixed(0)}/h` : "—";
   const myRole           = "Membro · UpJobs";
   const myCourseProgress = 65;
   const myCourseTitle    = "Machine Learning Avançado";
+  const myDiscRingImg    = DISC_IMGS[myDisc];
 
-  const handlePost = (content: string, image?: string) => {
+  const handlePost = (publi: Publication) => {
+    if (!publi.description?.trim()) return;
     setPosts((prev) => [{
-      id: Date.now(),
-      author: myName,
-      avatar: "VC",
-      role: myRole,
-      disc: myDisc as "D" | "I" | "S" | "C",
-      time: "agora",
-      content,
-      image,
-      likes: 0,
-      liked: false,
-      saved: false,
-      comments: [],
+      id:          publi.id!,          // ← ID real vindo do Supabase
+      created_at:  publi.created_at ?? new Date().toISOString(),
+      description: publi.description!,
+      date:        publi.date,
+      midia:       publi.midia,
+      creator_id:  publi.creator_id,
+      like_qnt:    0,
+      profile: { id: myCreatorId ?? "", name: myName, avatar_url: myAvatarUrl ?? undefined, role: myRole, disc: myDisc as "D"|"I"|"S"|"C" },
+      liked: false, saved: false, comments: [],
     }, ...prev]);
   };
 
-  const handleLike = (id: number) =>
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p));
+  const handleLike = (id: string) =>
+    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, like_qnt: (p.like_qnt ?? 0) + (p.liked ? -1 : 1) } : p));
 
-  const handleSave = (id: number) =>
+  const handleSave = (id: string) =>
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, saved: !p.saved } : p));
 
-  const handleComment = (id: number, text: string) =>
+  // handleComment mantido para atualizar contagem local após comentar no modal
+  const handleComment = (id: string) =>
     setPosts((prev) => prev.map((p) =>
-      p.id === id
-        ? { ...p, comments: [...p.comments, { id: Date.now(), author: myName, avatar: "VC", disc: myDisc, text, time: "agora" }] }
-        : p
+      p.id === id ? { ...p, comments: [...p.comments, { id: Date.now(), author: "", initials: "", disc: "", text: "", time: "" }] } : p
     ));
 
   const sortedPosts = filter === "populares"
-    ? [...posts].sort((a, b) => b.likes - a.likes)
-    : posts;
+    ? [...posts].sort((a, b) => (b.like_qnt ?? 0) - (a.like_qnt ?? 0))
+    : [...posts].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime());
 
   return (
     <div className="min-h-screen gradient-hero scanline">
       <Header />
-
       <div className="px-4 pt-24 pb-16">
         <div className="max-w-7xl mx-auto">
-
-          {/* Page header */}
           <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
             className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
@@ -912,54 +1016,39 @@ const CommunityPage = () => {
               ].map(({ icon: Icon, label, color }) => (
                 <div key={label} className="flex items-center gap-1 text-[10px] font-accent font-semibold px-2 py-1 rounded-sm"
                   style={{ color, background: `${color}12`, border: `1px solid ${color}30` }}>
-                  <Icon size={10} /> <span className="hidden sm:inline">{label}</span>
+                  <Icon size={10} /><span className="hidden sm:inline">{label}</span>
                 </div>
               ))}
             </div>
           </motion.div>
 
-          {/* Grid 3 colunas */}
           <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6">
-
             <aside className="hidden lg:block">
               <div className="sticky top-24">
-                <LeftSidebar
-                  myPhotoSrc={myPhotoSrc}
-                  myName={myName}
-                  myDisc={myDisc}
-                  myRole={myRole}
-                  myHourValue={myHourValue}
-                  myCourseProgress={myCourseProgress}
-                  myCourseTitle={myCourseTitle}
-                />
+                <LeftSidebar myAvatarUrl={myAvatarUrl} myName={myName} myDisc={myDisc}
+                  myRole={myRole} myHourValue={myHourValue} myCourseProgress={myCourseProgress} myCourseTitle={myCourseTitle} />
               </div>
             </aside>
 
-            <main className="space-y-4 min-w-0">
-              <div className="flex gap-2">
+            <main className="space-y-2 min-w-0">
+              <div className="flex gap-3 justify-center">
                 {(["recentes", "populares"] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition ${filter === f ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
-                    style={filter === f ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
-                    {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+                    className={`px-20 py-1 rounded-sm text-xs font-accent font-semibold transition ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
+                    style={f === filter ? { background: "hsl(var(--primary))", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" } : undefined}>
+                    {f === "recentes" ? "🕒 Recentes" : " 🔥 Populares"}
                   </button>
                 ))}
               </div>
 
-              <CreatePost onPost={handlePost} myPhotoSrc={myPhotoSrc} myName={myName} myDisc={myDisc} />
+              <CreatePost onPost={handlePost} myAvatarUrl={myAvatarUrl} myName={myName}
+                myDisc={myDisc} myDiscRingImg={myDiscRingImg} myCreatorId={myCreatorId} />
 
               <AnimatePresence mode="popLayout">
                 {sortedPosts.map((post, i) => (
                   <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <PostCard
-                      post={post}
-                      onLike={handleLike}
-                      onSave={handleSave}
-                      onComment={handleComment}
-                      myPhotoSrc={myPhotoSrc}
-                      myName={myName}
-                      myDisc={myDisc}
-                    />
+                    <PostCard post={post} onLike={handleLike} onSave={handleSave} onOpenModal={openModal}
+                      myAvatarUrl={myAvatarUrl} myName={myName} myDisc={myDisc} myDiscRingImg={myDiscRingImg} />
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -972,14 +1061,25 @@ const CommunityPage = () => {
             </main>
 
             <aside className="hidden lg:block">
-              <div className="sticky top-24">
-                <RightSidebar />
-              </div>
+              <div className="sticky top-24"><RightSidebar /></div>
             </aside>
-
           </div>
         </div>
       </div>
+      {/* Modal do post — abre ao clicar no card */}
+      {openPost && (
+        <PostModal
+          post={openPost}
+          onClose={closeModal}
+          onLike={handleLike}
+          onSave={handleSave}
+          myAvatarUrl={myAvatarUrl}
+          myName={myName}
+          myDisc={myDisc}
+          myDiscRingImg={myDiscRingImg}
+          myUserId={myCreatorId}
+        />
+      )}
     </div>
   );
 };
