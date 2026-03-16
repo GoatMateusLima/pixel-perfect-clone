@@ -1,7 +1,8 @@
   import { motion, AnimatePresence } from "framer-motion";
   import { ArrowLeft, ArrowRight, Clock, BarChart2, MonitorPlay } from "lucide-react";
-  import { useState } from "react";
+  import { useEffect, useState } from "react";
   import Header from "@/components/Header";
+  import supabase from "../../utils/supabase.ts";
 
 
   const areas = [
@@ -249,166 +250,189 @@
   );
 
   // ─── Main Component ──────────────────────────────────────────────────────────
-  const RoadmapSection = () => {
-    const [selectedArea, setSelectedArea] = useState<Area | null>(null);
-    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+const RoadmapSection = () => {
+  const [selectedArea, setSelectedArea] = useState<Area | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-    const handleCourseClick = (course: Course) => {
-      setSelectedCourse(course);
-    };
+   /* useEffect(() => {
+    // Certifique-se de que a variável 'user' está disponível neste escopo
+  if (user && user.id) {
+      SyncTemas(user.id);
+    }
+  }, []); */
 
-    const handleBackToCourses = () => {
-      setSelectedCourse(null);
-    };
+  async function SyncTemas(user_id: string) { 
+    const { data, error } = await supabase
+      .from('temas')
+      .select('*')
+      .eq("user_id", user_id)
+      .single();
+      
+    if (error) { 
+      alert(error.message); 
+      return; 
+    }
+    // console.log(data);
+    // order('created_at', { ascending: false })
+  }
 
-    return (
-      <section className="relative min-h-screen gradient-hero scanline overflow-hidden pt-24 pb-20">
-        <Header/>
-        {/* Grid background */}
-        <div className="absolute inset-0 opacity-5" style={gridBg} />
-
-        <div className="container mx-auto px-4 relative z-10">
-          {/* Título */}
-          <motion.div
-            className="max-w-3xl mx-auto text-center mb-14"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold leading-tight mb-4 text-glow">
-              Áreas do <span className="text-primary">futuro</span>
-            </h1>
-            <p className="text-muted-foreground font-body text-base sm:text-lg">
-              Escolha uma área e veja os cursos para começar sua transição de carreira.
-            </p>
-          </motion.div>
-
-          {/* Grid de cards */}
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            {areas.map((area, i) => (
-              <motion.div
-                key={area.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08 * i }}
-                onClick={() => setSelectedArea(area)}
-                className="hologram-panel rounded-sm p-6 cursor-pointer group animate-hologram-flicker hover:brightness-125 transition-all"
-                style={{ animationDelay: `${i * 0.4}s` }}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
-                    {area.tag}
-                  </span>
-                  <ArrowRight
-                    size={16}
-                    className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all"
-                  />
-                </div>
-                <h2 className="font-display font-bold text-lg text-glow mb-2">{area.title}</h2>
-                <p className="text-muted-foreground font-body text-sm leading-relaxed">{area.desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* Area overlay */}
-        <AnimatePresence>
-          {selectedArea && (
-            <motion.div
-              key="overlay"
-              className="fixed inset-0 z-50 gradient-hero scanline overflow-y-auto"
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-            >
-              <div className="absolute inset-0 opacity-5 pointer-events-none" style={gridBg} />
-
-              <div className="relative z-10 container mx-auto px-4 pt-24 pb-24 max-w-5xl">
-                {/* Voltar */}
-                <motion.button
-                  onClick={() => setSelectedArea(null)}
-                  className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-12"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.15 }}
-                >
-                  <ArrowLeft size={15} /> Todas as áreas
-                </motion.button>
-
-                {/* Cabeçalho da área */}
-                <motion.div
-                  className="mb-12"
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
-                    {selectedArea.tag}
-                  </span>
-                  <h1 className="text-4xl sm:text-5xl font-display font-bold text-glow mt-2 mb-3">
-                    {selectedArea.title}
-                  </h1>
-                  <p className="text-muted-foreground font-body text-base max-w-xl">
-                    {selectedArea.desc}
-                  </p>
-                </motion.div>
-
-                {/* Cursos — agora sem <a>, usando onClick */}
-                <div className="flex flex-col gap-4">
-                  {selectedArea.courses.map((course, i) => (
-                    <motion.div
-                      key={i}
-                      onClick={() => handleCourseClick(course)}
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25 + 0.08 * i }}
-                      className="hologram-panel rounded-sm px-6 py-5 flex items-center justify-between group animate-hologram-flicker hover:brightness-125 transition-all cursor-pointer"
-                      style={{ animationDelay: `${i * 0.3}s` }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <span className="font-display font-bold text-base text-glow">
-                          {course.name}
-                        </span>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-xs font-body text-muted-foreground">{course.platform}</span>
-                          <span className="text-muted-foreground opacity-30">·</span>
-                          <span className={`text-xs font-accent font-bold uppercase tracking-wide ${levelClass[course.level] ?? "text-primary"}`}>
-                            {course.level}
-                          </span>
-                          <span className="text-muted-foreground opacity-30">·</span>
-                          <span className="text-xs font-body text-muted-foreground">{course.duration}</span>
-                        </div>
-                      </div>
-                      <ArrowRight
-                        size={18}
-                        className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 ml-4"
-                      />
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Course detail layer (inside area overlay) */}
-              <AnimatePresence>
-                {selectedCourse && (
-                  <CourseDetail
-                    course={selectedCourse}
-                    area={selectedArea}
-                    onBack={handleBackToCourses}
-                  />
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-    );
+  const handleCourseClick = (course: Course) => {
+    setSelectedCourse(course);
   };
 
-  export default RoadmapSection;
+  const handleBackToCourses = () => {
+    setSelectedCourse(null);
+  };
+
+  return (
+    <section className="relative min-h-screen gradient-hero scanline overflow-hidden pt-24 pb-20">
+      <Header />
+      {/* Grid background */}
+      <div className="absolute inset-0 opacity-5" style={gridBg} />
+
+      <div className="container mx-auto px-4 relative z-10">
+        {/* Título */}
+        <motion.div
+          className="max-w-3xl mx-auto text-center mb-14"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold leading-tight mb-4 text-glow">
+            Áreas do <span className="text-primary">futuro</span>
+          </h1>
+          <p className="text-muted-foreground font-body text-base sm:text-lg">
+            Escolha uma área e veja os cursos para começar sua transição de carreira.
+          </p>
+        </motion.div>
+
+        {/* Grid de cards */}
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          {areas.map((area, i) => (
+            <motion.div
+              key={area.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 * i }}
+              onClick={() => setSelectedArea(area)}
+              className="hologram-panel rounded-sm p-6 cursor-pointer group animate-hologram-flicker hover:brightness-125 transition-all"
+              style={{ animationDelay: `${i * 0.4}s` }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
+                  {area.tag}
+                </span>
+                <ArrowRight
+                  size={16}
+                  className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all"
+                />
+              </div>
+              <h2 className="font-display font-bold text-lg text-glow mb-2">{area.title}</h2>
+              <p className="text-muted-foreground font-body text-sm leading-relaxed">{area.desc}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Area overlay */}
+      <AnimatePresence>
+        {selectedArea && (
+          <motion.div
+            key="overlay"
+            className="fixed inset-0 z-50 gradient-hero scanline overflow-y-auto"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+          >
+            <div className="absolute inset-0 opacity-5 pointer-events-none" style={gridBg} />
+
+            <div className="relative z-10 container mx-auto px-4 pt-24 pb-24 max-w-5xl">
+              {/* Voltar */}
+              <motion.button
+                onClick={() => setSelectedArea(null)}
+                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-12"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                <ArrowLeft size={15} /> Todas as áreas
+              </motion.button>
+
+              {/* Cabeçalho da área */}
+              <motion.div
+                className="mb-12"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
+                  {selectedArea.tag}
+                </span>
+                <h1 className="text-4xl sm:text-5xl font-display font-bold text-glow mt-2 mb-3">
+                  {selectedArea.title}
+                </h1>
+                <p className="text-muted-foreground font-body text-base max-w-xl">
+                  {selectedArea.desc}
+                </p>
+              </motion.div>
+
+              {/* Cursos */}
+              <div className="flex flex-col gap-4">
+                {selectedArea.courses.map((course, i) => (
+                  <motion.div
+                    key={i}
+                    onClick={() => handleCourseClick(course)}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 + 0.08 * i }}
+                    className="hologram-panel rounded-sm px-6 py-5 flex items-center justify-between group animate-hologram-flicker hover:brightness-125 transition-all cursor-pointer"
+                    style={{ animationDelay: `${i * 0.3}s` }}
+                  >
+                    <div className="flex flex-col gap-1">
+                      <span className="font-display font-bold text-base text-glow">
+                        {course.name}
+                      </span>
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <span className="text-xs font-body text-muted-foreground">{course.platform}</span>
+                        <span className="text-muted-foreground opacity-30">·</span>
+                        <span className={`text-xs font-accent font-bold uppercase tracking-wide ${levelClass[course.level] ?? "text-primary"}`}>
+                          {course.level}
+                        </span>
+                        <span className="text-muted-foreground opacity-30">·</span>
+                        <span className="text-xs font-body text-muted-foreground">{course.duration}</span>
+                      </div>
+                    </div>
+                    <ArrowRight
+                      size={18}
+                      className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 ml-4"
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Course detail layer (inside area overlay) */}
+            <AnimatePresence>
+              {selectedCourse && (
+                <CourseDetail
+                  course={selectedCourse}
+                  area={selectedArea}
+                  onBack={handleBackToCourses}
+                />
+              )}
+            </AnimatePresence>
+
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+};
+
+export default RoadmapSection;

@@ -16,26 +16,12 @@ import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal  from "@/components/ImageCropModal";
 import Header          from "@/components/Header";
 
-
-
-import supabase        from "../../utils/supabase";
+import supabase from "../../utils/supabase";
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-/**
- * Uma borda desbloqueada pelo usuário.
- * Salva dentro do array `bordas` (coluna jsonb) na tabela profiles.
- *
- * Exemplo de como fica no banco:
- * [
- *   { "id": "disc-s",   "img_url": "https://...", "nome": "Estabilidade", "ativa": true  },
- *   { "id": "curso-py", "img_url": "https://...", "nome": "Python Master", "ativa": false }
- * ]
- *
- * Regra: apenas UMA borda pode ter ativa: true por vez.
- */
 export type Borda = {
   id:      string;
   img_url: string;
@@ -43,39 +29,13 @@ export type Borda = {
   ativa:   boolean;
 };
 
-/**
- * Uma medalha desbloqueada pelo usuário.
- * Salva dentro do array `medalhas` (coluna jsonb) na tabela profiles.
- *
- * Exemplo de como fica no banco:
- * [
- *   { "id": 1, "ativa": true  },
- *   { "id": 3, "ativa": true  },
- *   { "id": 5, "ativa": false }
- * ]
- *
- * Regra: até 3 medalhas podem ter ativa: true ao mesmo tempo (exibidas em destaque).
- */
 export type MedalStatus = {
-  id:    number;   // corresponde ao id em ALL_MEDALS
-  ativa: boolean;  // true = exibida em destaque no perfil
+  id:    number;
+  ativa: boolean;
 };
 
-/**
- * Espelha a tabela `profiles` no Supabase.
- *
- * Colunas:
- *   id        uuid  PK
- *   name      text
- *   descricao text
- *   perfil    text   ← URL da foto (Storage)
- *   banner    text   ← URL do banner (Storage)
- *   redes     jsonb  ← { linkedin?, github?, ... }
- *   bordas    jsonb  ← Borda[]
- *   medalhas  jsonb  ← MedalStatus[]
- */
 export type Profile = {
-  id?:        string;
+  user_id?: string;  // ← troca id? por user_id?
   name?:      string;
   descricao?: string;
   perfil?:    string;
@@ -89,12 +49,10 @@ export type Profile = {
 // HELPERS — bordas
 // =============================================================================
 
-/** Retorna a borda com ativa: true, ou null */
 function getBordaAtiva(bordas: Borda[]): Borda | null {
   return bordas.find(b => b.ativa) ?? null;
 }
 
-/** Retorna novo array onde só a borda com o id tem ativa: true. id=null → todas false. */
 function setBordaAtiva(bordas: Borda[], id: string | null): Borda[] {
   return bordas.map(b => ({ ...b, ativa: b.id === id }));
 }
@@ -103,23 +61,17 @@ function setBordaAtiva(bordas: Borda[], id: string | null): Borda[] {
 // HELPERS — medalhas
 // =============================================================================
 
-/** Retorna as medalhas com ativa: true (máx 3) */
 function getMedalhasAtivas(medalhas: MedalStatus[]): MedalStatus[] {
   return medalhas.filter(m => m.ativa);
 }
 
-/**
- * Alterna o campo ativa de uma medalha específica.
- * Se já está ativa → vira false.
- * Se está inativa → vira true, desde que menos de 3 estejam ativas.
- */
 function toggleMedalAtiva(medalhas: MedalStatus[], id: number): MedalStatus[] {
   const ativas = medalhas.filter(m => m.ativa).length;
   return medalhas.map(m => {
     if (m.id !== id) return m;
-    if (m.ativa)     return { ...m, ativa: false };          // desativa
-    if (ativas >= 3) return m;                               // limite de 3
-    return { ...m, ativa: true };                            // ativa
+    if (m.ativa)     return { ...m, ativa: false };
+    if (ativas >= 3) return m;
+    return { ...m, ativa: true };
   });
 }
 
@@ -168,31 +120,24 @@ const RARITY_COLOR: Record<string, string> = {
 };
 
 // =============================================================================
-// MEDALHAS MOCKADAS (remove quando vier do banco)
+// MOCKADO — remover quando vier do banco
 // =============================================================================
-/**
- * [MOCKADO] — em produção vem do campo `medalhas` do banco.
- * Cada medalha desbloqueada tem um objeto com id e ativa.
- * O sistema adiciona novas medalhas automaticamente quando o usuário conclui cursos.
- */
-const MOCK_MEDALHAS: MedalStatus[] = [
-  { id: 1, ativa: true  },
-  { id: 2, ativa: true  },
-  { id: 3, ativa: true  },
-  { id: 4, ativa: false },
-  { id: 5, ativa: false },
-  { id: 6, ativa: false },
-];
 
-// =============================================================================
-// BORDAS MOCKADAS (remove quando vier do banco)
-// =============================================================================
-const MOCK_BORDAS: Borda[] = [
-  { id: "disc-s", img_url: estabilidadeImg, nome: "Estabilidade", ativa: true  },
-  { id: "disc-d", img_url: dominanciaImg,   nome: "Dominância",   ativa: false },
-  { id: "disc-i", img_url: influenciaImg,   nome: "Influência",   ativa: false },
-  { id: "disc-c", img_url: conformidadeImg, nome: "Conformidade", ativa: false },
-];
+// const MOCK_MEDALHAS: MedalStatus[] = [
+//   { id: 1, ativa: true  },
+//   { id: 2, ativa: true  },
+//   { id: 3, ativa: true  },
+//   { id: 4, ativa: false },
+//   { id: 5, ativa: false },
+//   { id: 6, ativa: false },
+// ];
+
+// const MOCK_BORDAS: Borda[] = [
+//   { id: "disc-s", img_url: estabilidadeImg, nome: "Estabilidade", ativa: true  },
+//   { id: "disc-d", img_url: dominanciaImg,   nome: "Dominância",   ativa: false },
+//   { id: "disc-i", img_url: influenciaImg,   nome: "Influência",   ativa: false },
+//   { id: "disc-c", img_url: conformidadeImg, nome: "Conformidade", ativa: false },
+// ];
 
 // =============================================================================
 // CONSTANTES — TIMELINE / VAGAS
@@ -215,23 +160,52 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
   C: [{ title: "Data Scientist",  company: "Itaú BBA",      salary: "R$14–22k", type: "Híbrido" }, { title: "Cyber Analyst",   company: "Tempest",       salary: "R$12–18k", type: "Remoto"  }, { title: "ML Engineer",     company: "Loft",          salary: "R$18–26k", type: "Remoto"  }],
 };
 
-
 // =============================================================================
 // HELPER — Upload para Supabase Storage
 // =============================================================================
-async function uploadCroppedImage(dataUrl: string, userId: string, slot: "photo" | "banner"): Promise<string> {
-  // --- SIMULAÇÃO ---
-  return dataUrl;
+async function uploadCroppedImage(
+  dataUrl: string,
+  userId: string,
+  slot: "photo" | "banner"
+): Promise<string> {
 
-  // --- CÓDIGO REAL (descomente quando conectar) ---
-  // const res  = await fetch(dataUrl);
-  // const blob = await res.blob();
-  // const ext  = blob.type.includes("png") ? "png" : "webp";
-  // const path = `${userId}/${slot}.${ext}`;
-  // const { error } = await supabase.storage.from("profiles").upload(path, blob, { upsert: true, contentType: blob.type });
-  // if (error) throw error;
-  // const { data } = supabase.storage.from("profiles").getPublicUrl(path);
-  // return `${data.publicUrl}?t=${Date.now()}`;
+  const arr = dataUrl.split(",");
+  const mime = arr[0].match(/:(.*?);/)![1];
+  const bstr = atob(arr[1]);
+
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+
+  const blob = new Blob([u8arr], { type: mime });
+
+  const ext =
+    mime.includes("png")
+      ? "png"
+      : mime.includes("jpeg")
+      ? "jpg"
+      : "webp";
+
+  // 👇 agora usa slot
+  const path = `${userId}/${slot}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from("Profile")
+    .upload(path, blob, {
+      upsert: true,
+      contentType: mime
+    });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage
+    .from("Profile")
+    .getPublicUrl(path);
+
+  return `${data.publicUrl}?t=${Date.now()}`;
 }
 
 // =============================================================================
@@ -258,15 +232,6 @@ const ProfilePage = () => {
   const [draftBanner,    setDraftBanner]    = useState<string | null>(null);
   const [draftSocial,    setDraftSocial]    = useState<Partial<Record<SocialKey, string>>>({});
   const [draftMedalhas,    setDraftMedalhas]    = useState<MedalStatus[] | null>(null);
-
-  /**
-   * draftBordas: cópia do array de bordas enquanto o usuário edita.
-   * null = não mexeu ainda nessa sessão (usa profile.bordas direto).
-   *
-   * Quando o usuário clica em uma borda no picker, chamamos setAtiva()
-   * que retorna um novo array com o campo ativa atualizado corretamente.
-   * Só é salvo no banco ao confirmar.
-   */
   const [draftBordas,      setDraftBordas]      = useState<Borda[] | null>(null);
   const [borderPickerOpen, setBorderPickerOpen] = useState(false);
 
@@ -285,24 +250,34 @@ const ProfilePage = () => {
   const [hoverPhoto,   setHoverPhoto]   = useState(false);
   const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
 
-  // ── Efeitos ─────────────────────────────────────────────────────────────────
-  useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
 
-  useEffect(() => {
-    if (!user) return;
+// ── Efeitos ─────────────────────────────────────────────────────────────────
+useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
 
-    // --- MOCKADO (remova quando conectar) ---
-    setProfile({ id: user.id, name: user.name, redes: {}, bordas: MOCK_BORDAS, medalhas: MOCK_MEDALHAS });
+useEffect(() => {
+  if (!user) return;
+
+  async function syncProfile(): Promise<void> {
+    setLoadingProfile(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (error) {
+      setProfile({ id: user.id, name: user.name, redes: {}, bordas: [] });
+    } else {
+      setProfile(data as Profile);
+    }
     setLoadingProfile(false);
+  }
 
-    // --- CÓDIGO REAL (descomente quando conectar) ---
-    // (async () => {
-    //   setLoadingProfile(true);
-    //   const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    //   setProfile(!error && data ? (data as Profile) : { id: user.id, name: user.name, redes: {}, bordas: [], medalhas: [] });
-    //   setLoadingProfile(false);
-    // })();
-  }, [user]);
+  syncProfile();
+}, [user]);
+
+
+
 
   if (!user) return null;
 
@@ -321,16 +296,11 @@ const ProfilePage = () => {
     ? Object.fromEntries(ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : (profile.redes ?? {})[k]]))
     : (profile.redes ?? {});
 
-  // Bordas visíveis agora: draft se estiver editando, banco caso contrário
   const bordas: Borda[] = (isEditing ? (draftBordas ?? profile.bordas) : profile.bordas) ?? [];
-
-  // A borda com ativa: true é a que aparece no avatar
   const bordaAtiva: Borda | null = getBordaAtiva(bordas);
 
-  // Medalhas: draft se editando, banco caso contrário
   const medalhas: MedalStatus[] = (isEditing ? (draftMedalhas ?? profile.medalhas) : profile.medalhas) ?? [];
   const ativasCount  = medalhas.filter(m => m.ativa).length;
-  // Resolve os objetos visuais das medalhas ativas para renderizar
   const featuredMedals = medalhas
     .filter(m => m.ativa)
     .map(m => ALL_MEDALS.find(a => a.id === m.id))
@@ -378,23 +348,20 @@ const ProfilePage = () => {
       });
 
       const payload: Profile = {
-        id:        user.id,
+        user_id:        user.id,
         name:      draftName.trim()      || profile.name      || null,
         descricao: draftDescricao.trim() || profile.descricao || null,
         perfil,
         banner,
         redes,
         bordas,
-        // medalhas: não entra no payload ainda — coluna será criada depois
+        medalhas: draftMedalhas ?? profile.medalhas ?? [],
       };
 
-      // --- MOCKADO ---
+      // --- CÓDIGO REAL ---
+      const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
+      if (error) throw error;
       setProfile(payload);
-
-      // --- CÓDIGO REAL (descomente quando conectar) ---
-      // const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
-      // if (error) throw error;
-      // setProfile(payload);
 
       setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
     } catch (err: any) {
@@ -405,12 +372,6 @@ const ProfilePage = () => {
   };
 
   // ── Handlers — borda ────────────────────────────────────────────────────────
-
-  /**
-   * Chamado quando o usuário clica em uma borda no picker.
-   * Usa setAtiva() para gerar um novo array onde só essa borda tem ativa: true.
-   * Armazena em draftBordas — o banco só é atualizado ao confirmar.
-   */
   const handleEscolherBorda = (id: string | null) => {
     const base = draftBordas ?? profile.bordas ?? [];
     setDraftBordas(setBordaAtiva(base, id));
@@ -565,12 +526,6 @@ const ProfilePage = () => {
 
                   {/* ── AVATAR ─────────────────────────────────────────────── */}
                   <div className="flex-shrink-0 relative" style={{ width: 112, height: 112 }}>
-
-                    {/*
-                      CAMADA 1 — borda.
-                      Mostra a borda que tem ativa: true.
-                      Se nenhuma tiver ativa (bordaAtiva === null), cai no fallback da imagem DISC.
-                    */}
                     {bordaAtiva ? (
                       <img src={bordaAtiva.img_url} alt={bordaAtiva.nome}
                         className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
@@ -579,7 +534,6 @@ const ProfilePage = () => {
                         className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
                     ) : null}
 
-                    {/* CAMADA 2 — foto do usuário */}
                     <div
                       onClick={() => isEditing && photoInputRef.current?.click()}
                       onMouseEnter={() => isEditing && setHoverPhoto(true)}
@@ -607,7 +561,6 @@ const ProfilePage = () => {
                     </div>
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
 
-                    {/* Botão ✨ trocar borda — só no modo edição */}
                     {isEditing && (
                       <button type="button" onClick={() => setBorderPickerOpen(p => !p)}
                         className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
@@ -668,14 +621,6 @@ const ProfilePage = () => {
                   </div>
                 </div>
 
-                {/* ── PICKER DE BORDA ───────────────────────────────────────
-                 * Expande abaixo do avatar só no modo edição.
-                 * Cada miniatura representa uma borda desbloqueada.
-                 * Clicar = chama handleEscolherBorda(borda.id)
-                 *   → setAtiva() percorre o array e seta ativa: true só nessa
-                 *   → todas as outras ficam ativa: false automaticamente
-                 * "Nenhuma" = handleEscolherBorda(null) → todas ficam false
-                 */}
                 <AnimatePresence>
                   {isEditing && borderPickerOpen && (
                     <motion.div
@@ -695,8 +640,6 @@ const ProfilePage = () => {
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-
-                          {/* Opção "Nenhuma" — seta todas para ativa: false */}
                           <button type="button" onClick={() => handleEscolherBorda(null)}
                             className="flex flex-col items-center gap-1 group">
                             <div className="w-12 h-12 rounded-full flex items-center justify-center transition-all"
@@ -710,7 +653,6 @@ const ProfilePage = () => {
                             <span className="text-[8px] font-accent text-muted-foreground">Nenhuma</span>
                           </button>
 
-                          {/* Bordas desbloqueadas */}
                           {bordas.map(borda => (
                             <button key={borda.id} type="button"
                               onClick={() => handleEscolherBorda(borda.id)}
