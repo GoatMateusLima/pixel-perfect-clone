@@ -1,3 +1,16 @@
+/**
+ * PostCard.tsx
+ *
+ * Componente isolado de card de publicação.
+ *
+ * Uso básico (lista):
+ *   <PostCard post={post} onLike={fn} onSave={fn} onOpenModal={fn}
+ *     myAvatarUrl={...} myName={...} myDisc={...} myDiscRingImg={...} />
+ *
+ * Uso por ID (embed avulso, ex: widget externo):
+ *   <PostCard publicationId="uuid-aqui" ... />
+ *   → Busca a publicação no Supabase automaticamente pelo ID.
+ */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,6 +32,7 @@ export type Publication = {
   midia?:       string;   // URL ou base64; "EMPTY" = sem imagem
   creator_id?:  string;
   like_qnt?:    number;
+  liked_by?:    string[]; // uuid[] — lista de user_ids que curtiram
 };
 
 export type Profile = {
@@ -44,6 +58,7 @@ export interface Post extends Publication {
   liked:     boolean;
   saved:     boolean;
   comments:  Comment[];
+  liked_by?: string[];    // espelhado de Publication para acesso direto no card
 }
 
 // ─── Constantes DISC ──────────────────────────────────────────────────────────
