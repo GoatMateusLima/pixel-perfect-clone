@@ -21,6 +21,7 @@ import PostCard, {
   UserAvatar, toInitials,
 } from "../components/PostCard";
 import PostModal from "../components/PostModal";
+import { promises } from "dns";
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -106,9 +107,28 @@ export function CreatePublication() {
   const { user } = useAuth();
   const [publi, setPubli] = useState<Publication>({});
 
-    // ─── USE EFFECT────────────────────────────────────────────────────────────────
+  const [publications, setPublications] = useState<Publication[]>([]); // USESTATE da publicações carregadas do banco
 
-  
+
+    // ─── USE EFFECT────────────────────────────────────────────────────────────────
+// receb unção anonima e  vetor de observado
+  useEffect(()=>{
+
+    loadPublications();
+
+  },[]);
+// PROMISE SERVER APENAS PARA O USEREFFECT ENTENDER QUE A FUNÇÃO É ASSINCRONA E QUE DEVE ESPERAR ELA TERMINAR PARA CONTINUAR O FLUXO NORMAL DO CÓDIGO
+  async function loadPublications(): Promise<void> {
+      // PUXANDO TD DA TABELA PUBLICATIONS, ORDENANDO PELA DATA MAIS RECENTE
+    const { data, error } = await supabase.from('publications').select('*').order('created_at', { ascending: false });
+
+    if(error){
+      alert('Erro ao carregar publicações: ' + error.message)
+      return
+    }
+
+    setPublications(data)
+  }
 
 
   async function handleDescriptionChange() {
