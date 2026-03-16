@@ -35,7 +35,7 @@ export type MedalStatus = {
 };
 
 export type Profile = {
-  id?:        string;
+  user_id?: string;  // ← troca id? por user_id?
   name?:      string;
   descricao?: string;
   perfil?:    string;
@@ -164,17 +164,22 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
 // HELPER — Upload para Supabase Storage
 // =============================================================================
 async function uploadCroppedImage(dataUrl: string, userId: string, slot: "photo" | "banner"): Promise<string> {
-  // --- MOCKADO — comentar quando conectar ao Storage ---
-  // return dataUrl;
+  const arr = dataUrl.split(",");
+  const mime = arr[0].match(/:(.*?);/)![1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  const blob = new Blob([u8arr], { type: mime });
 
-  // --- CÓDIGO REAL ---
-  const res  = await fetch(dataUrl);
-  const blob = await res.blob();
-  const ext  = blob.type.includes("png") ? "png" : "webp";
-  const path = `${userId}/${slot}.${ext}`;
-  const { error } = await supabase.storage.from("profiles").upload(path, blob, { upsert: true, contentType: blob.type });
+  
+  const ext  = mime.includes("png") ? "png" : mime.includes("jpeg") ? "jpg" : "webp";
+  const path = `${userId}/photo-${Date.now()}.png`;
+  
+  const { error } = await supabase.storage.from("Profile").upload(path, blob, { upsert: true, contentType: mime });
   if (error) throw error;
-  const { data } = supabase.storage.from("profiles").getPublicUrl(path);
+  
+  const { data } = supabase.storage.from("Profile").getPublicUrl(path); // ← mesmo nome
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
@@ -232,11 +237,11 @@ useEffect(() => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("user_id", user.id)
       .single();
 
     if (error) {
-      setProfile({ id: user.id, name: user.name, redes: {}, bordas: [], medalhas: [] });
+      setProfile({ id: user.id, name: user.name, redes: {}, bordas: [] });
     } else {
       setProfile(data as Profile);
     }
@@ -245,6 +250,9 @@ useEffect(() => {
 
   syncProfile();
 }, [user]);
+
+
+
 
   if (!user) return null;
 
@@ -315,7 +323,7 @@ useEffect(() => {
       });
 
       const payload: Profile = {
-        id:        user.id,
+        user_id:        user.id,
         name:      draftName.trim()      || profile.name      || null,
         descricao: draftDescricao.trim() || profile.descricao || null,
         perfil,
@@ -326,7 +334,7 @@ useEffect(() => {
       };
 
       // --- CÓDIGO REAL ---
-      const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
+      const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
       setProfile(payload);
 
