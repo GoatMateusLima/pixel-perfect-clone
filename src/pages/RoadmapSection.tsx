@@ -1,7 +1,8 @@
   import { motion, AnimatePresence } from "framer-motion";
   import { ArrowLeft, ArrowRight, Clock, BarChart2, MonitorPlay } from "lucide-react";
-  import { useState } from "react";
+  import { useEffect, useState } from "react";
   import Header from "@/components/Header";
+import supabase from "utils/supabase";
 
 
   const areas = [
@@ -252,6 +253,14 @@
   const RoadmapSection = () => {
     const [selectedArea, setSelectedArea] = useState<Area | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+
+    useEffect(()=> {<SyncTemas(user.id);
+
+    }, []);
+    function SyncTemas(user_id: string ) { const{data, error} = supabase.from('temas').select('*').eq("user_id", user_id).single();
+      if (error) {alert(error.message)return
+    //order('created_at', { ascending: false })
+    }
 
     const handleCourseClick = (course: Course) => {
       setSelectedCourse(course);
