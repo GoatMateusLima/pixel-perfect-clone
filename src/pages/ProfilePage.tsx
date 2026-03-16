@@ -163,23 +163,48 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
 // =============================================================================
 // HELPER — Upload para Supabase Storage
 // =============================================================================
-async function uploadCroppedImage(dataUrl: string, userId: string, slot: "photo" | "banner"): Promise<string> {
+async function uploadCroppedImage(
+  dataUrl: string,
+  userId: string,
+  slot: "photo" | "banner"
+): Promise<string> {
+
   const arr = dataUrl.split(",");
   const mime = arr[0].match(/:(.*?);/)![1];
   const bstr = atob(arr[1]);
+
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
-  while (n--) u8arr[n] = bstr.charCodeAt(n);
+
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+
   const blob = new Blob([u8arr], { type: mime });
 
-  
-  const ext  = mime.includes("png") ? "png" : mime.includes("jpeg") ? "jpg" : "webp";
-  const path = `${userId}/photo-${Date.now()}.png`;
-  
-  const { error } = await supabase.storage.from("Profile").upload(path, blob, { upsert: true, contentType: mime });
+  const ext =
+    mime.includes("png")
+      ? "png"
+      : mime.includes("jpeg")
+      ? "jpg"
+      : "webp";
+
+  // 👇 agora usa slot
+  const path = `${userId}/${slot}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from("Profile")
+    .upload(path, blob, {
+      upsert: true,
+      contentType: mime
+    });
+
   if (error) throw error;
-  
-  const { data } = supabase.storage.from("Profile").getPublicUrl(path); // ← mesmo nome
+
+  const { data } = supabase.storage
+    .from("Profile")
+    .getPublicUrl(path);
+
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
