@@ -1,7 +1,17 @@
+/**
+ * useCommunityPosts.ts
+ *
+ * Hook customizado com toda a lógica de estado da comunidade:
+ *   - Carregamento inicial com paginação
+ *   - "Carregar mais"
+ *   - Like persistente via RPC no Supabase
+ *   - Save local
+ *   - Novo post (otimístico)
+ */
 
 import { useState, useEffect, useCallback } from "react";
 import supabase from "../../utils/supabase.ts";
-import type { Publication, Post } from "../components/PostCard";
+import type { Publication, Post } from "./PostCard";
 
 const PAGE_SIZE = 10;
 
@@ -97,9 +107,19 @@ export function useCommunityPosts({
         .order("date", { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
-      if (error || !data || data.length === 0) {
-        if (error) console.error("Erro ao carregar publicações:", error.message);
+      // Erro real (ex: RLS bloqueando, sem conexão) → log + mock como fallback
+      if (error) {
+        console.error("Erro ao carregar publicações:", error.message);
+        console.warn("Verifique se a RLS da tabela publications tem policy de SELECT para usuários autenticados.");
         setPosts(INITIAL_POSTS);
+        setHasMore(false);
+        setLoadingPosts(false);
+        return;
+      }
+
+      // Banco vazio → lista vazia (sem mock — não queremos enganar o usuário)
+      if (!data || data.length === 0) {
+        setPosts([]);
         setHasMore(false);
         setLoadingPosts(false);
         return;
@@ -126,8 +146,12 @@ export function useCommunityPosts({
       .order("date", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
-    if (error || !data || data.length === 0) {
-      if (error) console.error("Erro ao carregar mais:", error.message);
+    if (error) {
+      console.error("Erro ao carregar mais:", error.message);
+      setLoadingMore(false);
+      return;
+    }
+    if (!data || data.length === 0) {
       setHasMore(false);
       setLoadingMore(false);
       return;
