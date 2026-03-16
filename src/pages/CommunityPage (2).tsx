@@ -1,4 +1,17 @@
-
+/**
+ * CommunityPage.tsx
+ *
+ * Apenas layout e orquestração — toda lógica está nos componentes:
+ *
+ *   src/components/
+ *     PostCard.tsx           → card de publicação + tipos compartilhados
+ *     PostModal.tsx          → modal de post com comentários
+ *     CreatePost.tsx         → formulário de nova publicação
+ *     LeftSidebar.tsx        → sidebar esquerda (banner, stats, trending)
+ *     RightSidebar.tsx       → sidebar de notícias tech
+ *
+ *   src/hooks/
+ */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,17 +19,15 @@ import { Users, TrendingUp, Zap } from "lucide-react";
 
 import Header          from "@/components/Header";
 import { useAuth }     from "@/contexts/AuthContext";
-import supabase        from "../../utils/supabase.ts";
-
 import PostCard        from "../components/PostCard";
 import PostModal       from "../components/PostModal";
 import CreatePost      from "../components/CreatePost";
 import LeftSidebar     from "../components/LeftSidebar";
 import RightSidebar    from "../components/RightSidebar";
 
-import { useCommunityPosts } from "../hooks/useCommunityPosts.ts";
-import { DISC_IMGS }         from "../components/PostCard";
-import type { Post }         from "../components/PostCard";
+import { DISC_IMGS }  from "../components/PostCard";
+import type { Post, Publication } from "../components/PostCard";
+import supabase from "../../utils/supabase.ts";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -44,14 +55,118 @@ const CommunityPage = () => {
   const myCourseTitle    = "Machine Learning Avançado";
   const myDiscRingImg    = DISC_IMGS[myDisc];
 
-  // Hook com toda a lógica de posts
-  const {
-    posts, loadingPosts, loadingMore, hasMore,
-    handleLoadMore, handleLike, handleSave, handlePost, rowToPost,
-  } = useCommunityPosts({
-    userId:       myCreatorId,
-    myName, myDisc, myRole, myAvatarUrl, myCreatorId,
+  // ── Estado dos posts ─────────────────────────────────────────────────────────
+  const [posts,        setPosts]       = useState<Post[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingMore,  setLoadingMore]  = useState(false);
+  const [hasMore,      setHasMore]      = useState(true);
+  const [page,         setPage]         = useState(0);
+
+  const PAGE_SIZE = 10;
+
+  // Converte row do banco → Post de UI
+  const rowToPost = (row: any, userId?: string): Post => ({
+    id:          row.id,
+    created_at:  row.created_at,
+    description: row.description,
+    date:        row.date,
+    midia:       row.midia,
+    creator_id:  row.creator_id,
+    liked_by:    row.liked_by ?? [],
+    like_qnt:    (row.liked_by ?? []).length,
+    profile:     row.profile ?? undefined,
+    liked:       userId ? (row.liked_by ?? []).includes(userId) : false,
+    saved:       false,
+    comments:    [],
   });
+
+  // ── Carrega posts do Supabase ─────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setLoadingPosts(true);
+      console.log("[CommunityPage] Buscando publicações...");
+
+      const { data, error, status } = await supabase
+        .from("publications")
+        .select("*")
+        .order("date", { ascending: false })
+        .range(0, PAGE_SIZE - 1);
+
+      console.log("[CommunityPage] Resposta:", { status, rows: data?.length, error: error?.message });
+
+      if (error) {
+        console.error("[CommunityPage] Erro:", error.code, "-", error.message);
+        setLoadingPosts(false);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn("[CommunityPage] Nenhum post retornado. Verifique a RLS policy da tabela publications.");
+        setLoadingPosts(false);
+        return;
+      }
+
+      setPosts(data.map((row) => rowToPost(row, myCreatorId)));
+      setPage(1);
+      setHasMore(data.length === PAGE_SIZE);
+      setLoadingPosts(false);
+    };
+
+    fetchPosts();
+  }, [myCreatorId]);
+
+  // ── Carregar mais ─────────────────────────────────────────────────────────────
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const from = page * PAGE_SIZE;
+    const { data, error } = await supabase
+      .from("publications")
+      .select("*")
+      .order("date", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) { console.error("Carregar mais:", error.message); setLoadingMore(false); return; }
+    if (!data || data.length === 0) { setHasMore(false); setLoadingMore(false); return; }
+    setPosts((prev) => [...prev, ...data.map((row) => rowToPost(row, myCreatorId))]);
+    setPage((p) => p + 1);
+    setHasMore(data.length === PAGE_SIZE);
+    setLoadingMore(false);
+  };
+
+  // ── Like persistente ──────────────────────────────────────────────────────────
+  const handleLike = async (id: string) => {
+    if (!myCreatorId) return;
+    const post = posts.find((p) => p.id === id);
+    if (!post) return;
+    const alreadyLiked = post.liked;
+    const prevPosts = posts;
+    setPosts((prev) => prev.map((p) => {
+      if (p.id !== id) return p;
+      const newLikedBy = alreadyLiked
+        ? (p.liked_by ?? []).filter((uid) => uid !== myCreatorId)
+        : [...(p.liked_by ?? []), myCreatorId];
+      return { ...p, liked_by: newLikedBy, liked: !alreadyLiked, like_qnt: newLikedBy.length };
+    }));
+    const { error } = await supabase.rpc(
+      alreadyLiked ? "unlike_publication" : "like_publication",
+      { pub_id: id, uid: myCreatorId }
+    );
+    if (error) { console.error("Like:", error.message); setPosts(prevPosts); }
+  };
+
+  const handleSave = (id: string) =>
+    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, saved: !p.saved } : p));
+
+  const handlePost = (publi: Publication) => {
+    if (!publi.description?.trim()) return;
+    setPosts((prev) => [{
+      id: publi.id!, created_at: publi.created_at ?? new Date().toISOString(),
+      description: publi.description!, date: publi.date, midia: publi.midia,
+      creator_id: publi.creator_id, liked_by: [], like_qnt: 0,
+      profile: { id: myCreatorId ?? "", name: myName, avatar_url: myAvatarUrl ?? undefined, role: myRole, disc: myDisc as "D"|"I"|"S"|"C" },
+      liked: false, saved: false, comments: [],
+    }, ...prev]);
+  };
 
   // ── URL navigation (abre modal via ?post=uuid) ───────────────────────────────
   const openModal = (post: Post) => {
