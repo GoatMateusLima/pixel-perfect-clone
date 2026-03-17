@@ -16,8 +16,10 @@ import {
   UserAvatar,
   formatRelativeTime, toInitials,
 } from "./PostCard";
+import PostMedia from "./PostMedia";
 
 // ─── Tipo pivot "comments" no Supabase ────────────────────────────────────────
+
 
 export type DbComment = {
   id?:            string;
@@ -168,9 +170,11 @@ const PostModal = ({
           {/* ── Imagem (se houver) ── */}
           {post.midia && post.midia !== "EMPTY" && (
             <div className="px-5 pb-4 flex-shrink-0">
-              <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 280 }}>
-                <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 280 }} />
-              </div>
+              <PostMedia
+                midia={post.midia}
+                maxHeight={380}
+                inModal={true}
+              />
             </div>
           )}
 

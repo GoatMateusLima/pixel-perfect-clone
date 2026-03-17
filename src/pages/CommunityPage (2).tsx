@@ -31,18 +31,13 @@ import supabase from "../../utils/supabase.ts";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const KEY_PHOTO = "upjobs_profile_photo_v2";
-
 // ─── CommunityPage ────────────────────────────────────────────────────────────
 
 const CommunityPage = () => {
-  const { user } = useAuth();
+  const { user, profilePhoto } = useAuth();
 
-  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
   const [filter,      setFilter]      = useState<"recentes" | "populares">("recentes");
   const [openPost,    setOpenPost]    = useState<Post | null>(null);
-
-  useEffect(() => { setMyAvatarUrl(localStorage.getItem(KEY_PHOTO)); }, [user]);
 
   // Dados derivados do usuário logado
   const myName           = user?.name ?? "Você";
@@ -99,31 +94,27 @@ const CommunityPage = () => {
 
   // ── Carrega posts do Supabase ─────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false; // evita setar estado se o componente desmontar antes do fetch terminar
+
     const fetchPosts = async () => {
       setLoadingPosts(true);
-      console.log("[CommunityPage] Buscando publicações...");
 
-      // JOIN com profiles: creator_id (publications) → user_id (profiles)
-      const { data, error, status } = await supabase
+      const { data, error } = await supabase
         .from("publications")
         .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
         .order("date", { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
-      console.log("[CommunityPage] Resposta:", { status, rows: data?.length, error: error?.message });
-      if (data?.[0]) {
-        console.log("[CommunityPage] Exemplo profiles JOIN:", data[0].profiles);
-        console.log("[CommunityPage] Exemplo bordas:", data[0].profiles?.bordas ?? data[0].profiles?.[0]?.bordas);
-      }
+      if (cancelled) return; // componente desmontou — ignora resultado
 
       if (error) {
-        console.error("[CommunityPage] Erro:", error.code, "-", error.message);
+        console.error("[CommunityPage] Erro ao carregar posts:", error.message);
         setLoadingPosts(false);
         return;
       }
 
       if (!data || data.length === 0) {
-        console.warn("[CommunityPage] Nenhum post retornado. Verifique a RLS policy da tabela publications.");
+        console.warn("[CommunityPage] Nenhum post. Verifique a RLS policy de SELECT em publications.");
         setLoadingPosts(false);
         return;
       }
@@ -135,6 +126,8 @@ const CommunityPage = () => {
     };
 
     fetchPosts();
+
+    return () => { cancelled = true; }; // cleanup ao desmontar
   }, [myCreatorId]);
 
   // ── Carregar mais ─────────────────────────────────────────────────────────────
@@ -185,7 +178,7 @@ const CommunityPage = () => {
       id: publi.id!, created_at: publi.created_at ?? new Date().toISOString(),
       description: publi.description!, date: publi.date, midia: publi.midia,
       creator_id: publi.creator_id, liked_by: [], like_qnt: 0,
-      profile: { id: myCreatorId ?? "", name: myName, avatar_url: myAvatarUrl ?? undefined, role: myRole, disc: myDisc as "D"|"I"|"S"|"C" },
+      profile: { id: myCreatorId ?? "", name: myName, avatar_url: profilePhoto ?? undefined, role: myRole, disc: myDisc as "D"|"I"|"S"|"C" },
       liked: false, saved: false, comments: [],
     }, ...prev]);
   };
@@ -227,14 +220,14 @@ const CommunityPage = () => {
       <Header />
 
       <div className="px-4 pt-24 pb-16">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto ">
 
           {/* ── Cabeçalho ── */}
           <motion.div
             initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 ">
             <div>
-              <h1 className="font-display text-2xl font-bold text-glow">Comunidade</h1>
+              <h1 className="font-display text-2xl font-bold text-glow ">Comunidade</h1>
               <p className="text-xs text-muted-foreground font-body mt-0.5">
                 Compartilhe conquistas, dicas e insights com a rede UpJobs
               </p>
@@ -261,9 +254,10 @@ const CommunityPage = () => {
             <aside className="hidden lg:block">
               <div className="sticky top-24">
                 <LeftSidebar
-                  myAvatarUrl={myAvatarUrl} myName={myName}   myDisc={myDisc}
-                  myRole={myRole}           myHourValue={myHourValue}
-                  myCourseProgress={myCourseProgress}         myCourseTitle={myCourseTitle}
+                  myName={myName}            myDisc={myDisc}
+                  myRole={myRole}            myHourValue={myHourValue}
+                  myCourseProgress={myCourseProgress}
+                  myCourseTitle={myCourseTitle}
                   myUserId={myCreatorId}
                 />
               </div>
@@ -273,7 +267,7 @@ const CommunityPage = () => {
             <main className="space-y-4 min-w-0">
 
               {/* Filtro */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex items-center justify-center">
                 {(["recentes", "populares"] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
                     className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition
@@ -291,8 +285,6 @@ const CommunityPage = () => {
               {/* Formulário de nova publicação */}
               <CreatePost
                 onPost={handlePost}
-                myAvatarUrl={myAvatarUrl}  myName={myName}
-                myDisc={myDisc}            myDiscRingImg={myDiscRingImg}
                 myCreatorId={myCreatorId}
               />
 
@@ -334,7 +326,7 @@ const CommunityPage = () => {
                         post={post}
                         onLike={handleLike}   onSave={handleSave}
                         onOpenModal={openModal}
-                        myAvatarUrl={myAvatarUrl} myName={myName}
+                        profilePhoto={profilePhoto} myName={myName}
                         myDisc={myDisc}           myDiscRingImg={myDiscRingImg}
                       />
                     </motion.div>
@@ -380,7 +372,7 @@ const CommunityPage = () => {
           post={openPost}
           onClose={closeModal}
           onLike={handleLike}   onSave={handleSave}
-          myAvatarUrl={myAvatarUrl} myName={myName}
+          profilePhoto={profilePhoto} myName={myName}
           myDisc={myDisc}           myDiscRingImg={myDiscRingImg}
           myUserId={myCreatorId}
         />

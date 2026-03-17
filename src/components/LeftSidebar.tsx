@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Flame, Trophy, Zap, BookOpen } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
+import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar, DISC_IMGS, DISC_COLOR, DISC_LABEL, toInitials } from "./PostCard";
 
 // ─── Constantes estáticas ─────────────────────────────────────────────────────
@@ -31,7 +32,6 @@ const TOP_MEMBERS = [
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface LeftSidebarProps {
-  myAvatarUrl:      string | null;
   myName:           string;
   myDisc:           string;
   myRole:           string;
@@ -44,13 +44,14 @@ interface LeftSidebarProps {
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 const LeftSidebar = ({
-  myAvatarUrl, myName, myDisc, myRole, myHourValue,
+  myName, myDisc, myRole, myHourValue,
   myCourseProgress, myCourseTitle, myUserId,
 }: LeftSidebarProps) => {
+  const { profilePhoto: myAvatarUrl } = useAuth(); // foto do contexto global
   const discImg   = DISC_IMGS[myDisc];
   const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
 
-  // Banner buscado da tabela profiles — mesma coluna do ProfilePage
+  // Banner buscado da tabela profiles — coluna `banner`, PK = user_id
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,7 +59,7 @@ const LeftSidebar = ({
     supabase
       .from("profiles")
       .select("banner")
-      .eq("id", myUserId)
+      .eq("user_id", myUserId)   // ← corrigido: user_id (não id)
       .maybeSingle()
       .then(({ data, error }) => {
         if (!error && data?.banner) setBannerUrl(data.banner);
