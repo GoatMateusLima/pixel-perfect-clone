@@ -65,20 +65,37 @@ const CommunityPage = () => {
   const PAGE_SIZE = 10;
 
   // Converte row do banco → Post de UI
-  const rowToPost = (row: any, userId?: string): Post => ({
-    id:          row.id,
-    created_at:  row.created_at,
-    description: row.description,
-    date:        row.date,
-    midia:       row.midia,
-    creator_id:  row.creator_id,
-    liked_by:    row.liked_by ?? [],
-    like_qnt:    (row.liked_by ?? []).length,
-    profile:     row.profile ?? undefined,
-    liked:       userId ? (row.liked_by ?? []).includes(userId) : false,
-    saved:       false,
-    comments:    [],
-  });
+  const rowToPost = (row: any, userId?: string): Post => {
+    // O JOIN retorna profiles como array de 1 item ou objeto — normalize os dois casos
+    const profileRaw  = Array.isArray(row.profiles)
+      ? row.profiles[0]
+      : row.profiles ?? row.profile ?? null;
+
+    // Borda com ativa: true no array bordas do profile
+    const bordaAtiva  = (profileRaw?.bordas ?? []).find((b: any) => b.ativa) ?? null;
+
+    return {
+      id:          row.id,
+      created_at:  row.created_at,
+      description: row.description,
+      date:        row.date,
+      midia:       row.midia,
+      creator_id:  row.creator_id,
+      liked_by:    row.liked_by ?? [],
+      like_qnt:    (row.liked_by ?? []).length,
+      profile: profileRaw ? {
+        id:             profileRaw.user_id,
+        name:           profileRaw.name       ?? "Usuário",
+        avatar_url:     profileRaw.perfil     ?? undefined,   // coluna "perfil" = URL da foto
+        disc_ring_img:  bordaAtiva?.img_url   ?? undefined,   // borda ativa do autor
+        role:           profileRaw.descricao  ?? undefined,
+        disc:           undefined,
+      } : undefined,
+      liked:    userId ? (row.liked_by ?? []).includes(userId) : false,
+      saved:    false,
+      comments: [],
+    };
+  };
 
   // ── Carrega posts do Supabase ─────────────────────────────────────────────────
   useEffect(() => {
@@ -86,13 +103,18 @@ const CommunityPage = () => {
       setLoadingPosts(true);
       console.log("[CommunityPage] Buscando publicações...");
 
+      // JOIN com profiles: creator_id (publications) → user_id (profiles)
       const { data, error, status } = await supabase
         .from("publications")
-        .select("*")
+        .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
         .order("date", { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
       console.log("[CommunityPage] Resposta:", { status, rows: data?.length, error: error?.message });
+      if (data?.[0]) {
+        console.log("[CommunityPage] Exemplo profiles JOIN:", data[0].profiles);
+        console.log("[CommunityPage] Exemplo bordas:", data[0].profiles?.bordas ?? data[0].profiles?.[0]?.bordas);
+      }
 
       if (error) {
         console.error("[CommunityPage] Erro:", error.code, "-", error.message);
@@ -122,7 +144,7 @@ const CommunityPage = () => {
     const from = page * PAGE_SIZE;
     const { data, error } = await supabase
       .from("publications")
-      .select("*")
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
       .order("date", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
     if (error) { console.error("Carregar mais:", error.message); setLoadingMore(false); return; }
@@ -186,7 +208,7 @@ const CommunityPage = () => {
 
     supabase
       .from("publications")
-      .select("*")
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
       .eq("id", postId)
       .maybeSingle()
       .then(({ data, error }) => {

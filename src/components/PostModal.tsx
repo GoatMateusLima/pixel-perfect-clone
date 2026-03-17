@@ -1,4 +1,9 @@
-
+/**
+ * PostModal.tsx
+ *
+ * Modal de post isolado — carrega comentários do Supabase ao abrir.
+ * Importado pelo CommunityPage (e pode ser reutilizado em qualquer outra página).
+ */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -127,8 +132,9 @@ const PostModal = ({
                 avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
                 name={isMe ? myName : authorName}
                 disc={isMe ? myDisc : authorDisc}
-                size="lg" isMe={isMe}
-                discRingImg={isMe ? myDiscRingImg : undefined}
+                size="lg"
+                isMe={isMe}
+                discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
               />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">

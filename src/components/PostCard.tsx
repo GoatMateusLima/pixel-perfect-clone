@@ -1,16 +1,3 @@
-/**
- * PostCard.tsx
- *
- * Componente isolado de card de publicação.
- *
- * Uso básico (lista):
- *   <PostCard post={post} onLike={fn} onSave={fn} onOpenModal={fn}
- *     myAvatarUrl={...} myName={...} myDisc={...} myDiscRingImg={...} />
- *
- * Uso por ID (embed avulso, ex: widget externo):
- *   <PostCard publicationId="uuid-aqui" ... />
- *   → Busca a publicação no Supabase automaticamente pelo ID.
- */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,11 +23,12 @@ export type Publication = {
 };
 
 export type Profile = {
-  id:           string;
-  name:         string;
-  avatar_url?:  string;
-  role?:        string;
-  disc?:        "D" | "I" | "S" | "C";
+  id:            string;
+  name:          string;
+  avatar_url?:   string;
+  disc_ring_img?: string;   // URL da borda ativa (imagem do anel DISC)
+  role?:         string;
+  disc?:         "D" | "I" | "S" | "C";
 };
 
 export interface Comment {
@@ -194,16 +182,18 @@ const PostCard = ({
       setLoading(true);
       setError(null);
 
-      // Busca publicação + perfil do autor
-      // Quando a tabela profiles existir: .select("*, profile:profiles(*)")
+      // JOIN com profiles usando a FK creator_id → user_id
       const { data, error: err } = await supabase
         .from("publications")
-        .select("*")
+        .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
         .eq("id", publicationId)
         .maybeSingle();
 
       if (err)   { setError(err.message); setLoading(false); return; }
       if (!data) { setError("Publicação não encontrada."); setLoading(false); return; }
+
+      const profileRaw   = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles ?? null;
+      const bordaAtiva   = (profileRaw?.bordas ?? []).find((b: any) => b.ativa) ?? null;
 
       setFetchedPost({
         id:          data.id,
@@ -212,11 +202,19 @@ const PostCard = ({
         date:        data.date,
         midia:       data.midia,
         creator_id:  data.creator_id,
-        like_qnt:    data.like_qnt ?? 0,
-        profile:     undefined,   // preencher quando o JOIN com profiles existir
-        liked:       false,
-        saved:       false,
-        comments:    [],
+        liked_by:    data.liked_by ?? [],
+        like_qnt:    (data.liked_by ?? []).length,
+        profile: profileRaw ? {
+          id:             profileRaw.user_id,
+          name:           profileRaw.name        ?? "Usuário",
+          avatar_url:     profileRaw.perfil       ?? undefined,
+          disc_ring_img:  bordaAtiva?.img_url     ?? undefined,  // borda ativa
+          role:           profileRaw.descricao    ?? undefined,
+          disc:           undefined,
+        } : undefined,
+        liked:    false,
+        saved:    false,
+        comments: [],
       });
       setLoading(false);
     };
@@ -275,7 +273,9 @@ const PostCard = ({
             avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
             name={isMe ? myName : authorName}
             disc={isMe ? myDisc : authorDisc}
-            size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
+            size="lg"
+            isMe={isMe}
+            discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
           />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
