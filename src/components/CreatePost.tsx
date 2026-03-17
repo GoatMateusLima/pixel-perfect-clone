@@ -1,23 +1,8 @@
-/**
- * CreatePost.tsx
- *
- * Fluxo de mídia:
- *   Imagem/Vídeo → upload para bucket "ComunityPost/{userId}/{postId}/arquivo"
- *                  → salva URL pública na coluna `midia`
- *   GIF           → salva "gif:https://media.tenor.com/..." direto (sem upload)
- *
- * A coluna `midia` no banco sempre tem uma das formas:
- *   "EMPTY"              → sem mídia
- *   "gif:https://..."    → GIF do Tenor
- *   "https://...supabase..." → arquivo no bucket
- */
-
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageIcon, X, MessageSquarePlus, Video, Loader2, Smile } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
-import type { Publication } from "./PostCard";
-import PostMedia, { getMediaType } from "./PostMedia";
+import PostMedia from "./PostMedia";
 import GifPicker from "./GifPicker";
 
 const BUCKET        = "ComunityPost";
@@ -25,18 +10,18 @@ const ACCEPTED_IMAGE = "image/jpeg,image/png,image/webp";
 const ACCEPTED_VIDEO = "video/mp4,video/webm,video/ogg,video/quicktime";
 
 interface CreatePostProps {
-  onPost:       (publi: Publication) => void;
+  onPost:       (rawRow: any) => void; // Agora recebe a linha completa do banco
   myCreatorId?: string;
+  myAvatarUrl?: string | null;         // Para mostrar sua foto no input
 }
 
-const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
+const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   const [expanded,    setExpanded]    = useState(false);
   const [description, setDescription] = useState("");
 
-  // mídia selecionada
-  const [mediaFile,   setMediaFile]   = useState<File | null>(null);  // arquivo local
-  const [previewUrl,  setPreviewUrl]  = useState<string | null>(null); // URL local temporária
-  const [gifUrl,      setGifUrl]      = useState<string | null>(null); // "gif:https://..."
+  const [mediaFile,   setMediaFile]   = useState<File | null>(null);
+  const [previewUrl,  setPreviewUrl]  = useState<string | null>(null);
+  const [gifUrl,      setGifUrl]      = useState<string | null>(null);
 
   const [showGif,   setShowGif]   = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -47,7 +32,6 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
 
   const hasMedia = !!(mediaFile || gifUrl);
 
-  // ── Seleciona arquivo local ──────────────────────────────────────────────────
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -57,7 +41,6 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
     setError(null);
   };
 
-  // ── Seleciona GIF do Tenor ───────────────────────────────────────────────────
   const handleGifSelect = (url: string) => {
     clearMedia();
     setGifUrl(url);
@@ -80,7 +63,6 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
     setExpanded(false);
   };
 
-  // ── Publicar ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!description.trim()) return;
     if (!myCreatorId) { setError("Você precisa estar logado para publicar."); return; }
@@ -89,7 +71,7 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
     setUploadPct(10);
 
     try {
-      // 1. Insere o post — midia começa como "EMPTY"
+      // 1. Insere o post
       const postData = {
         description: description.trim(),
         midia:       "EMPTY",
@@ -101,7 +83,7 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
       const { data: inserted, error: insertError } = await supabase
         .from("publications")
         .insert(postData)
-        .select("id, created_at")
+        .select("id")
         .single();
 
       if (insertError) throw new Error(insertError.message);
@@ -109,18 +91,18 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
       const postId = inserted.id;
       let midiaFinal = "EMPTY";
 
-      // 2a. GIF — só salva a URL, sem upload
+      // 2a. GIF
       if (gifUrl) {
-        midiaFinal = gifUrl; // já tem o prefixo "gif:"
+        midiaFinal = gifUrl;
         setUploadPct(80);
       }
 
-      // 2b. Arquivo (imagem ou vídeo) — faz upload para o bucket
+      // 2b. Arquivo
       if (mediaFile) {
         setUploadPct(30);
         const ext      = mediaFile.name.split(".").pop()?.toLowerCase() ?? "bin";
         const fileName = `${Date.now()}.${ext}`;
-        const path     = `${myCreatorId}/${postId}/${fileName}`; // userId/postId/arquivo
+        const path     = `${myCreatorId}/${postId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET)
@@ -137,7 +119,7 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
         midiaFinal = urlData.publicUrl;
       }
 
-      // 3. Atualiza `midia` no banco se tiver mídia
+      // 3. Atualiza mídia no banco
       if (midiaFinal !== "EMPTY") {
         setUploadPct(85);
         const { error: updateError } = await supabase
@@ -150,13 +132,17 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
 
       setUploadPct(100);
 
-      // 4. Atualiza UI localmente com os dados reais
-      onPost({
-        ...postData,
-        id:         postId,
-        created_at: inserted.created_at,
-        midia:      midiaFinal,
-      });
+      // 4. BUSCA O POST REAL COM A FOTO DE PERFIL INCLUÍDA
+      const { data: finalRow, error: fetchError } = await supabase
+        .from("publications")
+        .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+        .eq("id", postId)
+        .single();
+
+      if (fetchError) throw new Error(`Erro ao atualizar feed: ${fetchError.message}`);
+
+      // 5. Manda para a CommunityPage
+      onPost(finalRow);
 
       clearMedia();
       setDescription("");
@@ -170,7 +156,6 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
     }
   };
 
-  // Preview unificado — arquivo local ou GIF selecionado
   const previewMidia = gifUrl ?? (previewUrl ? (
     mediaFile?.type.startsWith("video/") ? `__local_video__${previewUrl}` : previewUrl
   ) : null);
@@ -179,11 +164,15 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
     <motion.div layout className="hologram-panel rounded-sm p-5">
       <div className="flex gap-3 items-center">
 
-        {/* Ícone */}
-        <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ background: "hsl(155 60% 45% / 0.12)", border: "1.5px solid hsl(155 60% 45% / 0.3)" }}>
-          <MessageSquarePlus size={18} style={{ color: "hsl(155 60% 45%)" }} />
-        </div>
+        {/* Sua Foto de Perfil na hora de criar */}
+        {myAvatarUrl ? (
+          <img src={myAvatarUrl} alt="Você" className="flex-shrink-0 w-10 h-10 rounded-full object-cover border-[1.5px] border-border/50" />
+        ) : (
+          <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ background: "hsl(155 60% 45% / 0.12)", border: "1.5px solid hsl(155 60% 45% / 0.3)" }}>
+            <MessageSquarePlus size={18} style={{ color: "hsl(155 60% 45%)" }} />
+          </div>
+        )}
 
         <div className="flex-1">
           {!expanded ? (
@@ -208,7 +197,6 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                     className="relative">
-                    {/* GIF preview */}
                     {gifUrl && (
                       <div className="rounded-sm overflow-hidden border border-border/40">
                         <img src={gifUrl.slice(4)} alt="GIF" className="w-full max-h-48 object-contain bg-black/20" />
@@ -216,7 +204,6 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
                           style={{ background: "hsl(45 90% 55% / 0.9)", color: "#000" }}>GIF</span>
                       </div>
                     )}
-                    {/* Arquivo local preview */}
                     {previewUrl && !gifUrl && (
                       <div className="rounded-sm overflow-hidden border border-border/40">
                         {mediaFile?.type.startsWith("video/") ? (
@@ -289,7 +276,7 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
                   </button>
 
                   <button
-                    onClick={() => setShowGif((v) => !v)}
+                    onClick={() => setShowGif(true)}
                     disabled={uploading || hasMedia}
                     title="Adicionar GIF"
                     className={`flex items-center gap-1.5 text-xs font-accent transition px-2 py-1.5 rounded-sm hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed ${showGif ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
@@ -297,12 +284,18 @@ const CreatePost = ({ onPost, myCreatorId }: CreatePostProps) => {
                     <span className="hidden sm:inline">GIF</span>
                   </button>
 
-                  {/* GifPicker dropdown */}
+                  {/* GifPicker Modal */}
                   <AnimatePresence>
                     {showGif && (
-                      <div className="absolute bottom-10 left-0 z-50">
+                      <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" 
+                        onClick={() => setShowGif(false)}
+                      >
                         <GifPicker onSelect={handleGifSelect} onClose={() => setShowGif(false)} />
-                      </div>
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </div>

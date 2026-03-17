@@ -1,12 +1,11 @@
-
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Loader2 } from "lucide-react";
 
 const KLIPY_KEY = import.meta.env.VITE_KLIPY_API_KEY ?? "";
-const KLIPY_URL = "https://api.klipy.com/v2"; // A Klipy usa v2 para replicar a versão mais recente do Tenor
+const KLIPY_URL = "https://api.klipy.com/v2"; 
 
-interface TenorGif {
+interface KlipyGif {
   id:      string;
   title:   string;
   url:     string;  // URL do GIF para exibir
@@ -20,7 +19,7 @@ interface GifPickerProps {
 
 const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
   const [query,    setQuery]    = useState("");
-  const [gifs,     setGifs]     = useState<TenorGif[]>([]);
+  const [gifs,     setGifs]     = useState<KlipyGif[]>([]);
   const [loading,  setLoading]  = useState(false);
   const [next,     setNext]     = useState<string | null>(null); // cursor de paginação
   const searchRef  = useRef<HTMLInputElement>(null);
@@ -32,7 +31,7 @@ const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
   // Carrega trending ao abrir (sem query)
   useEffect(() => { fetchGifs(""); }, []);
 
-const fetchGifs = async (q: string, pos?: string) => {
+  const fetchGifs = async (q: string, pos?: string) => {
     if (!KLIPY_KEY) {
       console.warn("VITE_KLIPY_API_KEY não configurada. Adicione no .env");
       return;
@@ -44,7 +43,6 @@ const fetchGifs = async (q: string, pos?: string) => {
       key:        KLIPY_KEY,
       q:          q.trim() || "trending",
       limit:      "20",
-      // contentfilter: "medium", // A Klipy tem filtragem automática, você pode remover ou deixar se eles suportarem no futuro.
       ...(pos ? { pos } : {}),
     });
 
@@ -52,13 +50,17 @@ const fetchGifs = async (q: string, pos?: string) => {
       const res  = await fetch(`${KLIPY_URL}/${endpoint}?${params}`);
       const data = await res.json();
 
-      const mapped: TenorGif[] = (data.results ?? []).map((r: any) => ({
-        id:      r.id,
-        title:   r.title ?? "",
-        // A Klipy retorna o mesmo formato media_formats do Tenor
-        url:     r.media_formats?.gif?.url     ?? r.media_formats?.mediumgif?.url ?? "",
-        preview: r.media_formats?.tinygif?.url ?? r.media_formats?.gif?.url ?? "",
-      })).filter((g: TenorGif) => g.url);
+      // Mapeamento à prova de falhas: tenta ler as propriedades do Tenor ou as nativas da Klipy
+      const mapped: KlipyGif[] = (data.results ?? []).map((r: any) => {
+        const media = r.media_formats || r.files || (r.media && r.media[0]) || {};
+        
+        return {
+          id:      r.id,
+          title:   r.title ?? "",
+          url:     media?.gif?.url     ?? media?.mediumgif?.url ?? "",
+          preview: media?.tinygif?.url ?? media?.gif?.url ?? "",
+        };
+      }).filter((g: KlipyGif) => g.url);
 
       setGifs(pos ? (prev) => [...prev, ...mapped] : mapped);
       setNext(data.next ?? null);
@@ -76,7 +78,7 @@ const fetchGifs = async (q: string, pos?: string) => {
     debounceRef.current = setTimeout(() => fetchGifs(value), 400);
   };
 
-  const handleSelect = (gif: TenorGif) => {
+  const handleSelect = (gif: KlipyGif) => {
     onSelect(`gif:${gif.url}`); // prefixo "gif:" para distinguir no banco
     onClose();
   };
@@ -150,9 +152,9 @@ const fetchGifs = async (q: string, pos?: string) => {
         )}
       </div>
 
-      {/* Crédito Tenor (obrigatório pela API) */}
+      {/* Crédito Klipy (obrigatório pela API) */}
       <div className="px-3 py-1.5 border-t border-border/20 flex items-center justify-end">
-        <span className="text-[9px] text-muted-foreground font-body opacity-60">via Tenor</span>
+        <span className="text-[9px] text-muted-foreground font-body opacity-60">via Klipy</span>
       </div>
     </motion.div>
   );

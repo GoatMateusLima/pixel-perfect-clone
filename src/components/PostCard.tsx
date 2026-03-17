@@ -113,6 +113,7 @@ export const UserAvatar = ({
         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
     : <span>{initials}</span>;
 
+  // Se for o usuário atual (isMe) E existir a imagem do anel, renderiza com anel
   if (isMe && discRingImg) {
     return (
       <div className="relative flex-shrink-0 flex items-center justify-center"
@@ -130,6 +131,7 @@ export const UserAvatar = ({
     );
   }
 
+  // Fallback normal
   return (
     <div className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
       style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`,
@@ -160,9 +162,7 @@ const PostCard = ({
   onLike,
   onSave,
   onOpenModal,
-  myAvatarUrl,
   myName    = "",
-  myDisc    = "S",
   myDiscRingImg,
 }: PostCardProps) => {
 
@@ -215,7 +215,9 @@ const PostCard = ({
   const authorAvatarUrl = post.profile?.avatar_url;
   const authorRole      = post.profile?.role      ?? "";
   const authorDisc      = post.profile?.disc      ?? "S";
-  const isMe            = post.creator_id === "me" || authorName === myName;
+  
+  // Confirma se o post é do usuário atual para desenhar o anel do DISC e dar permissões
+  const isMe = post.creator_id === "me" || authorName === myName;
 
   const copyLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/comunidade?post=${post.id}`);
@@ -232,16 +234,17 @@ const PostCard = ({
       <div className="p-5 pb-0 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
           <UserAvatar
-            avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
-            name={isMe ? myName : authorName}
-            disc={isMe ? myDisc : authorDisc}
-            size="lg" isMe={isMe}
+            avatarUrl={authorAvatarUrl} // Confia na URL que vem do post!
+            name={authorName}
+            disc={authorDisc}
+            size="lg" 
+            isMe={isMe}
             discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
           />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-accent font-semibold text-sm text-foreground">
-                {isMe ? myName : authorName}
+                {authorName}
               </p>
               <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
                 style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
@@ -285,7 +288,7 @@ const PostCard = ({
       {post.midia && post.midia !== "EMPTY" && (
         <div className="px-5 pb-2">
           <PostMedia
-            midia={post.midia}
+            midia={post.midia.startsWith("gif:") ? post.midia.replace("gif:", "") : post.midia}
             maxHeight={340}
             onClick={() => post && onOpenModal?.(post)}
           />
@@ -304,9 +307,9 @@ const PostCard = ({
       <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
         {[
           { label: "Curtir",      el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike?.(post.id) },
-          { label: "Comentar",    el: <MessageCircle size={14} />,                                            active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
+          { label: "Comentar",    el: <MessageCircle size={14} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
           { label: "Salvar",      el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => post.id && onSave?.(post.id) },
-          { label: "Copiar link", el: <Share2 size={14} />,                                                   active: false,       color: "",             fn: copyLink },
+          { label: "Copiar link", el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
         ].map(({ label, el, active, color, fn }) => (
           <button key={label} onClick={fn}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
