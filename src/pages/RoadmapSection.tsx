@@ -3,21 +3,28 @@
   import { useEffect, useState } from "react";
   import Header from "@/components/Header";
   import supabase from "../../utils/supabase.ts";
+import { Area } from "recharts";
 
 
-  export type Temas = {
+ 
+
+  export type Course = { 
+    name: string,
+    platform: string,
+    level: string,
+    duration: string,
+    link:string,
+  }
+
+   export type Tema = {
     id:string,
     name:string,
     description:string,
     type:string,
+    courses:Course[]
   } 
 
-  interface TemaProps {
-  temas: Temas[];
-} 
-
-  type Course = (typeof areas)[0]["courses"][0];
-  type Area = (typeof areas)[0];
+// criar export de Courses e de area//
 
   const levelClass: Record<string, string> = {
     Iniciante: "text-primary",
@@ -39,11 +46,11 @@
   // ─── Course Detail Screen ───────────────────────────────────────────────────
   const CourseDetail = ({
     course,
-    area,
+    tema,
     onBack,
   }: {
     course: Course;
-    area: Area;
+    tema: Tema;
     onBack: () => void;
   }) => (
     <motion.div
@@ -66,7 +73,7 @@
           transition={{ delay: 0.1 }}
         >
           <ArrowLeft size={15} />
-          <span className="text-muted-foreground/50">{area.title}</span>
+          <span className="text-muted-foreground/50">{tema.name}</span>
           <span className="text-muted-foreground/30">/</span>
           <span className="text-primary truncate max-w-[200px]">{course.name}</span>
         </motion.button>
@@ -79,7 +86,7 @@
           transition={{ delay: 0.15 }}
         >
           <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-3 block">
-            {area.tag}
+            {tema.type}
           </span>
           <h1 className="text-3xl sm:text-4xl font-display font-bold text-glow mb-4">
             {course.name}
@@ -116,8 +123,8 @@
           <p className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-2">
             Área
           </p>
-          <p className="font-display font-bold text-base text-glow mb-1">{area.title}</p>
-          <p className="text-muted-foreground font-body text-sm leading-relaxed">{area.desc}</p>
+          <p className="font-display font-bold text-base text-glow mb-1">{tema.name}</p>
+          <p className="text-muted-foreground font-body text-sm leading-relaxed">{tema.description}</p>
         </motion.div>
 
         {/* CTA */}
@@ -142,12 +149,12 @@
 
   // ─── Main Component ──────────────────────────────────────────────────────────
 const RoadmapSection = () => {
-  const [selectedArea, setSelectedArea] = useState<Area | null>(null);
+  const [selectedTema, setSelectedTema] = useState<Tema| null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-  const [tema,setTema]=useState<temas>([])
+  const [temas,setTema]=useState<Tema[]>([])
 
-    useEffect(() => { loadTemas();
+    useEffect(() => {
     // Certifique-se de que a variável 'user' está disponível neste escopo
   
       SyncTemas();
@@ -158,7 +165,7 @@ const RoadmapSection = () => {
   async function SyncTemas():Promise<void> { 
     const { data, error } = await supabase
       .from('temas')
-      .select('*')
+      .select('*');
       
     if (error) { 
       alert(error.message); 
@@ -207,27 +214,27 @@ const RoadmapSection = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          {areas.map((area, i) => (
+          {temas.map((tema, i) => (
             <motion.div
-              key={area.id}
+              key={tema.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.08 * i }}
-              onClick={() => setSelectedArea(area)}
+              onClick={() => setSelectedTema(tema)}
               className="hologram-panel rounded-sm p-6 cursor-pointer group animate-hologram-flicker hover:brightness-125 transition-all"
               style={{ animationDelay: `${i * 0.4}s` }}
             >
               <div className="flex items-start justify-between mb-4">
                 <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
-                  {area.tag}
+                  {tema.type}
                 </span>
                 <ArrowRight
                   size={16}
                   className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all"
                 />
               </div>
-              <h2 className="font-display font-bold text-lg text-glow mb-2">{area.title}</h2>
-              <p className="text-muted-foreground font-body text-sm leading-relaxed">{area.desc}</p>
+              <h2 className="font-display font-bold text-lg text-glow mb-2">{tema.name}</h2>
+              <p className="text-muted-foreground font-body text-sm leading-relaxed">{tema.description}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -235,7 +242,7 @@ const RoadmapSection = () => {
 
       {/* Area overlay */}
       <AnimatePresence>
-        {selectedArea && (
+        {selectedTema && (
           <motion.div
             key="overlay"
             className="fixed inset-0 z-50 gradient-hero scanline overflow-y-auto"
@@ -249,7 +256,7 @@ const RoadmapSection = () => {
             <div className="relative z-10 container mx-auto px-4 pt-24 pb-24 max-w-5xl">
               {/* Voltar */}
               <motion.button
-                onClick={() => setSelectedArea(null)}
+                onClick={() => setSelectedTema(null)}
                 className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-12"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -266,19 +273,19 @@ const RoadmapSection = () => {
                 transition={{ delay: 0.2 }}
               >
                 <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
-                  {selectedArea.tag}
+                  {selectedTema.type}
                 </span>
                 <h1 className="text-4xl sm:text-5xl font-display font-bold text-glow mt-2 mb-3">
-                  {selectedArea.title}
+                  {selectedTema.name}
                 </h1>
                 <p className="text-muted-foreground font-body text-base max-w-xl">
-                  {selectedArea.desc}
+                  {selectedTema.description}
                 </p>
               </motion.div>
 
               {/* Cursos */}
               <div className="flex flex-col gap-4">
-                {selectedArea.courses.map((course, i) => (
+                {selectedTema.courses.map((course, i) => (
                   <motion.div
                     key={i}
                     onClick={() => handleCourseClick(course)}
@@ -316,7 +323,7 @@ const RoadmapSection = () => {
               {selectedCourse && (
                 <CourseDetail
                   course={selectedCourse}
-                  area={selectedArea}
+                  tema={selectedTema}
                   onBack={handleBackToCourses}
                 />
               )}
