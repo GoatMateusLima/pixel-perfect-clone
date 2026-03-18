@@ -113,7 +113,6 @@ export const UserAvatar = ({
         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
     : <span>{initials}</span>;
 
-  // Se for o usuário atual (isMe) E existir a imagem do anel, renderiza com anel
   if (isMe && discRingImg) {
     return (
       <div className="relative flex-shrink-0 flex items-center justify-center"
@@ -131,7 +130,6 @@ export const UserAvatar = ({
     );
   }
 
-  // Fallback normal
   return (
     <div className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
       style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`,
@@ -170,6 +168,9 @@ const PostCard = ({
   const [loading,     setLoading]     = useState(false);
   const [fetchError,  setFetchError]  = useState<string | null>(null);
   const [showMenu,    setShowMenu]    = useState(false);
+  
+  // NOVO: Estado para armazenar a quantidade de comentários
+  const [commentCount, setCommentCount] = useState<number>(0);
 
   // Modo avulso: busca pelo publicationId
   useEffect(() => {
@@ -199,6 +200,24 @@ const PostCard = ({
 
   const post = postProp ?? fetchedPost;
 
+  // NOVO: Busca apenas a quantidade de comentários desse post (super leve e rápido)
+  useEffect(() => {
+    if (!post?.id) return;
+
+    const fetchCommentCount = async () => {
+      const { count, error } = await supabase
+        .from("comments")
+        .select("*", { count: "exact", head: true }) // head: true evita baixar os dados, pega só o número
+        .eq("publication_id", post.id);
+
+      if (!error && count !== null) {
+        setCommentCount(count);
+      }
+    };
+
+    fetchCommentCount();
+  }, [post?.id]);
+
   if (loading) return (
     <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
       <span className="text-xs text-muted-foreground font-body animate-pulse">Carregando…</span>
@@ -216,7 +235,6 @@ const PostCard = ({
   const authorRole      = post.profile?.role      ?? "";
   const authorDisc      = post.profile?.disc      ?? "S";
   
-  // Confirma se o post é do usuário atual para desenhar o anel do DISC e dar permissões
   const isMe = post.creator_id === "me" || authorName === myName;
 
   const copyLink = () => {
@@ -234,7 +252,7 @@ const PostCard = ({
       <div className="p-5 pb-0 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
           <UserAvatar
-            avatarUrl={authorAvatarUrl} // Confia na URL que vem do post!
+            avatarUrl={authorAvatarUrl}
             name={authorName}
             disc={authorDisc}
             size="lg" 
@@ -299,7 +317,8 @@ const PostCard = ({
       <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
         <span>{post.like_qnt ?? 0} curtidas</span>
         <button onClick={() => post && onOpenModal?.(post)} className="hover:text-foreground transition">
-          {post.comments.length} comentários · Ver todos
+          {/* AQUI ESTÁ A MÁGICA: Usando o estado commentCount ao invés de post.comments.length */}
+          {commentCount} {commentCount === 1 ? "comentário" : "comentários"} · Ver todos
         </button>
       </div>
 
