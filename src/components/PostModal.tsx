@@ -1,4 +1,9 @@
-
+/**
+ * PostModal.tsx
+ *
+ * Modal de post isolado — carrega comentários do Supabase ao abrir.
+ * Importado pelo CommunityPage (e pode ser reutilizado em qualquer outra página).
+ */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,8 +16,10 @@ import {
   UserAvatar,
   formatRelativeTime, toInitials,
 } from "./PostCard";
+import PostMedia from "./PostMedia";
 
 // ─── Tipo pivot "comments" no Supabase ────────────────────────────────────────
+
 
 export type DbComment = {
   id?:            string;
@@ -127,8 +134,9 @@ const PostModal = ({
                 avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
                 name={isMe ? myName : authorName}
                 disc={isMe ? myDisc : authorDisc}
-                size="lg" isMe={isMe}
-                discRingImg={isMe ? myDiscRingImg : undefined}
+                size="lg"
+                isMe={isMe}
+                discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
               />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -162,9 +170,11 @@ const PostModal = ({
           {/* ── Imagem (se houver) ── */}
           {post.midia && post.midia !== "EMPTY" && (
             <div className="px-5 pb-4 flex-shrink-0">
-              <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 280 }}>
-                <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 280 }} />
-              </div>
+              <PostMedia
+                midia={post.midia}
+                maxHeight={380}
+                inModal={true}
+              />
             </div>
           )}
 
