@@ -15,7 +15,7 @@ import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal  from "@/components/ImageCropModal";
 import Header          from "@/components/Header";
-import Progress        from "@/components/Progress";
+import Progress        from "@/components/progress";
 import Vagas           from "@/components/Vagas";
 
 import supabase from "../../utils/supabase";
