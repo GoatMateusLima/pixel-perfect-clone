@@ -5,8 +5,6 @@ import { Menu, X, LogIn, LogOut, User, LifeBuoy, Home, Globe } from "lucide-reac
 import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
 
-const KEY_PHOTO = "upjobs_profile_photo_v2";
-
 const NAV_ITEMS = [
   { label: "Início",     href: "/roadmap",    icon: Home     },
   { label: "Perfil",     href: "/perfil",     icon: User     },
@@ -15,43 +13,27 @@ const NAV_ITEMS = [
 ];
 
 const Header = () => {
-  const { user, logout } = useAuth();
-  const location  = useLocation();
-  const navigate  = useNavigate();
+  const { user, logout, profilePhoto } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled,   setScrolled]   = useState(false);
-  const [photoSrc,   setPhotoSrc]   = useState<string | null>(null);
 
-  /* Scroll shadow */
+  // profilePhoto vem do AuthContext — buscado uma única vez ao logar,
+  // sem nenhum fetch aqui no Header, sem piscar.
+
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  /* Sync profile photo from localStorage */
-  useEffect(() => {
-    setPhotoSrc(localStorage.getItem(KEY_PHOTO));
-  }, [user]);
-
-  // ── Logout ────────────────────────────────────────────────────────────────
-  // 1. signOut() encerra a sessão no Supabase (limpa o token do navegador)
-  // 2. logout() atualiza o contexto local (seta user = null)
-  // 3. Limpa a foto do localStorage
-  // 4. Redireciona para a home
   const handleLogout = async () => {
     setMobileOpen(false);
-
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Erro ao fazer logout no Supabase:", error.message);
-      // Mesmo com erro, tenta limpar o estado local
-    }
-
-    logout();                                    // atualiza o contexto
-    localStorage.removeItem(KEY_PHOTO);          // limpa a foto salva
-    setPhotoSrc(null);
-
+    if (error) console.error("Erro ao fazer logout:", error.message);
+    logout();
     navigate("/");
   };
 
@@ -62,10 +44,10 @@ const Header = () => {
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background:   scrolled ? "hsl(200 30% 8% / 0.95)" : "hsl(200 30% 8% / 0.7)",
-        borderBottom: scrolled ? "1px solid hsl(155 60% 35% / 0.25)" : "1px solid transparent",
+        background:     scrolled ? "hsl(200 30% 8% / 0.95)" : "hsl(200 30% 8% / 0.7)",
+        borderBottom:   scrolled ? "1px solid hsl(155 60% 35% / 0.25)" : "1px solid transparent",
         backdropFilter: "blur(12px)",
-        boxShadow:    scrolled ? "0 4px 24px hsl(0 0% 0% / 0.3)" : "none",
+        boxShadow:      scrolled ? "0 4px 24px hsl(0 0% 0% / 0.3)" : "none",
       }}>
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
@@ -101,9 +83,11 @@ const Header = () => {
                 className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center transition hover:brightness-110"
                 style={{ border: "2px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)", background: "hsl(155 60% 45% / 0.15)" }}
                 title="Meu Perfil">
-                {photoSrc
-                  ? <img src={photoSrc} alt="Foto" className="w-full h-full object-cover" />
-                  : <span className="font-display font-bold text-[11px] text-primary">{user.name?.slice(0, 2).toUpperCase() ?? "EU"}</span>
+                {profilePhoto
+                  ? <img src={profilePhoto} alt="Foto" className="w-full h-full object-cover" />
+                  : <span className="font-display font-bold text-[11px] text-primary">
+                      {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
+                    </span>
                 }
               </Link>
 
@@ -160,13 +144,17 @@ const Header = () => {
                     <div className="flex items-center gap-3 px-3 py-2">
                       <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
                         style={{ border: "2px solid hsl(155 60% 45% / 0.6)", background: "hsl(155 60% 45% / 0.15)" }}>
-                        {photoSrc
-                          ? <img src={photoSrc} alt="Foto" className="w-full h-full object-cover" />
-                          : <span className="font-display font-bold text-xs text-primary">{user.name?.slice(0, 2).toUpperCase() ?? "EU"}</span>
+                        {profilePhoto
+                          ? <img src={profilePhoto} alt="Foto" className="w-full h-full object-cover" />
+                          : <span className="font-display font-bold text-xs text-primary">
+                              {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
+                            </span>
                         }
                       </div>
                       <div>
-                        <p className="text-xs font-accent font-semibold text-foreground">{user.name}</p>
+                        <p className="text-xs font-accent font-semibold text-foreground">
+                          {user.user_metadata?.name ?? user.email}
+                        </p>
                         <p className="text-[10px] text-muted-foreground font-body">{user.email}</p>
                       </div>
                     </div>

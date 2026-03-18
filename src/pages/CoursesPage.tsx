@@ -184,7 +184,6 @@ const DuvidasTab = () => {
   const [newDoubt, setNewDoubt] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = () => {
     const text = newDoubt.trim();
@@ -220,7 +219,6 @@ const DuvidasTab = () => {
           Enviar uma Dúvida
         </h3>
         <textarea
-          ref={textareaRef}
           value={newDoubt}
           onChange={(e) => setNewDoubt(e.target.value)}
           rows={3}
@@ -318,8 +316,6 @@ const DuvidasTab = () => {
   );
 };
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "aula", label: "Aula", icon: <PlayCircle size={15} /> },
   { id: "quiz", label: "Quiz", icon: <ClipboardList size={15} /> },
@@ -334,23 +330,22 @@ interface RoadmapNode {
   subtitle: string;
   icon: string;
   status: "done" | "active" | "locked";
-  xOffset: number;
   module: number;
 }
 
 const ROADMAP_NODES: RoadmapNode[] = [
-  { id: 1, title: "Mercado Tech", subtitle: "Introdução", icon: "🌐", status: "done", xOffset: 0, module: 1 },
-  { id: 2, title: "Fundamentos", subtitle: "Programação", icon: "💡", status: "done", xOffset: 1, module: 1 },
-  { id: 3, title: "Lógica", subtitle: "Algoritmos", icon: "🧠", status: "active", xOffset: -1, module: 1 },
-  { id: 4, title: "Git", subtitle: "Versionamento", icon: "🔀", status: "locked", xOffset: 0, module: 2 },
-  { id: 5, title: "Deploy", subtitle: "Nuvem", icon: "☁️", status: "locked", xOffset: 1, module: 2 },
-  { id: 6, title: "Front-end", subtitle: "HTML & CSS", icon: "🎨", status: "locked", xOffset: -1, module: 2 },
-  { id: 7, title: "JavaScript", subtitle: "ES6+", icon: "⚡", status: "locked", xOffset: 0, module: 3 },
-  { id: 8, title: "React", subtitle: "Componentes", icon: "⚛️", status: "locked", xOffset: 1, module: 3 },
-  { id: 9, title: "Back-end", subtitle: "Node.js & APIs", icon: "🔧", status: "locked", xOffset: -1, module: 3 },
-  { id: 10, title: "Banco de Dados", subtitle: "SQL & NoSQL", icon: "🗄️", status: "locked", xOffset: 0, module: 4 },
-  { id: 11, title: "DevOps", subtitle: "CI/CD & Docker", icon: "🐳", status: "locked", xOffset: 1, module: 4 },
-  { id: 12, title: "Certificado", subtitle: "Full Stack Dev", icon: "🏆", status: "locked", xOffset: 0, module: 5 },
+  { id: 1, title: "Mercado Tech", subtitle: "Introdução", icon: "🌐", status: "done", module: 1 },
+  { id: 2, title: "Fundamentos", subtitle: "Programação", icon: "💡", status: "done", module: 1 },
+  { id: 3, title: "Lógica", subtitle: "Algoritmos", icon: "🧠", status: "active", module: 1 },
+  { id: 4, title: "Git", subtitle: "Versionamento", icon: "🔀", status: "locked", module: 2 },
+  { id: 5, title: "Deploy", subtitle: "Nuvem", icon: "☁️", status: "locked", module: 2 },
+  { id: 6, title: "Front-end", subtitle: "HTML & CSS", icon: "🎨", status: "locked", module: 2 },
+  { id: 7, title: "JavaScript", subtitle: "ES6+", icon: "⚡", status: "locked", module: 3 },
+  { id: 8, title: "React", subtitle: "Componentes", icon: "⚛️", status: "locked", module: 3 },
+  { id: 9, title: "Back-end", subtitle: "Node.js & APIs", icon: "🔧", status: "locked", module: 3 },
+  { id: 10, title: "Banco de Dados", subtitle: "SQL & NoSQL", icon: "🗄️", status: "locked", module: 4 },
+  { id: 11, title: "DevOps", subtitle: "CI/CD & Docker", icon: "🐳", status: "locked", module: 4 },
+  { id: 12, title: "Certificado", subtitle: "Full Stack Dev", icon: "🏆", status: "locked", module: 5 },
 ];
 
 // ─── Roadmap Component ────────────────────────────────────────────────────────
@@ -359,12 +354,11 @@ const RoadmapPanel = ({ activeNodeId, onSelectNode }: { activeNodeId: number; on
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [panelW, setPanelW] = useState(220);
-  const [panelH, setPanelH] = useState(600);
 
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => { setPanelW(el.clientWidth); setPanelH(el.clientHeight); });
+    const ro = new ResizeObserver(() => { setPanelW(el.clientWidth); });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -584,8 +578,6 @@ const SUGGESTIONS = [
   "O que é Docker e por que usar?",
 ];
 
-
-
 // ─── AI Chat Panel ────────────────────────────────────────────────────────────
 
 const AI_KEY = import.meta.env.VITE_AI_KEY;
@@ -681,15 +673,6 @@ const AIChatPanel = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border/40">
-        <div className="flex items-center gap-2 mb-0.5">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
-          <p className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</p>
-        </div>
-        <h2 className="font-display text-sm font-bold text-foreground">Pergunte à IA</h2>
-        <p className="text-sm text-foreground/70 font-body mt-0.5">Tire dúvidas sobre qualquer conteúdo da trilha</p>
-      </div>
-
       <div
         className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
         style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
@@ -797,11 +780,10 @@ const AIChatPanel = () => {
 const CoursesPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("aula");
   const [activeNodeId, setActiveNodeId] = useState(3);
-  const [showChat, setShowChat] = useState(true);
+  const [showChat, setShowChat] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(true);
 
-  const chatColRef = useRef<HTMLDivElement>(null);
-  const columnHeight = "calc(100vh - 152px)";
+  const columnHeight = "calc(100vh - 108px)";
 
   return (
     <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
@@ -825,27 +807,7 @@ const CoursesPage = () => {
 
       <div className="relative flex flex-1 overflow-hidden divide-x divide-border/30">
 
-        {/* COL 1 — AI Chat */}
-        <AnimatePresence initial={false}>
-          {showChat && (
-            <motion.div
-              key="chat-col"
-              ref={chatColRef}
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: showRoadmap ? "33.333%" : "50%", opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-              className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden shrink-0"
-              style={{ minWidth: 0 }}
-            >
-              <div style={{ height: columnHeight, minWidth: 280 }}>
-                <AIChatPanel />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* COL 2 — Course content (always visible, fills remaining space) */}
+        {/* COL 1 — Course content (always visible, left side) */}
         <motion.div
           layout
           transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
@@ -854,9 +816,9 @@ const CoursesPage = () => {
         >
           <div
             className="overflow-y-auto px-4 py-4"
-            style={{ height: columnHeight, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}
+            style={{ height: columnHeight, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent", display: "flex", flexDirection: "column", alignItems: showRoadmap ? "flex-start" : "center" }}
           >
-            <div className="flex gap-1.5 mb-5 flex-wrap">
+            <div className="flex gap-1.5 mb-5 flex-wrap" style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
@@ -887,8 +849,9 @@ const CoursesPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
+                style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}
               >
-                {activeTab === "aula" && <AulaTab activeLesson={activeNodeId <= 3 ? activeNodeId : 3} />}
+                {activeTab === "aula" && <AulaTab activeLesson={activeNodeId} />}
                 {activeTab === "quiz" && <QuizTab />}
                 {activeTab === "duvidas" && <DuvidasTab />}
               </motion.div>
@@ -896,13 +859,13 @@ const CoursesPage = () => {
           </div>
         </motion.div>
 
-        {/* COL 3 — Roadmap */}
+        {/* COL 2 — Roadmap (right side, togglable) */}
         <AnimatePresence initial={false}>
           {showRoadmap && (
             <motion.div
               key="roadmap-col"
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: showChat ? "33.333%" : "50%", opacity: 1 }}
+              animate={{ width: "50%", opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
               className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden shrink-0"
@@ -920,31 +883,11 @@ const CoursesPage = () => {
 
       </div>
 
-      {/* Botão IA */}
-      <motion.button
-        onClick={() => setShowChat((v) => !v)}
-        title={showChat ? "Ocultar Tutor IA" : "Mostrar Tutor IA"}
-        animate={{ left: showChat ? (showRoadmap ? "33.333%" : "50%") : "0px" }}
-        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-        className="fixed z-50 cursor-pointer border-0 p-0"
-        style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showChat ? "drop-shadow(3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(3px 0 7px hsl(0 0% 0% / 0.55))" }}
-      >
-        <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
-          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72 Z" fill={showChat ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
-          <path d="M0 0 L10 0 C22 0 28 10 28 36 C28 62 22 72 10 72 L0 72" stroke={showChat ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingLeft: 2 }}>
-          <span style={{ fontSize: 13, color: showChat ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
-            {showChat ? "‹" : "›"}
-          </span>
-        </div>
-      </motion.button>
-
-      {/* Botão Roadmap */}
+      {/* Botão Roadmap — lateral direita */}
       <motion.button
         onClick={() => setShowRoadmap((v) => !v)}
         title={showRoadmap ? "Ocultar Roadmap" : "Mostrar Roadmap"}
-        animate={{ right: showRoadmap ? (showChat ? "33.333%" : "50%") : "0px" }}
+        animate={{ right: showRoadmap ? "50%" : "0px" }}
         transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
         className="fixed z-50 cursor-pointer border-0 p-0"
         style={{ top: "50%", transform: "translateY(-50%)", width: 28, height: 72, background: "none", filter: showRoadmap ? "drop-shadow(-3px 0 10px hsl(155 60% 45% / 0.55))" : "drop-shadow(-3px 0 7px hsl(0 0% 0% / 0.55))" }}
@@ -959,6 +902,82 @@ const CoursesPage = () => {
           </span>
         </div>
       </motion.button>
+
+      {/* Botão IA — canto inferior direito */}
+      <motion.button
+        onClick={() => setShowChat((v) => !v)}
+        title={showChat ? "Fechar Tutor IA" : "Abrir Tutor IA"}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed z-50 cursor-pointer flex items-center justify-center rounded-full border-0"
+        style={{
+          bottom: 28,
+          right: 28,
+          width: 52,
+          height: 52,
+          background: showChat
+            ? "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))"
+            : "radial-gradient(circle at 35% 35%, hsl(215 28% 18%), hsl(215 28% 10%))",
+          border: showChat ? "1.5px solid hsl(155 60% 45% / 0.7)" : "1.5px solid hsl(215 20% 32%)",
+          boxShadow: showChat
+            ? "0 0 20px hsl(155 60% 45% / 0.55), 0 4px 16px rgba(0,0,0,0.5)"
+            : "0 0 12px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4)",
+        }}
+      >
+        <MessageCircleQuestion
+          size={22}
+          style={{ color: showChat ? "hsl(155 60% 80%)" : "hsl(155 50% 60%)" }}
+        />
+        {/* Pulse indicator when chat is closed */}
+        {!showChat && (
+          <span className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-primary"
+            style={{ boxShadow: "0 0 6px hsl(155 60% 45%)", animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" }} />
+        )}
+      </motion.button>
+
+      {/* Chat Drawer — painel flutuante */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div
+            key="chat-drawer"
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.95 }}
+            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed z-40 flex flex-col overflow-hidden"
+            style={{
+              bottom: 92,
+              right: 28,
+              width: 360,
+              height: 480,
+              background: "hsl(215 28% 9%)",
+              border: "1px solid hsl(155 60% 45% / 0.3)",
+              borderRadius: 8,
+              boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 30px hsl(155 60% 45% / 0.12)",
+            }}
+          >
+            {/* Header do chat */}
+            <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/40"
+              style={{ background: "hsl(215 28% 11%)" }}>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse"
+                  style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
+                <span className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</span>
+              </div>
+              <button
+                onClick={() => setShowChat(false)}
+                className="text-muted-foreground hover:text-foreground transition text-base leading-none"
+                style={{ lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AIChatPanel />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

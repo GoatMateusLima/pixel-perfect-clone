@@ -1,46 +1,41 @@
 /**
  * PostCard.tsx
  *
- * Componente isolado de card de publicação.
- *
- * Uso básico (lista):
- *   <PostCard post={post} onLike={fn} onSave={fn} onOpenModal={fn}
- *     myAvatarUrl={...} myName={...} myDisc={...} myDiscRingImg={...} />
- *
- * Uso por ID (embed avulso, ex: widget externo):
- *   <PostCard publicationId="uuid-aqui" ... />
- *   → Busca a publicação no Supabase automaticamente pelo ID.
+ * Componente de card de publicação.
+ * Exporta também tipos e helpers usados por outros componentes.
  */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
+import PostMedia from "./PostMedia";
 
 import dominanciaImg   from "@/assets/disc/Dominancia.webp";
 import influenciaImg   from "@/assets/disc/Influencia.webp";
 import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 
-// ─── Tipos (espelham as tabelas do Supabase) ──────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type Publication = {
-  id?:          string;
-  created_at?:  string;
+  id?:         string;
+  created_at?: string;
   description?: string;
-  date?:        string;
-  midia?:       string;   // URL ou base64; "EMPTY" = sem imagem
-  creator_id?:  string;
-  like_qnt?:    number;
-  liked_by?:    string[]; // uuid[] — lista de user_ids que curtiram
+  date?:       string;
+  midia?:      string;
+  creator_id?: string;
+  like_qnt?:   number;
+  liked_by?:   string[];
 };
 
 export type Profile = {
-  id:           string;
-  name:         string;
-  avatar_url?:  string;
-  role?:        string;
-  disc?:        "D" | "I" | "S" | "C";
+  id:             string;
+  name:           string;
+  avatar_url?:    string;
+  disc_ring_img?: string;
+  role?:          string;
+  disc?:          "D" | "I" | "S" | "C";
 };
 
 export interface Comment {
@@ -58,7 +53,7 @@ export interface Post extends Publication {
   liked:     boolean;
   saved:     boolean;
   comments:  Comment[];
-  liked_by?: string[];    // espelhado de Publication para acesso direto no card
+  liked_by?: string[];
 }
 
 // ─── Constantes DISC ──────────────────────────────────────────────────────────
@@ -118,6 +113,7 @@ export const UserAvatar = ({
         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
     : <span>{initials}</span>;
 
+  // Se for o usuário atual (isMe) E existir a imagem do anel, renderiza com anel
   if (isMe && discRingImg) {
     return (
       <div className="relative flex-shrink-0 flex items-center justify-center"
@@ -135,6 +131,7 @@ export const UserAvatar = ({
     );
   }
 
+  // Fallback normal
   return (
     <div className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
       style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`,
@@ -146,25 +143,13 @@ export const UserAvatar = ({
 };
 
 // ─── PostCard ─────────────────────────────────────────────────────────────────
-//
-// Props:
-//   - post          → objeto Post completo (uso em lista, já tem os dados)
-//   - publicationId → UUID do Supabase (uso avulso; busca os dados internamente)
-//
-// Exatamente um dos dois deve ser fornecido.
 
 interface PostCardProps {
-  // Modo lista (passa o objeto direto)
-  post?: Post;
-  // Modo avulso (busca pelo ID no Supabase)
+  post?:          Post;
   publicationId?: string;
-
-  // Handlers de interação — opcionais no modo avulso
-  onLike?:      (id: string) => void;
-  onSave?:      (id: string) => void;
-  onOpenModal?: (post: Post) => void;
-
-  // Dados do usuário logado — para avatar/anel DISC corretos
+  onLike?:        (id: string) => void;
+  onSave?:        (id: string) => void;
+  onOpenModal?:   (post: Post) => void;
   myAvatarUrl?:   string | null;
   myName?:        string;
   myDisc?:        string;
@@ -177,110 +162,89 @@ const PostCard = ({
   onLike,
   onSave,
   onOpenModal,
-  myAvatarUrl,
-  myName   = "",
-  myDisc   = "S",
+  myName    = "",
   myDiscRingImg,
 }: PostCardProps) => {
 
-  // ── Quando recebe publicationId: busca a publicação no Supabase ──────────────
   const [fetchedPost, setFetchedPost] = useState<Post | null>(null);
   const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
+  const [fetchError,  setFetchError]  = useState<string | null>(null);
+  const [showMenu,    setShowMenu]    = useState(false);
 
+  // Modo avulso: busca pelo publicationId
   useEffect(() => {
     if (!publicationId) return;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-
-      // Busca publicação + perfil do autor
-      // Quando a tabela profiles existir: .select("*, profile:profiles(*)")
-      const { data, error: err } = await supabase
-        .from("publications")
-        .select("*")
-        .eq("id", publicationId)
-        .maybeSingle();
-
-      if (err)   { setError(err.message); setLoading(false); return; }
-      if (!data) { setError("Publicação não encontrada."); setLoading(false); return; }
-
-      setFetchedPost({
-        id:          data.id,
-        created_at:  data.created_at,
-        description: data.description,
-        date:        data.date,
-        midia:       data.midia,
-        creator_id:  data.creator_id,
-        like_qnt:    data.like_qnt ?? 0,
-        profile:     undefined,   // preencher quando o JOIN com profiles existir
-        liked:       false,
-        saved:       false,
-        comments:    [],
+    setLoading(true);
+    supabase
+      .from("publications")
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+      .eq("id", publicationId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data) { setFetchError(error?.message ?? "Não encontrado"); setLoading(false); return; }
+        const p = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles ?? null;
+        const b = (p?.bordas ?? []).find((b: any) => b.ativa) ?? null;
+        setFetchedPost({
+          id: data.id, created_at: data.created_at, description: data.description,
+          date: data.date, midia: data.midia, creator_id: data.creator_id,
+          liked_by: data.liked_by ?? [], like_qnt: (data.liked_by ?? []).length,
+          profile: p ? { id: p.user_id, name: p.name ?? "Usuário",
+            avatar_url: p.perfil ?? undefined, disc_ring_img: b?.img_url ?? undefined,
+            role: p.descricao ?? undefined } : undefined,
+          liked: false, saved: false, comments: [],
+        });
+        setLoading(false);
       });
-      setLoading(false);
-    };
-    load();
   }, [publicationId]);
 
-  // Resolve qual post usar (prop direta ou buscado)
   const post = postProp ?? fetchedPost;
 
-  // ── Loadings / erros ─────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
-        <span className="text-xs text-muted-foreground font-body animate-pulse">Carregando publicação…</span>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
+      <span className="text-xs text-muted-foreground font-body animate-pulse">Carregando…</span>
+    </div>
+  );
 
-  if (error || !post) {
-    return (
-      <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
-        <span className="text-xs text-muted-foreground font-body">{error ?? "Publicação não disponível."}</span>
-      </div>
-    );
-  }
-
-  // ── Derivados ────────────────────────────────────────────────────────────────
-  const [showMenu, setShowMenu] = useState(false);
+  if (fetchError || !post) return (
+    <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
+      <span className="text-xs text-muted-foreground font-body">{fetchError ?? "Publicação não disponível."}</span>
+    </div>
+  );
 
   const authorName      = post.profile?.name      ?? "Usuário";
   const authorAvatarUrl = post.profile?.avatar_url;
   const authorRole      = post.profile?.role      ?? "";
   const authorDisc      = post.profile?.disc      ?? "S";
-  const isMe            = post.creator_id === "me" || authorName === myName;
+  
+  // Confirma se o post é do usuário atual para desenhar o anel do DISC e dar permissões
+  const isMe = post.creator_id === "me" || authorName === myName;
 
   const copyLink = () => {
-    const url = `${window.location.origin}/comunidade?post=${post.id}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`${window.location.origin}/comunidade?post=${post.id}`);
     setShowMenu(false);
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <motion.div layout
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12, scale: 0.97 }}
-      transition={{ duration: 0.35 }}
+      initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
       className="hologram-panel rounded-sm overflow-hidden">
 
       {/* ── Header ── */}
       <div className="p-5 pb-0 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 cursor-pointer"
-          onClick={() => post && onOpenModal?.(post)}>
+        <div className="flex items-start gap-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
           <UserAvatar
-            avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
-            name={isMe ? myName : authorName}
-            disc={isMe ? myDisc : authorDisc}
-            size="lg" isMe={isMe} discRingImg={isMe ? myDiscRingImg : undefined}
+            avatarUrl={authorAvatarUrl} // Confia na URL que vem do post!
+            name={authorName}
+            disc={authorDisc}
+            size="lg" 
+            isMe={isMe}
+            discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
           />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-accent font-semibold text-sm text-foreground">
-                {isMe ? myName : authorName}
+                {authorName}
               </p>
               <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
                 style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
@@ -288,13 +252,10 @@ const PostCard = ({
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-            <p className="text-[10px] text-muted-foreground font-body opacity-60">
-              {formatRelativeTime(post.date)}
-            </p>
+            <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
           </div>
         </div>
 
-        {/* Menu ⋯ */}
         <div className="relative">
           <button onClick={() => setShowMenu(!showMenu)}
             className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm">
@@ -302,16 +263,12 @@ const PostCard = ({
           </button>
           <AnimatePresence>
             {showMenu && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">
                   Denunciar post
                 </button>
-                <button onClick={copyLink}
-                  className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">
+                <button onClick={copyLink} className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">
                   Copiar link
                 </button>
               </motion.div>
@@ -320,19 +277,21 @@ const PostCard = ({
         </div>
       </div>
 
-      {/* ── Corpo ── */}
+      {/* ── Descrição ── */}
       <div className="px-5 py-4 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
         <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">
           {post.description}
         </p>
       </div>
 
-      {/* ── Imagem (se houver) ── */}
+      {/* ── Mídia (imagem, vídeo ou GIF) ── */}
       {post.midia && post.midia !== "EMPTY" && (
-        <div className="px-5 pb-4 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
-          <div className="rounded-sm overflow-hidden border border-border/40" style={{ maxHeight: 340 }}>
-            <img src={post.midia} alt="Post" className="w-full object-cover" style={{ maxHeight: 340 }} />
-          </div>
+        <div className="px-5 pb-2">
+          <PostMedia
+            midia={post.midia.startsWith("gif:") ? post.midia.replace("gif:", "") : post.midia}
+            maxHeight={340}
+            onClick={() => post && onOpenModal?.(post)}
+          />
         </div>
       )}
 
@@ -347,34 +306,10 @@ const PostCard = ({
       {/* ── Ações ── */}
       <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
         {[
-          {
-            label:  "Curtir",
-            el:     <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,
-            active: post.liked,
-            color:  "text-rose-400",
-            fn:     () => post.id && onLike?.(post.id),
-          },
-          {
-            label:  "Comentar",
-            el:     <MessageCircle size={14} />,
-            active: false,
-            color:  "",
-            fn:     () => post && onOpenModal?.(post),
-          },
-          {
-            label:  "Salvar",
-            el:     <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,
-            active: post.saved,
-            color:  "text-primary",
-            fn:     () => post.id && onSave?.(post.id),
-          },
-          {
-            label:  "Copiar link",
-            el:     <Share2 size={14} />,
-            active: false,
-            color:  "",
-            fn:     copyLink,
-          },
+          { label: "Curtir",      el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike?.(post.id) },
+          { label: "Comentar",    el: <MessageCircle size={14} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
+          { label: "Salvar",      el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => post.id && onSave?.(post.id) },
+          { label: "Copiar link", el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
         ].map(({ label, el, active, color, fn }) => (
           <button key={label} onClick={fn}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>

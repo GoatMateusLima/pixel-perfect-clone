@@ -15,6 +15,8 @@ import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal  from "@/components/ImageCropModal";
 import Header          from "@/components/Header";
+import Progress        from "@/components/Progress";
+import Vagas           from "@/components/Vagas";
 
 import supabase from "../../utils/supabase";
 
@@ -421,7 +423,7 @@ useEffect(() => {
     <div className="min-h-screen gradient-hero scanline">
       <Header />
       <div className="max-w-7xl mx-auto px-4 pt-24 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 items-start">
 
           {/* ═══════════════ COLUNA ESQUERDA ═══════════════════════════════ */}
           <aside className="hidden lg:flex flex-col gap-4">
@@ -457,41 +459,40 @@ useEffect(() => {
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-              className="hologram-panel rounded-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-border/30 flex items-center gap-2">
-                <TrendingUp size={14} className="text-accent" />
-                <h3 className="font-display text-sm font-bold text-foreground">Vagas para você</h3>
-                <span className="ml-auto text-[9px] font-accent px-1.5 py-0.5 rounded-sm"
-                  style={{ background: `${ringColor}18`, color: ringColor, border: `1px solid ${ringColor}30` }}>
-                  Perfil {discProfile}
-                </span>
+            <Vagas ringColor={ringColor} discProfile={discProfile} recommendedJobs={recommendedJobs} />
+
+
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+              className="hologram-panel rounded-sm p-4">
+              <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <Clock size={14} className="text-primary" /> Atividade Recente
+              </h3>
+              <div className="relative">
+                <div className="absolute left-[7px] top-0 bottom-0 w-px bg-border/40" />
+                <div className="space-y-4 pl-5">
+                  {ACTIVITY_TIMELINE.map((item, i) => {
+                    const Icon = ACTIVITY_ICON[item.type] ?? Clock;
+                    return (
+                      <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + i * 0.06 }} className="relative">
+                        <div className="absolute -left-5 top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                          style={{ background: `${item.color}20`, border: `1.5px solid ${item.color}60` }}>
+                          <Icon size={7} style={{ color: item.color }} />
+                        </div>
+                        <p className="text-[11px] font-body text-foreground leading-tight">{item.text}</p>
+                        <p className="text-[9px] text-muted-foreground font-accent mt-0.5">{item.time}</p>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="divide-y divide-border/20">
-                {recommendedJobs.map((job, i) => (
-                  <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + i * 0.07 }}
-                    whileHover={{ backgroundColor: "hsl(200 25% 14% / 0.8)" }}
-                    className="px-4 py-3 cursor-pointer transition group">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="text-[12px] font-accent font-semibold text-foreground group-hover:text-primary transition leading-tight">{job.title}</p>
-                      <ArrowUpRight size={11} className="text-muted-foreground/40 group-hover:text-primary transition flex-shrink-0 mt-0.5" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-body">{job.company}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[9px] font-accent font-semibold text-primary">{job.salary}</span>
-                      <span className="text-[9px] font-accent text-muted-foreground flex items-center gap-0.5">
-                        <MapPin size={8} /> {job.type}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-              <div className="px-4 py-2.5 border-t border-border/30">
-                <button className="w-full text-[11px] font-accent font-semibold text-muted-foreground hover:text-primary transition flex items-center justify-center gap-1">
-                  Ver todas as vagas <ChevronRight size={11} />
-                </button>
-              </div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
+              className="hologram-panel rounded-sm p-4">
+              <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                <Zap size={14} className="text-primary" /> Progresso Geral
+              </h3>
+              <Progress/>
             </motion.div>
           </aside>
 
@@ -522,7 +523,7 @@ useEffect(() => {
               </div>
 
               <div className="px-6 pb-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -40 }}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -20 }}>
 
                   {/* ── AVATAR ─────────────────────────────────────────────── */}
                   <div className="flex-shrink-0 relative" style={{ width: 112, height: 112 }}>
@@ -573,7 +574,7 @@ useEffect(() => {
 
                   {/* Nome + botões */}
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 z-50">
                       {isEditing ? (
                         <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)}
                           placeholder="Seu nome"
@@ -853,59 +854,6 @@ useEffect(() => {
           </main>
 
           {/* ═══════════════ COLUNA DIREITA ════════════════════════════════ */}
-          <aside className="hidden lg:flex flex-col gap-4">
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-              className="hologram-panel rounded-sm p-4">
-              <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-                <Clock size={14} className="text-primary" /> Atividade Recente
-              </h3>
-              <div className="relative">
-                <div className="absolute left-[7px] top-0 bottom-0 w-px bg-border/40" />
-                <div className="space-y-4 pl-5">
-                  {ACTIVITY_TIMELINE.map((item, i) => {
-                    const Icon = ACTIVITY_ICON[item.type] ?? Clock;
-                    return (
-                      <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + i * 0.06 }} className="relative">
-                        <div className="absolute -left-5 top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"
-                          style={{ background: `${item.color}20`, border: `1.5px solid ${item.color}60` }}>
-                          <Icon size={7} style={{ color: item.color }} />
-                        </div>
-                        <p className="text-[11px] font-body text-foreground leading-tight">{item.text}</p>
-                        <p className="text-[9px] text-muted-foreground font-accent mt-0.5">{item.time}</p>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-              className="hologram-panel rounded-sm p-4">
-              <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <Zap size={14} className="text-primary" /> Progresso Geral
-              </h3>
-              <div className="space-y-3">
-                {[
-                  { label: "Trilhas concluídas", value: 4,  total: 12,  color: "hsl(155 60% 45%)" },
-                  { label: "Aulas assistidas",   value: 38, total: 80,  color: "hsl(25 90% 55%)"  },
-                  { label: "Exercícios feitos",  value: 62, total: 100, color: "hsl(210 70% 55%)" },
-                  { label: "Dias de estudo",     value: 42, total: 90,  color: "hsl(45 90% 55%)"  },
-                ].map(({ label, value, total, color }) => (
-                  <div key={label}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-accent text-muted-foreground">{label}</span>
-                      <span className="text-[10px] font-accent font-semibold" style={{ color }}>{value}/{total}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${(value / total) * 100}%` }}
-                        transition={{ delay: 0.6, duration: 0.8 }}
-                        className="h-full rounded-full" style={{ background: color }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </aside>
         </div>
       </div>
 
