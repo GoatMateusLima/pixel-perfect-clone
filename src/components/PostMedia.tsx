@@ -1,16 +1,3 @@
-/**
- * PostMedia.tsx
- *
- * Componente de mídia reutilizável — renderiza imagem, vídeo ou GIF.
- *
- * Vídeo: autoplay mudo ao entrar na viewport (IntersectionObserver),
- *        pausa ao sair. Controles de volume visíveis.
- *
- * Coluna `midia` no banco:
- *   "EMPTY"           → sem mídia
- *   "gif:https://..."  → GIF do Tenor (prefixo especial)
- *   "https://..."      → URL do bucket (imagem ou vídeo)
- */
 
 import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
@@ -98,7 +85,7 @@ const PostMedia = ({ midia, maxHeight = 340, onClick, inModal = false }: PostMed
   return (
     <div
       ref={wrapRef}
-      className="rounded-sm overflow-hidden border border-border/40 bg-black/20 relative"
+      className="rounded-sm overflow-hidden border border-border/40 bg-secondary/10 relative flex items-center justify-center"
       style={{ maxHeight }}
       onClick={!inModal ? onClick : undefined}>
 
@@ -108,39 +95,39 @@ const PostMedia = ({ midia, maxHeight = 340, onClick, inModal = false }: PostMed
           src={src}
           alt="Post"
           loading="lazy"
-          className="w-full object-cover cursor-pointer"
+          className="w-full h-auto object-cover cursor-pointer"
           style={{ maxHeight }}
         />
       )}
 
-      {/* ── GIF ── */}
+      {/* ── GIF (Ajustado com h-auto e object-contain) ── */}
       {type === "gif" && (
         <img
           src={src}
           alt="GIF"
-          className="w-full object-contain cursor-pointer"
+          className="w-full h-auto object-contain cursor-pointer"
           style={{ maxHeight }}
         />
       )}
 
-      {/* ── Vídeo ── */}
+      {/* ── Vídeo (Ajustado com h-auto e object-contain) ── */}
       {type === "video" && (
         <>
           <video
             ref={videoRef}
             src={src}
             loop
-            muted
+            muted={muted}
             playsInline
             preload="metadata"
             controls={inModal}            // controles nativos só no modal
-            className="w-full object-contain"
+            className="w-full h-auto object-contain"
             style={{ maxHeight }}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
           />
 
-          {/* Controle de volume — aparece no card (não no modal que tem controles nativos) */}
+          {/* Controle de volume — aparece no card */}
           {!inModal && (
             <button
               onClick={toggleMute}
