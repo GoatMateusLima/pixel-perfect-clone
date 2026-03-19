@@ -8,11 +8,10 @@ import { TemaCard } from "@/components/TemaCard";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export type Course = { 
+  id:string;
+  course_id:string;
   name: string;
-  platform: string;
-  level: string;
-  duration: string;
-  link: string;
+  difficult: string;
 }
 
 export type Tema = {
@@ -28,13 +27,13 @@ const gridBg = {
   backgroundSize: "60px 60px",
 };
 
-const levelClass: Record<string, string> = {
+const difficultClass: Record<string, string> = {
   Iniciante: "text-primary",
   Intermediário: "text-accent",
   Avançado: "text-destructive",
 };
 
-const levelBg: Record<string, string> = {
+const difficultBg: Record<string, string> = {
   Iniciante: "border-primary/30 bg-primary/5",
   Intermediário: "border-accent/30 bg-accent/5",
   Avançado: "border-destructive/30 bg-destructive/5",
@@ -101,34 +100,17 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
                 
                 {/* Badges do curso */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className={`inline-flex items-center gap-1.5 border rounded-sm px-2.5 py-1 ${levelBg[course.level] ?? "border-primary/30 bg-primary/5"}`}>
-                    <BarChart2 size={12} className={levelClass[course.level] ?? "text-primary"} />
-                    <span className={`text-[11px] font-accent font-bold uppercase tracking-wide ${levelClass[course.level] ?? "text-primary"}`}>
-                      {course.level}
+                  <div className={`inline-flex items-center gap-1.5 border rounded-sm px-2.5 py-1 ${difficultBg[course.difficult] ?? "border-primary/30 bg-primary/5"}`}>
+                    <BarChart2 size={12} className={difficultClass[course.difficult] ?? "text-primary"} />
+                    <span className={`text-[11px] font-accent font-bold uppercase tracking-wide ${difficultClass[course.difficult] ?? "text-primary"}`}>
+                      {course.difficult}
                     </span>
                   </div>
 
-                  <div className="inline-flex items-center gap-1.5 border border-muted/20 bg-muted/5 rounded-sm px-2.5 py-1">
-                    <Clock size={12} className="text-muted-foreground" />
-                    <span className="text-[11px] font-body text-muted-foreground">{course.duration}</span>
-                  </div>
-
-                  <div className="inline-flex items-center gap-1.5 border border-muted/20 bg-muted/5 rounded-sm px-2.5 py-1">
-                    <MonitorPlay size={12} className="text-muted-foreground" />
-                    <span className="text-[11px] font-body text-muted-foreground">{course.platform}</span>
-                  </div>
+                  
                 </div>
               </div>
 
-              {/* Botão Acessar */}
-              <a 
-                href={course.link} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-sm bg-primary text-primary-foreground font-accent font-semibold text-sm hover:brightness-110 transition-all shrink-0"
-              >
-                Acessar curso <ExternalLink size={14} />
-              </a>
             </motion.div>
           ))
         )}
@@ -140,6 +122,7 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 // ─── Main Component ─────────────────────────────────────────────────────────
 const RoadmapSection = () => {
   const [temas, setTemas] = useState<Tema[]>([]);
+   const [course, setCourse] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [search, setSearch] = useState("");
@@ -152,12 +135,30 @@ const RoadmapSection = () => {
 
   // Quando você fizer a função de puxar os cursos, ela deve popular o array 'courses' 
   // dentro de cada objeto 'Tema' retornado pelo banco.
+async function SyncCourse(): Promise<void> { 
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('course')
+      .select('course_id')
+      
+      
+    if (error) { 
+      console.error(error.message); 
+      setLoading(false);
+      return; 
+    }
+
+    setCourse(data || []);
+    setLoading(false);
+    }
+
   async function SyncTemas(): Promise<void> { 
     setLoading(true);
     const { data, error } = await supabase
       .from('temas')
       .select('*')
       .order('created_at', { ascending: true });
+      
       
     if (error) { 
       console.error(error.message); 
