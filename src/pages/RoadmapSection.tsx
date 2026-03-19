@@ -39,6 +39,7 @@ const difficultBg: Record<string, string> = {
   Avançado: "border-destructive/30 bg-destructive/5",
 };
 
+
 // ─── Componente da Lista de Cursos da Área Selecionada ──────────────────────
 const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) => {
   // Verificação de segurança caso courses venha undefined do banco inicialmente
