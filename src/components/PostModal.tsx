@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Heart, Bookmark, Share2, Send, Loader2 } from "lucide-react";
+import { X, Heart, Bookmark, Share2, Send, Loader2, ImageIcon, Video, Smile } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
 import {
   Post,
@@ -10,8 +10,11 @@ import {
 } from "./PostCard";
 import PostMedia       from "./PostMedia";
 import CommentItem, { DbComment, CommentNode, buildCommentTree } from "./CommentItem";
+import GifPicker       from "./GifPicker";
 
-// ─── PostModal ────────────────────────────────────────────────────────────────
+const BUCKET = "ComunityPost";
+const ACCEPTED_IMAGE = "image/jpeg,image/png,image/webp";
+const ACCEPTED_VIDEO = "video/mp4,video/webm,video/ogg,video/quicktime";
 
 interface PostModalProps {
   post:           Post;
@@ -31,17 +34,47 @@ const PostModal = ({
 }: PostModalProps) => {
 
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
-  const [commentText, setCommentText] = useState("");
   const [loading,     setLoading]     = useState(true);
-  const [submitting,  setSubmitting]  = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Estados Otimistas (Interface responde na hora) ─────────────────────────
   const [isLiked, setIsLiked]     = useState(post.liked);
   const [isSaved, setIsSaved]     = useState(post.saved);
   const [likeCount, setLikeCount] = useState(post.like_qnt ?? 0);
 
-  // ── Carrega comentários com JOIN de profiles ─────────────────────────────────
+  // ── Estados de Input para Comentário Principal ──
+  const [commentText, setCommentText] = useState("");
+  const [submitting,  setSubmitting]  = useState(false);
+  const [mediaFile,   setMediaFile]   = useState<File | null>(null);
+  const [previewUrl,  setPreviewUrl]  = useState<string | null>(null);
+  const [gifUrl,      setGifUrl]      = useState<string | null>(null);
+  const [showGif,     setShowGif]     = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const hasMediaInput = !!(mediaFile || gifUrl);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    clearMedia();
+    setMediaFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleGifSelect = (url: string) => {
+    clearMedia();
+    setGifUrl(url);
+    setShowGif(false);
+  };
+
+  const clearMedia = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setMediaFile(null);
+    setPreviewUrl(null);
+    setGifUrl(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  // ── Carrega comentários ──
   useEffect(() => {
     if (!post.id) return;
     let cancelled = false;
@@ -80,6 +113,7 @@ const PostModal = ({
       if (!cancelled) {
         setCommentTree(buildCommentTree(enriched as DbComment[]));
         setLoading(false);
+        setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       }
     };
 
@@ -91,48 +125,96 @@ const PostModal = ({
     setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
 
+  // ── NOVA LÓGICA: Helper para Upload Mídia (Roda ANTES do Insert) ──
+  const uploadCommentMedia = async (file: File | null, gif: string | null) => {
+    if (gif) return gif;
+    if (file && myUserId) {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+      // Gera um nome único aleatório para não depender do ID do comentário
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const path = `${myUserId}/comments/${fileName}`;
+
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+      
+      if (error) {
+        console.error("Erro no upload do arquivo para o Bucket:", error.message);
+        return "EMPTY";
+      }
+
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      return data.publicUrl;
+    }
+    return "EMPTY";
+  };
+
+  // ── Comentário Raiz (Caixa Principal) ──
   const submitComment = async () => {
-    if (!commentText.trim() || !post.id || !myUserId) return;
+    if ((!commentText.trim() && !hasMediaInput) || !post.id || !myUserId) return;
     setSubmitting(true);
 
+    // 1. Fazemos o upload ANTES de inserir no banco
+    const midiaUrl = await uploadCommentMedia(mediaFile, gifUrl);
+
+    // 2. Inserimos o comentário já com a mídia embutida (Ignora a necessidade de ter permissão de UPDATE)
     const { data, error } = await supabase
       .from("comments")
       .insert({
         user_id:        myUserId,
         publication_id: post.id,
         comment:        commentText.trim(),
+        midia:          midiaUrl,
         like:           0,
         parent_id:      null,
       })
       .select("*")
       .single();
 
-    if (!error && data) {
+    if (error) {
+      console.error("Erro ao salvar comentário no banco:", error.message);
+      setSubmitting(false);
+      return;
+    }
+
+    if (data) {
       const enriched = { ...data, profiles: { user_id: myUserId, name: myName, perfil: myAvatarUrl, bordas: [] } };
       const [newNode] = buildCommentTree([enriched as DbComment]);
+      
       setCommentTree((prev) => [...prev, newNode]);
       setCommentText("");
+      clearMedia();
       scrollToBottom();
     }
+    
     setSubmitting(false);
   };
 
-  const handleReply = async (parentId: string, text: string) => {
+  // ── Responder a um Comentário (Reply) ──
+  const handleReply = async (parentId: string, text: string, file: File | null, gif: string | null) => {
     if (!post.id || !myUserId) return;
 
+    // 1. Faz o upload ANTES de inserir
+    const midiaUrl = await uploadCommentMedia(file, gif);
+
+    // 2. Insere a resposta pronta
     const { data, error } = await supabase
       .from("comments")
       .insert({
         user_id:        myUserId,
         publication_id: post.id,
         comment:        text,
+        midia:          midiaUrl,
         like:           0,
         parent_id:      parentId,
       })
       .select("*")
       .single();
 
-    if (!error && data) {
+    if (error) {
+      console.error("Erro ao salvar resposta no banco:", error.message);
+      return;
+    }
+
+    if (data) {
       const replyNode: CommentNode = {
         ...(data as DbComment),
         replies:       [],
@@ -141,6 +223,7 @@ const PostModal = ({
         authorRingImg: myDiscRingImg ?? undefined,
         profiles:      { user_id: myUserId ?? "", name: myName, perfil: myAvatarUrl ?? undefined, bordas: [] },
       };
+      
       setCommentTree((prev) => prev.map((c) =>
         c.id !== parentId ? c : { ...c, replies: [...c.replies, replyNode] }
       ));
@@ -166,23 +249,20 @@ const PostModal = ({
     }
   };
 
-  // ── Funções de Toggle (Curtir/Salvar) Otimistas ──────────────────────────────
   const handleLikeToggle = () => {
     if (!post.id) return;
     setIsLiked(!isLiked);
     setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
-    onLike(post.id); // Avisa o pai para atualizar o banco e o feed
+    onLike(post.id);
   };
 
   const handleSaveToggle = () => {
     if (!post.id) return;
     setIsSaved(!isSaved);
-    onSave(post.id); // Avisa o pai
+    onSave(post.id);
   };
 
-  const totalComments = commentTree.reduce(
-    (acc, c) => acc + 1 + c.replies.length, 0
-  );
+  const totalComments = commentTree.reduce((acc, c) => acc + 1 + c.replies.length, 0);
 
   const authorName      = post.profile?.name      ?? "Usuário";
   const authorAvatarUrl = post.profile?.avatar_url;
@@ -190,9 +270,7 @@ const PostModal = ({
   const authorDisc      = post.profile?.disc      ?? "S";
   const isMe            = post.creator_id === myUserId || authorName === myName;
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/comunidade?post=${post.id}`);
-  };
+  const copyLink = () => navigator.clipboard.writeText(`${window.location.origin}/comunidade?post=${post.id}`);
 
   return (
     <AnimatePresence>
@@ -242,30 +320,22 @@ const PostModal = ({
             </button>
           </div>
 
-          {/* ── Descrição ── */}
+          {/* ── Descrição e Mídia ── */}
           <div className="px-5 py-4 flex-shrink-0">
-            <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line">
+            <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line mb-3">
               {post.description}
             </p>
+            {post.midia && post.midia !== "EMPTY" && (
+              <PostMedia midia={post.midia} maxHeight={380} inModal />
+            )}
           </div>
 
-          {/* ── Mídia ── */}
-          {post.midia && post.midia !== "EMPTY" && (
-            <div className="px-5 pb-4 flex-shrink-0">
-              <PostMedia midia={post.midia} maxHeight={380} inModal />
-            </div>
-          )}
-
-          {/* ── Contadores ── */}
           <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3 flex-shrink-0">
-            {/* Agora usamos o likeCount local! */}
             <span>{likeCount} curtidas</span>
             <span>{totalComments} comentário{totalComments !== 1 ? "s" : ""}</span>
           </div>
 
-          {/* ── Ações ── */}
           <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30 flex-shrink-0">
-            {/* Agora usamos isLiked, isSaved e as funções handleToggle! */}
             {[
               { label: "Curtir",      el: <Heart size={14} className={isLiked ? "fill-rose-400" : ""} />,   active: isLiked,  color: "text-rose-400", fn: handleLikeToggle },
               { label: "Salvar",      el: <Bookmark size={14} className={isSaved ? "fill-primary" : ""} />, active: isSaved,  color: "text-primary",  fn: handleSaveToggle },
@@ -309,33 +379,74 @@ const PostModal = ({
             )}
           </div>
 
-          {/* ── Input de novo comentário ── */}
-          <div className="flex gap-2.5 p-4 border-t border-border/30 flex-shrink-0">
-            <UserAvatar
-              avatarUrl={myAvatarUrl} name={myName} disc={myDisc}
-              size="sm" isMe discRingImg={myDiscRingImg}
-            />
-            <div className="flex-1 flex gap-2">
-              <input
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
-                placeholder="Escreva um comentário…"
-                disabled={submitting}
-                className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition disabled:opacity-50"
+          {/* ── Input Principal de Novo Comentário ── */}
+          <div className="p-4 border-t border-border/30 flex-shrink-0 bg-background/50">
+            {hasMediaInput && (
+              <div className="mb-3 relative w-max ml-[46px]">
+                {gifUrl && <img src={gifUrl.slice(4)} alt="GIF" className="h-24 rounded-sm object-cover" />}
+                {previewUrl && !gifUrl && (
+                  mediaFile?.type.startsWith("video/") ? (
+                    <video src={previewUrl} className="h-24 rounded-sm object-cover" />
+                  ) : (
+                    <img src={previewUrl} className="h-24 rounded-sm object-cover" />
+                  )
+                )}
+                <button onClick={clearMedia} className="absolute -top-2 -right-2 p-1 bg-background/90 rounded-full shadow-sm hover:text-destructive">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2.5 items-center">
+              <UserAvatar
+                avatarUrl={myAvatarUrl} name={myName} disc={myDisc}
+                size="sm" isMe discRingImg={myDiscRingImg}
               />
-              <button
-                onClick={submitComment}
-                disabled={!commentText.trim() || submitting}
-                className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110 disabled:opacity-40"
-                style={{ background: "hsl(155 60% 35%)" }}>
-                {submitting
-                  ? <Loader2 size={12} className="animate-spin" />
-                  : <Send size={12} />
-                }
-              </button>
+              <div className="flex-1 flex gap-2 items-center">
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
+                  placeholder="Escreva um comentário…"
+                  disabled={submitting}
+                  className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition disabled:opacity-50"
+                />
+
+                <div className="flex gap-1 items-center bg-secondary/20 rounded-sm px-1 py-0.5 border border-border/30">
+                  <button onClick={() => { if (fileRef.current) { fileRef.current.accept = ACCEPTED_IMAGE; fileRef.current.click(); } }} disabled={submitting || hasMediaInput} className="text-muted-foreground hover:text-primary transition p-1.5 disabled:opacity-40">
+                    <ImageIcon size={14} />
+                  </button>
+                  <button onClick={() => { if (fileRef.current) { fileRef.current.accept = ACCEPTED_VIDEO; fileRef.current.click(); } }} disabled={submitting || hasMediaInput} className="text-muted-foreground hover:text-primary transition p-1.5 disabled:opacity-40">
+                    <Video size={14} />
+                  </button>
+                  <button onClick={() => setShowGif(true)} disabled={submitting || hasMediaInput} className="text-muted-foreground hover:text-primary transition p-1.5 disabled:opacity-40">
+                    <Smile size={14} />
+                  </button>
+                </div>
+
+                <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
+
+                <button
+                  onClick={submitComment}
+                  disabled={(!commentText.trim() && !hasMediaInput) || submitting}
+                  className="px-3 py-2 rounded-sm text-primary-foreground transition hover:brightness-110 disabled:opacity-40 ml-1 flex items-center justify-center min-w-[36px]"
+                  style={{ background: "hsl(155 60% 35%)" }}>
+                  {submitting
+                    ? <Loader2 size={12} className="animate-spin" />
+                    : <Send size={12} />
+                  }
+                </button>
+              </div>
             </div>
           </div>
+
+          <AnimatePresence>
+            {showGif && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowGif(false)}>
+                <GifPicker onSelect={handleGifSelect} onClose={() => setShowGif(false)} />
+              </div>
+            )}
+          </AnimatePresence>
 
         </motion.div>
       </motion.div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
@@ -11,25 +11,47 @@ import {
   CheckCircle2,
   Lock,
   Send,
-  ThumbsUp,
   Clock,
   BookOpen,
   Star,
+  Heart,
+  MessageCircle,
+  ChevronDown,
+  ChevronUp,
+  BadgeCheck,
+  Sparkles,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type Tab = "aula" | "quiz" | "duvidas";
 
+interface DoubtComment {
+  id: number;
+  author: string;
+  avatar: string;
+  avatarUrl?: string;
+  role?: string;
+  isInstructor?: boolean;
+  time: string;
+  text: string;
+  likes: number;
+  liked: boolean;
+}
+
 interface Doubt {
   id: number;
   author: string;
   avatar: string;
+  avatarUrl?: string;
+  role?: string;
   time: string;
   text: string;
   likes: number;
+  liked: boolean;
   answered: boolean;
-  reply?: string;
+  comments: DoubtComment[];
+  showComments?: boolean;
 }
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
@@ -48,32 +70,71 @@ const DOUBTS: Doubt[] = [
     id: 1,
     author: "Lucas M.",
     avatar: "L",
+    role: "Aluno · Módulo 1",
     time: "há 2 horas",
-    text: "Como escolher entre aprender Python ou JavaScript primeiro?",
+    text: "Como escolher entre aprender Python ou JavaScript primeiro? Estou começando do zero e não sei qual direção tomar.",
     likes: 14,
+    liked: false,
     answered: true,
-    reply:
-      "Para web, comece com JavaScript. Para dados e IA, Python é a escolha certa. Se ainda não sabe a área, JavaScript tem mais aplicações imediatas e vagas.",
+    comments: [
+      {
+        id: 101,
+        author: "Prof. Rafael",
+        avatar: "R",
+        role: "Instrutor UpJobs",
+        isInstructor: true,
+        time: "há 1 hora",
+        text: "Ótima pergunta, Lucas! Para web, comece com JavaScript. Para dados e IA, Python é a escolha certa. Se ainda não sabe a área, JavaScript tem mais aplicações imediatas e vagas no mercado.",
+        likes: 9,
+        liked: false,
+      },
+      {
+        id: 102,
+        author: "Mariana S.",
+        avatar: "M",
+        role: "Aluna · Módulo 3",
+        time: "há 45 min",
+        text: "Complementando o professor: comecei pelo JavaScript e em 4 meses já estava fazendo projetos reais. Vale muito a pena!",
+        likes: 5,
+        liked: false,
+      },
+    ],
   },
   {
     id: 2,
     author: "Ana P.",
     avatar: "A",
+    role: "Aluna · Módulo 2",
     time: "há 5 horas",
-    text: "Preciso de faculdade para trabalhar como dev ou bootcamp já é suficiente?",
+    text: "Preciso de faculdade para trabalhar como dev ou bootcamp já é suficiente? Estou com medo de não ser aceita sem diploma.",
     likes: 21,
+    liked: false,
     answered: true,
-    reply:
-      "Bootcamp + portfólio sólido te coloca no mercado. A maioria das empresas hoje avalia skills práticas acima de diplomas — mas faculdade ajuda em cargos sênior.",
+    comments: [
+      {
+        id: 201,
+        author: "Prof. Rafael",
+        avatar: "R",
+        role: "Instrutor UpJobs",
+        isInstructor: true,
+        time: "há 4 horas",
+        text: "Bootcamp + portfólio sólido te coloca no mercado. A maioria das empresas hoje avalia skills práticas acima de diplomas — mas faculdade ajuda em cargos sênior e em empresas mais tradicionais.",
+        likes: 12,
+        liked: false,
+      },
+    ],
   },
   {
     id: 3,
     author: "Fábio R.",
     avatar: "F",
+    role: "Aluno · Módulo 1",
     time: "há 1 dia",
-    text: "Qual a diferença entre front-end e back-end na prática do dia a dia?",
+    text: "Qual a diferença entre front-end e back-end na prática do dia a dia? Vejo muito essa terminologia mas não entendo bem como funciona no trabalho real.",
     likes: 8,
+    liked: false,
     answered: false,
+    comments: [],
   },
 ];
 
@@ -179,36 +240,408 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
   );
 };
 
-const DuvidasTab = () => {
-  const [doubts, setDoubts] = useState<Doubt[]>(DOUBTS);
-  const [newDoubt, setNewDoubt] = useState("");
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+// ─── Avatar Component ─────────────────────────────────────────────────────────
 
-  const handleSubmit = () => {
+const UserAvatar = ({
+  avatar,
+  avatarUrl,
+  isInstructor,
+  size = "md",
+}: {
+  avatar: string;
+  avatarUrl?: string;
+  isInstructor?: boolean;
+  size?: "sm" | "md" | "lg";
+}) => {
+  const dims = size === "sm" ? "w-7 h-7 text-xs" : size === "lg" ? "w-11 h-11 text-sm" : "w-9 h-9 text-xs";
+  const border = isInstructor
+    ? "border-2 border-accent"
+    : "border border-primary/30";
+
+  return (
+    <div className="relative shrink-0">
+      <div
+        className={`${dims} rounded-full ${border} flex items-center justify-center font-display font-bold overflow-hidden`}
+        style={
+          isInstructor
+            ? { background: "radial-gradient(circle at 35% 35%, hsl(25 90% 50%), hsl(25 90% 30%))", color: "white", boxShadow: "0 0 10px hsl(25 90% 55% / 0.4)" }
+            : avatarUrl
+            ? {}
+            : { background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }
+        }
+      >
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={avatar} className="w-full h-full object-cover" />
+        ) : (
+          avatar
+        )}
+      </div>
+      {isInstructor && (
+        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-accent flex items-center justify-center"
+          style={{ boxShadow: "0 0 6px hsl(25 90% 55% / 0.6)" }}>
+          <BadgeCheck size={9} style={{ color: "white" }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Comment Item ─────────────────────────────────────────────────────────────
+
+const CommentItem = ({
+  comment,
+  onLike,
+}: {
+  comment: DoubtComment;
+  onLike: (id: number) => void;
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex gap-2.5 group"
+    >
+      <UserAvatar avatar={comment.avatar} avatarUrl={comment.avatarUrl} isInstructor={comment.isInstructor} size="sm" />
+
+      <div className="flex-1 min-w-0">
+        <div
+          className="px-3 py-2.5 rounded-sm rounded-tl-none"
+          style={{
+            background: comment.isInstructor
+              ? "hsl(25 90% 45% / 0.08)"
+              : "hsl(215 28% 13%)",
+            border: comment.isInstructor
+              ? "1px solid hsl(25 90% 55% / 0.25)"
+              : "1px solid hsl(215 20% 22%)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-xs font-accent font-bold text-foreground">{comment.author}</span>
+            {comment.isInstructor && (
+              <span className="text-[10px] font-accent font-semibold px-1.5 py-0.5 rounded-sm"
+                style={{ background: "hsl(25 90% 55% / 0.15)", color: "hsl(25 90% 65%)", border: "1px solid hsl(25 90% 55% / 0.3)" }}>
+                Instrutor
+              </span>
+            )}
+            {comment.role && !comment.isInstructor && (
+              <span className="text-[10px] text-muted-foreground font-body">{comment.role}</span>
+            )}
+          </div>
+          <p className="text-sm text-foreground/85 font-body leading-relaxed">{comment.text}</p>
+        </div>
+
+        <div className="flex items-center gap-3 mt-1 px-1">
+          <span className="text-[10px] text-muted-foreground/60 font-body">{comment.time}</span>
+          <button
+            onClick={() => onLike(comment.id)}
+            disabled={comment.liked}
+            className="flex items-center gap-1 text-[10px] font-accent transition-all"
+            style={comment.liked ? { color: "hsl(5 80% 60%)", cursor: "default" } : { color: "hsl(215 15% 45%)" }}
+          >
+            <motion.span
+              animate={comment.liked ? { scale: [1, 1.5, 1] } : { scale: 1 }}
+              transition={{ duration: 0.3 }}
+              style={{ display: "flex" }}
+            >
+              <Heart size={10} style={comment.liked ? { fill: "hsl(5 80% 60%)", color: "hsl(5 80% 60%)" } : {}} />
+            </motion.span>
+            {comment.likes > 0 && comment.likes}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ─── Doubt Card ───────────────────────────────────────────────────────────────
+
+const DoubtCard = ({
+  doubt,
+  onLike,
+  onLikeComment,
+  onComment,
+  onToggleComments,
+}: {
+  doubt: Doubt;
+  onLike: (id: number) => void;
+  onLikeComment: (doubtId: number, commentId: number) => void;
+  onComment: (doubtId: number, text: string) => void;
+  onToggleComments: (id: number) => void;
+}) => {
+  const [replyText, setReplyText] = useState("");
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (showReplyInput) {
+      setTimeout(() => inputRef.current?.focus(), 80);
+    }
+  }, [showReplyInput]);
+
+  const handleSendReply = () => {
+    const text = replyText.trim();
+    if (!text) return;
+    onComment(doubt.id, text);
+    setReplyText("");
+    setShowReplyInput(false);
+  };
+
+  const totalComments = doubt.comments.length;
+
+  return (
+    <motion.div
+      layout
+      className="hologram-panel rounded-sm overflow-hidden transition-all"
+      style={doubt.showComments ? { borderColor: "hsl(155 60% 35% / 0.5)" } : {}}
+    >
+      {/* Main doubt */}
+      <div className="p-4">
+        <div className="flex gap-3">
+          <UserAvatar avatar={doubt.avatar} avatarUrl={doubt.avatarUrl} size="md" />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className="text-xs font-accent font-semibold text-foreground">{doubt.author}</span>
+              {doubt.role && <span className="text-[10px] text-muted-foreground font-body">{doubt.role}</span>}
+              <span className="text-[10px] text-muted-foreground/50 font-body ml-auto">{doubt.time}</span>
+            </div>
+
+            <p className="text-sm text-foreground/85 font-body leading-relaxed mb-3">{doubt.text}</p>
+
+            {/* Action bar */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {/* Like */}
+              <button
+                onClick={() => onLike(doubt.id)}
+                disabled={doubt.liked}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
+                style={doubt.liked ? { color: "hsl(5 80% 60%)" } : { color: "hsl(215 15% 50%)" }}
+              >
+                <motion.span
+                  animate={doubt.liked ? { scale: [1, 1.5, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.35 }}
+                  style={{ display: "flex" }}
+                >
+                  <Heart
+                    size={13}
+                    style={doubt.liked ? { fill: "hsl(5 80% 60%)", color: "hsl(5 80% 60%)" } : {}}
+                  />
+                </motion.span>
+                <span>{doubt.likes}</span>
+              </button>
+
+              {/* Comments toggle */}
+              <button
+                onClick={() => onToggleComments(doubt.id)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
+                style={doubt.showComments ? { color: "hsl(155 60% 55%)" } : { color: "hsl(215 15% 50%)" }}
+              >
+                <MessageCircle size={13} />
+                <span>{totalComments > 0 ? totalComments : ""} {totalComments === 1 ? "resposta" : totalComments > 1 ? "respostas" : "Responder"}</span>
+                {totalComments > 0 && (
+                  doubt.showComments ? <ChevronUp size={11} /> : <ChevronDown size={11} />
+                )}
+              </button>
+
+              {/* Answered badge */}
+              {doubt.answered && (
+                <span className="ml-auto flex items-center gap-1 text-[10px] font-accent font-semibold px-2 py-1 rounded-sm"
+                  style={{ background: "hsl(155 60% 40% / 0.1)", color: "hsl(155 60% 55%)", border: "1px solid hsl(155 60% 40% / 0.25)" }}>
+                  <Sparkles size={9} /> Respondida
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Comments section */}
+      <AnimatePresence>
+        {doubt.showComments && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{ borderTop: "1px solid hsl(215 20% 18%)" }}
+          >
+            <div className="px-4 py-3 space-y-3"
+              style={{ background: "hsl(215 28% 7% / 0.5)" }}>
+
+              {/* Existing comments */}
+              {doubt.comments.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  onLike={(cid) => onLikeComment(doubt.id, cid)}
+                />
+              ))}
+
+              {/* Reply input */}
+              <AnimatePresence>
+                {showReplyInput ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="flex gap-2.5 pt-1"
+                  >
+                    <div className="shrink-0 w-7 h-7 rounded-full border border-primary/30 flex items-center justify-center font-display text-xs font-bold"
+                      style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
+                      V
+                    </div>
+                    <div className="flex-1 flex gap-2">
+                      <textarea
+                        ref={inputRef}
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendReply();
+                          }
+                          if (e.key === "Escape") setShowReplyInput(false);
+                        }}
+                        rows={2}
+                        placeholder="Escreva sua resposta... (Enter para enviar)"
+                        className="flex-1 px-3 py-2 rounded-sm bg-input border border-border text-foreground font-body text-xs focus:outline-none focus:border-primary/60 transition resize-none"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={handleSendReply}
+                          disabled={!replyText.trim()}
+                          className="w-8 h-8 rounded-sm flex items-center justify-center bg-primary text-primary-foreground disabled:opacity-40 hover:brightness-110 transition"
+                          style={{ boxShadow: replyText.trim() ? "0 0 8px hsl(155 60% 45% / 0.4)" : "none" }}
+                        >
+                          <Send size={12} />
+                        </button>
+                        <button
+                          onClick={() => { setShowReplyInput(false); setReplyText(""); }}
+                          className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    onClick={() => setShowReplyInput(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-sm text-xs font-body text-muted-foreground hover:text-foreground hover:bg-white/5 transition border border-dashed border-border/40 hover:border-primary/30"
+                  >
+                    <MessageCircle size={11} className="text-primary/60" />
+                    Escreva uma resposta...
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Collapsed reply CTA (when comments hidden) */}
+      {!doubt.showComments && (
+        <div className="px-4 pb-3">
+          <button
+            onClick={() => { onToggleComments(doubt.id); setShowReplyInput(true); }}
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-sm text-xs font-body text-muted-foreground hover:text-foreground hover:bg-white/5 transition border border-dashed border-border/30 hover:border-primary/30"
+          >
+            <MessageCircle size={11} className="text-primary/50" />
+            {totalComments === 0 ? "Seja o primeiro a responder..." : `Ver ${totalComments} ${totalComments === 1 ? "resposta" : "respostas"}...`}
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+// ─── DuvidasTab ───────────────────────────────────────────────────────────────
+
+const DuvidasTab = () => {
+  const [doubts, setDoubts] = useState<Doubt[]>(
+    DOUBTS.map((d) => ({ ...d, showComments: d.answered }))
+  );
+  const [newDoubt, setNewDoubt] = useState("");
+  const [filter, setFilter] = useState<"recentes" | "populares">("recentes");
+
+  const handleSubmitDoubt = () => {
     const text = newDoubt.trim();
     if (!text) return;
     const d: Doubt = {
       id: Date.now(),
       author: "Você",
       avatar: "V",
+      role: "Aluno · Módulo 1",
       time: "agora",
       text,
       likes: 0,
+      liked: false,
       answered: false,
+      comments: [],
+      showComments: false,
     };
     setDoubts((prev) => [d, ...prev]);
     setNewDoubt("");
   };
 
   const handleLike = (id: number) => {
-    if (likedIds.has(id)) return;
-    setLikedIds((prev) => new Set(prev).add(id));
-    setDoubts((prev) => prev.map((d) => (d.id === id ? { ...d, likes: d.likes + 1 } : d)));
+    setDoubts((prev) =>
+      prev.map((d) =>
+        d.id === id && !d.liked ? { ...d, liked: true, likes: d.likes + 1 } : d
+      )
+    );
   };
 
+  const handleLikeComment = (doubtId: number, commentId: number) => {
+    setDoubts((prev) =>
+      prev.map((d) =>
+        d.id === doubtId
+          ? {
+              ...d,
+              comments: d.comments.map((c) =>
+                c.id === commentId && !c.liked ? { ...c, liked: true, likes: c.likes + 1 } : c
+              ),
+            }
+          : d
+      )
+    );
+  };
+
+  const handleComment = (doubtId: number, text: string) => {
+    const comment: DoubtComment = {
+      id: Date.now(),
+      author: "Você",
+      avatar: "V",
+      role: "Aluno · Módulo 1",
+      time: "agora",
+      text,
+      likes: 0,
+      liked: false,
+    };
+    setDoubts((prev) =>
+      prev.map((d) =>
+        d.id === doubtId ? { ...d, comments: [...d.comments, comment] } : d
+      )
+    );
+  };
+
+  const handleToggleComments = (id: number) => {
+    setDoubts((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, showComments: !d.showComments } : d))
+    );
+  };
+
+  const sorted =
+    filter === "populares"
+      ? [...doubts].sort((a, b) => b.likes - a.likes)
+      : [...doubts];
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-5">
+
+      {/* New doubt form */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -218,100 +651,88 @@ const DuvidasTab = () => {
           <MessageCircleQuestion size={14} className="text-primary" />
           Enviar uma Dúvida
         </h3>
-        <textarea
-          value={newDoubt}
-          onChange={(e) => setNewDoubt(e.target.value)}
-          rows={3}
-          placeholder="Escreva sua dúvida sobre o conteúdo desta aula..."
-          className="w-full px-4 py-3 rounded-sm bg-input border border-border text-foreground font-body text-sm focus:outline-none focus:border-primary/60 transition resize-none"
-        />
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={handleSubmit}
-            disabled={!newDoubt.trim()}
-            className="flex items-center gap-2 px-5 py-2 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold disabled:opacity-40 box-glow-accent hover:brightness-110 transition"
-          >
-            <Send size={13} /> Enviar
-          </button>
+        <div className="flex gap-3">
+          <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 flex items-center justify-center font-display text-xs font-bold"
+            style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
+            V
+          </div>
+          <div className="flex-1">
+            <textarea
+              value={newDoubt}
+              onChange={(e) => setNewDoubt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey) handleSubmitDoubt();
+              }}
+              rows={3}
+              placeholder="Escreva sua dúvida sobre o conteúdo desta aula... (Ctrl+Enter para enviar)"
+              className="w-full px-4 py-3 rounded-sm bg-input border border-border text-foreground font-body text-sm focus:outline-none focus:border-primary/60 transition resize-none"
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={handleSubmitDoubt}
+                disabled={!newDoubt.trim()}
+                className="flex items-center gap-2 px-5 py-2 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold disabled:opacity-40 hover:brightness-110 transition"
+                style={{ boxShadow: newDoubt.trim() ? "0 0 12px hsl(25 90% 55% / 0.35)" : "none" }}
+              >
+                <Send size={13} /> Publicar Dúvida
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
 
-      <div className="space-y-3">
-        {doubts.map((d, i) => (
-          <motion.div
-            key={d.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className={`hologram-panel rounded-sm p-4 transition-all ${expanded === d.id ? "border-primary/40" : ""}`}
+      {/* Filter */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground font-body mr-1">Ordenar:</span>
+        {(["recentes", "populares"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-sm text-xs font-accent font-semibold transition
+              ${f === filter
+                ? "text-primary-foreground"
+                : "text-muted-foreground border border-border hover:text-foreground"}`}
+            style={f === filter
+              ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.3)" }
+              : undefined}
           >
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 w-8 h-8 rounded-sm bg-primary/20 border border-primary/30 flex items-center justify-center font-display text-xs font-bold text-primary">
-                {d.avatar}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-accent font-semibold text-foreground">{d.author}</span>
-                  <span className="text-xs text-foreground/60 font-body">{d.time}</span>
-                  {d.answered && (
-                    <span className="text-xs font-accent font-semibold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10 border border-primary/20">
-                      Respondida
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-foreground/80 font-body leading-relaxed">{d.text}</p>
-
-                <AnimatePresence>
-                  {d.answered && expanded === d.id && d.reply && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-3 pl-3 border-l-2 border-primary/30"
-                    >
-                      <p className="text-xs font-accent font-semibold text-primary mb-0.5">Resposta do Instrutor</p>
-                      <p className="text-sm text-foreground/75 font-body leading-relaxed">{d.reply}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="flex items-center gap-3 mt-3">
-                  <button
-                    onClick={() => handleLike(d.id)}
-                    disabled={likedIds.has(d.id)}
-                    className="flex items-center gap-1 text-xs font-accent transition-all"
-                    style={likedIds.has(d.id)
-                      ? { color: "hsl(155 60% 50%)", cursor: "default" }
-                      : { color: "hsl(215 15% 50%)" }}
-                  >
-                    <motion.span
-                      animate={likedIds.has(d.id) ? { scale: [1, 1.4, 1] } : { scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                      style={{ display: "flex" }}
-                    >
-                      <ThumbsUp
-                        size={11}
-                        style={likedIds.has(d.id) ? { fill: "hsl(155 60% 50%)", color: "hsl(155 60% 50%)" } : {}}
-                      />
-                    </motion.span>
-                    {d.likes}
-                  </button>
-                  {d.answered && (
-                    <button
-                      onClick={() => setExpanded(expanded === d.id ? null : d.id)}
-                      className="flex items-center gap-1 text-xs text-muted-foreground font-accent hover:text-primary transition"
-                    >
-                      <MessageCircleQuestion size={11} />
-                      {expanded === d.id ? "Fechar" : "Ver resposta"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
+            {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+          </button>
         ))}
+        <span className="ml-auto text-xs text-muted-foreground/50 font-body">
+          {doubts.length} {doubts.length === 1 ? "dúvida" : "dúvidas"}
+        </span>
       </div>
+
+      {/* Doubts list */}
+      <div className="space-y-3">
+        <AnimatePresence mode="popLayout">
+          {sorted.map((doubt, i) => (
+            <motion.div
+              key={doubt.id}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <DoubtCard
+                doubt={doubt}
+                onLike={handleLike}
+                onLikeComment={handleLikeComment}
+                onComment={handleComment}
+                onToggleComments={handleToggleComments}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {doubts.length === 0 && (
+        <div className="hologram-panel rounded-sm p-10 text-center">
+          <p className="text-sm text-muted-foreground font-body">Nenhuma dúvida ainda. Seja o primeiro!</p>
+        </div>
+      )}
     </div>
   );
 };

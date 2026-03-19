@@ -276,26 +276,27 @@ const CommunityPage = () => {
       <div className="px-4 pt-24 pb-16">
         <div className="max-w-7xl mx-auto ">
 
-          {/* ── Cabeçalho ── */}
+          {/* ── Cabeçalho Atualizado ── */}
           <motion.div
             initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 ">
+            className="flex flex-col items-center justify-center text-center gap-4 mb-8">
             <div>
-              <h1 className="font-display text-2xl font-bold text-glow ">Comunidade</h1>
-              <p className="text-xs text-muted-foreground font-body mt-0.5">
+              <h1 className="font-display text-3xl font-bold text-glow">Comunidade</h1>
+              <p className="text-sm text-muted-foreground font-body mt-1">
                 Compartilhe conquistas, dicas e insights com a rede UpJobs
               </p>
             </div>
-            <div className="flex gap-3">
+            
+            <div className="flex flex-wrap justify-center gap-3">
               {[
                 { icon: Users,      label: "2.4k membros", color: "hsl(155 60% 45%)" },
                 { icon: TrendingUp, label: "↑ 18% hoje",   color: "hsl(25 90% 55%)"  },
-                { icon: Zap,        label: "94 online",     color: "hsl(45 90% 55%)"  },
+                { icon: Zap,        label: "94 online",    color: "hsl(45 90% 55%)"  },
               ].map(({ icon: Icon, label, color }) => (
                 <div key={label}
-                  className="flex items-center gap-1 text-[10px] font-accent font-semibold px-2 py-1 rounded-sm"
+                  className="flex items-center gap-1.5 text-xs font-accent font-semibold px-3 py-1.5 rounded-sm shadow-sm"
                   style={{ color, background: `${color}12`, border: `1px solid ${color}30` }}>
-                  <Icon size={10} /><span className="hidden sm:inline">{label}</span>
+                  <Icon size={14} /><span>{label}</span>
                 </div>
               ))}
             </div>
