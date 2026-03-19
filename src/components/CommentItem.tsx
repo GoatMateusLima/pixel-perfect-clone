@@ -76,6 +76,18 @@ interface CommentItemProps {
   onDelete:     (commentId: string) => Promise<void>;
 }
 
+interface Questions {
+  comment:      CommentNode;
+  myUserId?:    string;
+  myName:       string;
+  myAvatarUrl:  string | null;
+  myDisc:       string;
+  myDiscRingImg?: string;
+  depth?:       number;           // 0 = raiz, 1 = reply
+  onReply:      (parentId: string, text: string) => Promise<void>;
+  onDelete:     (commentId: string) => Promise<void>;
+}
+
 const CommentItem = ({
   comment, myUserId, myName, myAvatarUrl, myDisc, myDiscRingImg,
   depth = 0, onReply, onDelete,
