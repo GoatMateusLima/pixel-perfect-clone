@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Header from "@/components/Header";
 import supabase from "../../utils/supabase.ts";
 import { TemaCard } from "@/components/TemaCard"; 
+import { CourseCard } from "@/components/CourseCard";
 //so para fazer commit
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ export type Tema = {
   type: string;
   courses: Course[]; // Sua função vai preencher este array
 }
+
 
 const gridBg = {
   backgroundImage: `linear-gradient(hsl(155 60% 45% / 0.05) 1px, transparent 1px), linear-gradient(90deg, hsl(155 60% 45% / 0.05) 1px, transparent 1px)`,
@@ -62,6 +64,8 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
         Voltar para todas as áreas
       </button>
 
+      
+
       {/* Header da Área */}
       <div className="mb-10">
         <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-3 block">
@@ -76,45 +80,20 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
       </div>
 
       {/* Lista de Cursos */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-display font-bold text-foreground mb-6">
-          Cursos disponíveis ({cursos.length})
-        </h2>
-
-        {cursos.length === 0 ? (
-          <div className="p-10 border border-dashed border-border/50 rounded-lg bg-secondary/10 text-center">
-             <p className="text-muted-foreground font-body">Nenhum curso cadastrado nesta área ainda.</p>
-          </div>
-        ) : (
-          cursos.map((course, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 rounded-lg border border-border/40 bg-secondary/20 hover:bg-secondary/40 transition-colors"
-            >
-              <div className="flex-1">
-                <h3 className="text-lg font-bold font-display text-foreground mb-3">
-                  {course.name}
-                </h3>
-                
-                {/* Badges do curso */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className={`inline-flex items-center gap-1.5 border rounded-sm px-2.5 py-1 ${difficultBg[course.difficult] ?? "border-primary/30 bg-primary/5"}`}>
-                    <BarChart2 size={12} className={difficultClass[course.difficult] ?? "text-primary"} />
-                    <span className={`text-[11px] font-accent font-bold uppercase tracking-wide ${difficultClass[course.difficult] ?? "text-primary"}`}>
-                      {course.difficult}
-                    </span>
-                  </div>
-
-                  
-                </div>
-              </div>
-
-            </motion.div>
+<div className="grid grid-cols-1 gap-4">
+        {cursos.length > 0 ? (
+          cursos.map((course) => (
+            <CourseCard 
+              key={course.id} 
+              course={course} 
+              onClick={(c) => console.log("Abrindo curso:", c.name)} 
+            />
           ))
-        )}
+        ) : (
+          <div className="text-center py-20 border border-dashed border-border/30 rounded-lg">
+            <p className="text-muted-foreground">Nenhum curso vinculado a esta trilha.</p>
+          </div>
+          )}
       </div>
     </motion.div>
   );
@@ -132,6 +111,7 @@ const RoadmapSection = () => {
 
   useEffect(() => {
     SyncTemas();
+    SyncCourse();
   }, []); 
 
   // Quando você fizer a função de puxar os cursos, ela deve popular o array 'courses' 
@@ -139,8 +119,8 @@ const RoadmapSection = () => {
 async function SyncCourse(): Promise<void> { 
     setLoading(true);
     const { data, error } = await supabase
-      .from('course')
-      .select('course_id')
+      .from('courses')
+      .select('*')
       
       
     if (error) { 
@@ -152,6 +132,17 @@ async function SyncCourse(): Promise<void> {
     setCourse(data || []);
     setLoading(false);
     }
+
+    const handleTemaClick = (tema: Tema) => {
+    // Aqui usamos o 'course' que está no estado do componente
+    // Filtramos apenas os cursos que pertencem ao ID deste tema
+    const cursosFiltrados = course.filter((c: any) => c.courses_id === tema.id);
+
+    setSelectedTema({
+      ...tema,
+      courses: cursosFiltrados 
+    });
+  };
 
   async function SyncTemas(): Promise<void> { 
     setLoading(true);
@@ -267,7 +258,7 @@ async function SyncCourse(): Promise<void> {
                         key={tema.id} 
                         tema={tema} 
                         index={i}
-                        onClick={() => setSelectedTema(tema)} 
+                        onClick={() => handleTemaClick(tema)} 
                       />
                     ))}
                   </AnimatePresence>

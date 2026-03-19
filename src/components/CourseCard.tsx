@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { BarChart2, PlayCircle, ChevronRight } from "lucide-react";
+import supabase from "../../utils/supabase"
 
 export type Course = {
   id: string;
@@ -7,6 +8,10 @@ export type Course = {
   name: string;
   difficult: string;
 };
+
+
+
+
 
 interface CourseCardProps {
   course: Course;
