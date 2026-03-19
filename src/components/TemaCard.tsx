@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import type { Tema } from "../pages/RoadmapSection"; // Ajuste o caminho para onde estão seus types
 
+//AHDHASDHASDHASDHAS
+
 // ─── Paleta de cores por tipo ─────────────────────────────────────────────────
 const TYPE_META: Record<string, { color: string; icon: React.ElementType }> = {
   "Alta demanda":   { color: "hsl(155 60% 45%)", icon: TrendingUp   },

@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Header from "@/components/Header";
 import supabase from "../../utils/supabase.ts";
 import { TemaCard } from "@/components/TemaCard"; 
+//so para fazer commit
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export type Course = { 
