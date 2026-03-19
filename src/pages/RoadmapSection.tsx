@@ -3,7 +3,6 @@
   import { useEffect, useState } from "react";
   import Header from "@/components/Header";
   import supabase from "../../utils/supabase.ts";
-import { Area } from "recharts";
 
 
  
@@ -158,7 +157,7 @@ const RoadmapSection = () => {
     // Certifique-se de que a variável 'user' está disponível neste escopo
   
       SyncTemas();
-    
+    //loadcursos, realacão de cursos para temas
   }, []); 
 
 
