@@ -1,334 +1,283 @@
-  import { motion, AnimatePresence } from "framer-motion";
-  import { ArrowLeft, ArrowRight, Clock, BarChart2, MonitorPlay } from "lucide-react";
-  import { useEffect, useState } from "react";
-  import Header from "@/components/Header";
-  import supabase from "../../utils/supabase.ts";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, Compass, ArrowLeft, Clock, BarChart2, MonitorPlay, ExternalLink } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import Header from "@/components/Header";
+import supabase from "../../utils/supabase.ts";
+import { TemaCard } from "@/components/TemaCard"; 
 
+// ─── Tipos ──────────────────────────────────────────────────────────────────
+export type Course = { 
+  name: string;
+  platform: string;
+  level: string;
+  duration: string;
+  link: string;
+}
 
- 
+export type Tema = {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  courses: Course[]; // Sua função vai preencher este array
+}
 
-  export type Course = { 
-    name: string,
-    platform: string,
-    level: string,
-    duration: string,
-    link:string,
-  }
+const gridBg = {
+  backgroundImage: `linear-gradient(hsl(155 60% 45% / 0.05) 1px, transparent 1px), linear-gradient(90deg, hsl(155 60% 45% / 0.05) 1px, transparent 1px)`,
+  backgroundSize: "60px 60px",
+};
 
-   export type Tema = {
-    id:string,
-    name:string,
-    description:string,
-    type:string,
-    courses:Course[]
-  } 
+const levelClass: Record<string, string> = {
+  Iniciante: "text-primary",
+  Intermediário: "text-accent",
+  Avançado: "text-destructive",
+};
 
-// criar export de Courses e de area//
+const levelBg: Record<string, string> = {
+  Iniciante: "border-primary/30 bg-primary/5",
+  Intermediário: "border-accent/30 bg-accent/5",
+  Avançado: "border-destructive/30 bg-destructive/5",
+};
 
-  const levelClass: Record<string, string> = {
-    Iniciante: "text-primary",
-    Intermediário: "text-accent",
-    Avançado: "text-destructive",
-  };
+// ─── Componente da Lista de Cursos da Área Selecionada ──────────────────────
+const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) => {
+  // Verificação de segurança caso courses venha undefined do banco inicialmente
+  const cursos = tema.courses || []; 
 
-  const levelBg: Record<string, string> = {
-    Iniciante: "border-primary/30 bg-primary/5",
-    Intermediário: "border-accent/30 bg-accent/5",
-    Avançado: "border-destructive/30 bg-destructive/5",
-  };
-
-  const gridBg = {
-    backgroundImage: `linear-gradient(hsl(155 60% 45% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(155 60% 45% / 0.3) 1px, transparent 1px)`,
-    backgroundSize: "60px 60px",
-  };
-
-  // ─── Course Detail Screen ───────────────────────────────────────────────────
-  const CourseDetail = ({
-    course,
-    tema,
-    onBack,
-  }: {
-    course: Course;
-    tema: Tema;
-    onBack: () => void;
-  }) => (
+  return (
     <motion.div
-      key="course-detail"
-      className="fixed inset-0 z-[60] gradient-hero scanline overflow-y-auto"
-      initial={{ opacity: 0, x: 60 }}
+      initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 60 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.3 }}
+      className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-5xl mx-auto min-h-[70vh]"
     >
-      <div className="absolute inset-0 opacity-5 pointer-events-none" style={gridBg} />
+      {/* Botão Voltar */}
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-8"
+      >
+        <ArrowLeft size={16} />
+        Voltar para todas as áreas
+      </button>
 
-      <div className="relative z-10 container mx-auto px-4 pt-24 pb-24 max-w-3xl">
-        {/* Breadcrumb / back */}
-        <motion.button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-12"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <ArrowLeft size={15} />
-          <span className="text-muted-foreground/50">{tema.name}</span>
-          <span className="text-muted-foreground/30">/</span>
-          <span className="text-primary truncate max-w-[200px]">{course.name}</span>
-        </motion.button>
+      {/* Header da Área */}
+      <div className="mb-10">
+        <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-3 block">
+          Trilha de {tema.type}
+        </span>
+        <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
+          {tema.name}
+        </h1>
+        <p className="text-muted-foreground font-body text-base max-w-3xl leading-relaxed">
+          {tema.description}
+        </p>
+      </div>
 
-        {/* Hero */}
-        <motion.div
-          className="hologram-panel rounded-sm p-8 mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-        >
-          <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-3 block">
-            {tema.type}
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-display font-bold text-glow mb-4">
-            {course.name}
-          </h1>
+      {/* Lista de Cursos */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-display font-bold text-foreground mb-6">
+          Cursos disponíveis ({cursos.length})
+        </h2>
 
-          {/* Meta badges */}
-          <div className="flex flex-wrap gap-3 mt-6">
-            <div className={`inline-flex items-center gap-2 border rounded-sm px-3 py-1.5 ${levelBg[course.level] ?? "border-primary/30 bg-primary/5"}`}>
-              <BarChart2 size={13} className={levelClass[course.level] ?? "text-primary"} />
-              <span className={`text-xs font-accent font-bold uppercase tracking-wide ${levelClass[course.level] ?? "text-primary"}`}>
-                {course.level}
-              </span>
-            </div>
-
-            <div className="inline-flex items-center gap-2 border border-muted/20 bg-muted/5 rounded-sm px-3 py-1.5">
-              <Clock size={13} className="text-muted-foreground" />
-              <span className="text-xs font-body text-muted-foreground">{course.duration}</span>
-            </div>
-
-            <div className="inline-flex items-center gap-2 border border-muted/20 bg-muted/5 rounded-sm px-3 py-1.5">
-              <MonitorPlay size={13} className="text-muted-foreground" />
-              <span className="text-xs font-body text-muted-foreground">{course.platform}</span>
-            </div>
+        {cursos.length === 0 ? (
+          <div className="p-10 border border-dashed border-border/50 rounded-lg bg-secondary/10 text-center">
+             <p className="text-muted-foreground font-body">Nenhum curso cadastrado nesta área ainda.</p>
           </div>
-        </motion.div>
+        ) : (
+          cursos.map((course, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 rounded-lg border border-border/40 bg-secondary/20 hover:bg-secondary/40 transition-colors"
+            >
+              <div className="flex-1">
+                <h3 className="text-lg font-bold font-display text-foreground mb-3">
+                  {course.name}
+                </h3>
+                
+                {/* Badges do curso */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className={`inline-flex items-center gap-1.5 border rounded-sm px-2.5 py-1 ${levelBg[course.level] ?? "border-primary/30 bg-primary/5"}`}>
+                    <BarChart2 size={12} className={levelClass[course.level] ?? "text-primary"} />
+                    <span className={`text-[11px] font-accent font-bold uppercase tracking-wide ${levelClass[course.level] ?? "text-primary"}`}>
+                      {course.level}
+                    </span>
+                  </div>
 
-        {/* Area context */}
-        <motion.div
-          className="hologram-panel rounded-sm p-6 mb-6"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22 }}
-        >
-          <p className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-2">
-            Área
-          </p>
-          <p className="font-display font-bold text-base text-glow mb-1">{tema.name}</p>
-          <p className="text-muted-foreground font-body text-sm leading-relaxed">{tema.description}</p>
-        </motion.div>
+                  <div className="inline-flex items-center gap-1.5 border border-muted/20 bg-muted/5 rounded-sm px-2.5 py-1">
+                    <Clock size={12} className="text-muted-foreground" />
+                    <span className="text-[11px] font-body text-muted-foreground">{course.duration}</span>
+                  </div>
 
-        {/* CTA */}
-        <motion.div
-          onClick={() => { window.location.href = course.link; }}
-          className="hologram-panel rounded-sm px-6 py-5 flex items-center justify-between group animate-hologram-flicker hover:brightness-125 transition-all w-full cursor-pointer"
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <span className="font-display font-bold text-base text-glow">
-            Acessar curso em {course.platform}
-          </span>
-          <ArrowRight
-            size={18}
-            className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 ml-4"
-          />
-        </motion.div>
+                  <div className="inline-flex items-center gap-1.5 border border-muted/20 bg-muted/5 rounded-sm px-2.5 py-1">
+                    <MonitorPlay size={12} className="text-muted-foreground" />
+                    <span className="text-[11px] font-body text-muted-foreground">{course.platform}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botão Acessar */}
+              <a 
+                href={course.link} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-sm bg-primary text-primary-foreground font-accent font-semibold text-sm hover:brightness-110 transition-all shrink-0"
+              >
+                Acessar curso <ExternalLink size={14} />
+              </a>
+            </motion.div>
+          ))
+        )}
       </div>
     </motion.div>
   );
+};
 
-  // ─── Main Component ──────────────────────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────────────────────
 const RoadmapSection = () => {
-  const [selectedTema, setSelectedTema] = useState<Tema| null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-
-  const [temas,setTema]=useState<Tema[]>([])
-
-    useEffect(() => {
-    // Certifique-se de que a variável 'user' está disponível neste escopo
+  const [temas, setTemas] = useState<Tema[]>([]);
+  const [loading, setLoading] = useState(true);
   
-      SyncTemas();
-    //loadcursos, realacão de cursos para temas
+  const [search, setSearch] = useState("");
+  const [activeType, setActiveType] = useState("Todos");
+  const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
+
+  useEffect(() => {
+    SyncTemas();
   }, []); 
 
-
-  async function SyncTemas():Promise<void> { 
+  // Quando você fizer a função de puxar os cursos, ela deve popular o array 'courses' 
+  // dentro de cada objeto 'Tema' retornado pelo banco.
+  async function SyncTemas(): Promise<void> { 
+    setLoading(true);
     const { data, error } = await supabase
       .from('temas')
-      .select('*');
+      .select('*')
+      .order('created_at', { ascending: true });
       
     if (error) { 
-      alert(error.message); 
+      console.error(error.message); 
+      setLoading(false);
       return; 
     }
 
-    setTema(data);
-    // console.log(data);
-    // order('created_at', { ascending: false })
+    setTemas(data || []);
+    setLoading(false);
   }
 
-  const handleCourseClick = (course: Course) => {
-    setSelectedCourse(course);
-  };
+  const categories = useMemo(() => {
+    const uniqueTypes = Array.from(new Set(temas.map((t) => t.type).filter(Boolean)));
+    return ["Todos", ...uniqueTypes];
+  }, [temas]);
 
-  const handleBackToCourses = () => {
-    setSelectedCourse(null);
-  };
+  const filteredTemas = useMemo(() => {
+    return temas.filter((t) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || t.name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q);
+      const matchType = activeType === "Todos" || t.type === activeType;
+      return matchSearch && matchType;
+    });
+  }, [temas, search, activeType]);
 
   return (
-    <section className="relative min-h-screen gradient-hero scanline overflow-hidden pt-24 pb-20">
+    <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
       <Header />
-      {/* Grid background */}
-      <div className="absolute inset-0 opacity-5" style={gridBg} />
+      <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
+      <div className="absolute top-0 left-0 right-0 h-[50vh] bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-      <div className="container mx-auto px-4 relative z-10">
-        {/* Título */}
-        <motion.div
-          className="max-w-3xl mx-auto text-center mb-14"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold leading-tight mb-4 text-glow">
-            Áreas do <span className="text-primary">futuro</span>
-          </h1>
-          <p className="text-muted-foreground font-body text-base sm:text-lg">
-            Escolha uma área e veja os cursos para começar sua transição de carreira.
-          </p>
-        </motion.div>
-
-        {/* Grid de cards */}
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          {temas.map((tema, i) => (
-            <motion.div
-              key={tema.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.08 * i }}
-              onClick={() => setSelectedTema(tema)}
-              className="hologram-panel rounded-sm p-6 cursor-pointer group animate-hologram-flicker hover:brightness-125 transition-all"
-              style={{ animationDelay: `${i * 0.4}s` }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
-                  {tema.type}
-                </span>
-                <ArrowRight
-                  size={16}
-                  className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all"
+      <AnimatePresence mode="wait">
+        {!selectedTema ? (
+          <motion.div 
+            key="grid-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-7xl mx-auto"
+          >
+            {/* Hero & Search */}
+            <div className="max-w-3xl mx-auto text-center mb-16">
+              <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-6 leading-tight">
+                O que você quer <span className="text-primary text-glow">aprender</span> hoje?
+              </h1>
+              <div className="relative max-w-2xl mx-auto group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Busque por área, tecnologia ou curso..."
+                  className="block w-full pl-12 pr-4 py-4 rounded-full bg-secondary/40 border border-border/50 text-foreground placeholder:text-muted-foreground focus:bg-secondary/80 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all outline-none text-base sm:text-lg backdrop-blur-sm"
                 />
               </div>
-              <h2 className="font-display font-bold text-lg text-glow mb-2">{tema.name}</h2>
-              <p className="text-muted-foreground font-body text-sm leading-relaxed">{tema.description}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
+            </div>
 
-      {/* Area overlay */}
-      <AnimatePresence>
-        {selectedTema && (
-          <motion.div
-            key="overlay"
-            className="fixed inset-0 z-50 gradient-hero scanline overflow-y-auto"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-          >
-            <div className="absolute inset-0 opacity-5 pointer-events-none" style={gridBg} />
-
-            <div className="relative z-10 container mx-auto px-4 pt-24 pb-24 max-w-5xl">
-              {/* Voltar */}
-              <motion.button
-                onClick={() => setSelectedTema(null)}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-12"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 }}
-              >
-                <ArrowLeft size={15} /> Todas as áreas
-              </motion.button>
-
-              {/* Cabeçalho da área */}
-              <motion.div
-                className="mb-12"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest">
-                  {selectedTema.type}
-                </span>
-                <h1 className="text-4xl sm:text-5xl font-display font-bold text-glow mt-2 mb-3">
-                  {selectedTema.name}
-                </h1>
-                <p className="text-muted-foreground font-body text-base max-w-xl">
-                  {selectedTema.description}
-                </p>
-              </motion.div>
-
-              {/* Cursos */}
-              <div className="flex flex-col gap-4">
-                {selectedTema.courses.map((course, i) => (
-                  <motion.div
-                    key={i}
-                    onClick={() => handleCourseClick(course)}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 + 0.08 * i }}
-                    className="hologram-panel rounded-sm px-6 py-5 flex items-center justify-between group animate-hologram-flicker hover:brightness-125 transition-all cursor-pointer"
-                    style={{ animationDelay: `${i * 0.3}s` }}
+            {/* Categorias */}
+            <div className="mb-10">
+              <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveType(category)}
+                    className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-accent font-semibold transition-all duration-200 border ${
+                      activeType === category
+                        ? "bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+                        : "bg-secondary/30 text-muted-foreground border-border/40 hover:bg-secondary/60 hover:text-foreground"
+                    }`}
                   >
-                    <div className="flex flex-col gap-1">
-                      <span className="font-display font-bold text-base text-glow">
-                        {course.name}
-                      </span>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        <span className="text-xs font-body text-muted-foreground">{course.platform}</span>
-                        <span className="text-muted-foreground opacity-30">·</span>
-                        <span className={`text-xs font-accent font-bold uppercase tracking-wide ${levelClass[course.level] ?? "text-primary"}`}>
-                          {course.level}
-                        </span>
-                        <span className="text-muted-foreground opacity-30">·</span>
-                        <span className="text-xs font-body text-muted-foreground">{course.duration}</span>
-                      </div>
-                    </div>
-                    <ArrowRight
-                      size={18}
-                      className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 ml-4"
-                    />
-                  </motion.div>
+                    {category}
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* Course detail layer (inside area overlay) */}
-            <AnimatePresence>
-              {selectedCourse && (
-                <CourseDetail
-                  course={selectedCourse}
-                  tema={selectedTema}
-                  onBack={handleBackToCourses}
-                />
+            {/* Grid */}
+            <div className="min-h-[400px]">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                  <p className="font-accent text-sm">Carregando áreas...</p>
+                </div>
+              ) : filteredTemas.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 px-4 text-center border border-dashed border-border/50 rounded-2xl bg-secondary/10">
+                  <Compass className="w-16 h-16 text-muted-foreground/30 mb-4" />
+                  <h3 className="text-xl font-display font-bold text-foreground mb-2">Nenhum resultado encontrado</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Não encontramos nenhuma área correspondente a "{search}". Tente usar outros termos ou limpe os filtros.
+                  </p>
+                  <button 
+                    onClick={() => { setSearch(""); setActiveType("Todos"); }}
+                    className="mt-6 px-6 py-2 rounded-full bg-secondary hover:bg-secondary/80 text-foreground text-sm font-semibold transition-colors"
+                  >
+                    Limpar busca
+                  </button>
+                </div>
+              ) : (
+                <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <AnimatePresence>
+                    {filteredTemas.map((tema, i) => (
+                      <TemaCard 
+                        key={tema.id} 
+                        tema={tema} 
+                        index={i}
+                        onClick={() => setSelectedTema(tema)} 
+                      />
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
               )}
-            </AnimatePresence>
-
+            </div>
           </motion.div>
+        ) : (
+          <TemaCoursesView 
+            key="courses-view" 
+            tema={selectedTema} 
+            onBack={() => setSelectedTema(null)} 
+          />
         )}
       </AnimatePresence>
     </section>
