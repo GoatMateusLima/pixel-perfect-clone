@@ -1,16 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Compass, ArrowLeft, Clock, BarChart2, MonitorPlay, ExternalLink } from "lucide-react";
+import { Search, Compass, ArrowLeft, MonitorPlay } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import Header from "@/components/Header";
 import supabase from "../../utils/supabase.ts";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
-//so para fazer commit
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export type Course = { 
-  id:string;
-  course_id:string;
+  id: string;
+  courses_id: string; // Verifique se no banco é courses_id ou tema_id
   name: string;
   difficult: string;
 }
@@ -20,67 +19,54 @@ export type Tema = {
   name: string;
   description: string;
   type: string;
-  courses: Course[]; // Sua função vai preencher este array
+  courses: Course[];
 }
-
 
 const gridBg = {
   backgroundImage: `linear-gradient(hsl(155 60% 45% / 0.05) 1px, transparent 1px), linear-gradient(90deg, hsl(155 60% 45% / 0.05) 1px, transparent 1px)`,
   backgroundSize: "60px 60px",
 };
 
-const difficultClass: Record<string, string> = {
-  Iniciante: "text-primary",
-  Intermediário: "text-accent",
-  Avançado: "text-destructive",
-};
-
-const difficultBg: Record<string, string> = {
-  Iniciante: "border-primary/30 bg-primary/5",
-  Intermediário: "border-accent/30 bg-accent/5",
-  Avançado: "border-destructive/30 bg-destructive/5",
-};
-
-
-// ─── Componente da Lista de Cursos da Área Selecionada ──────────────────────
+// ─── Componente da Lista de Cursos (View Interna) ──────────────────────
 const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) => {
-  // Verificação de segurança caso courses venha undefined do banco inicialmente
   const cursos = tema.courses || []; 
+  const totalCursos = cursos.length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.3 }}
+    <motion.div 
+      initial={{ opacity: 0, x: 20 }} 
+      animate={{ opacity: 1, x: 0 }} 
+      exit={{ opacity: 0, x: -20 }} 
       className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-5xl mx-auto min-h-[70vh]"
     >
-      {/* Botão Voltar */}
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-8"
-      >
-        <ArrowLeft size={16} />
-        Voltar para todas as áreas
+      <button onClick={onBack} className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-8">
+        <ArrowLeft size={16} /> Voltar para todas as áreas
       </button>
 
-      
-
-      {/* Header da Área */}
       <div className="mb-10">
         <span className="text-xs font-accent font-bold text-primary uppercase tracking-widest mb-3 block">
           Trilha de {tema.type}
         </span>
+        
         <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
           {tema.name}
         </h1>
+
+        <div className="flex items-center gap-2 mb-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/10">
+            <MonitorPlay size={14} className="text-primary" />
+            <span className="text-xs font-accent font-bold text-primary tracking-wide">
+              {totalCursos} {totalCursos === 1 ? 'Curso Disponível' : 'Cursos Disponíveis'}
+            </span>
+          </div>
+        </div>
+
         <p className="text-muted-foreground font-body text-base max-w-3xl leading-relaxed">
           {tema.description}
         </p>
       </div>
 
-      {/* Lista de Cursos */}
-<div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {cursos.length > 0 ? (
           cursos.map((course) => (
             <CourseCard 
@@ -91,97 +77,72 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
           ))
         ) : (
           <div className="text-center py-20 border border-dashed border-border/30 rounded-lg">
-            <p className="text-muted-foreground">Nenhum curso vinculado a esta trilha.</p>
+            <p className="text-muted-foreground">Nenhum curso vinculado a esta trilha ainda.</p>
           </div>
-          )}
+        )}
       </div>
     </motion.div>
   );
 };
 
-// ─── Main Component ─────────────────────────────────────────────────────────
+// ─── Componente Principal ───────────────────────────────────────────────────
 const RoadmapSection = () => {
-  const [temas, setTemas] = useState<Tema[]>([]);
-   const [course, setCourse] = useState<Course[]>([]);
+  const [temasBrutos, setTemasBrutos] = useState<Tema[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("Todos");
   const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
 
   useEffect(() => {
-    SyncTemas();
-    SyncCourse();
-  }, []); 
-
-  // Quando você fizer a função de puxar os cursos, ela deve popular o array 'courses' 
-  // dentro de cada objeto 'Tema' retornado pelo banco.
-async function SyncCourse(): Promise<void> { 
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('courses')
-      .select('*')
-      
-      
-    if (error) { 
-      console.error(error.message); 
+    async function loadData() {
+      setLoading(true);
+      await Promise.all([SyncTemas(), SyncCourse()]);
       setLoading(false);
-      return; 
     }
+    loadData();
+  }, []);
 
-    setCourse(data || []);
-    setLoading(false);
-    }
+  async function SyncCourse() { 
+    const { data, error } = await supabase.from('courses').select('*');
+    if (!error) setAllCourses(data || []);
+  }
 
-    const handleTemaClick = (tema: Tema) => {
-    // Aqui usamos o 'course' que está no estado do componente
-    // Filtramos apenas os cursos que pertencem ao ID deste tema
-    const cursosFiltrados = course.filter((c: any) => c.courses_id === tema.id);
-
-    setSelectedTema({
-      ...tema,
-      courses: cursosFiltrados 
-    });
-  };
-
-  async function SyncTemas(): Promise<void> { 
-    setLoading(true);
+  async function SyncTemas() { 
     const { data, error } = await supabase
       .from('temas')
       .select('*')
       .order('created_at', { ascending: true });
-      
-      
-    if (error) { 
-      console.error(error.message); 
-      setLoading(false);
-      return; 
-    }
-
-    setTemas(data || []);
-    setLoading(false);
+    if (!error) setTemasBrutos(data || []);
   }
 
+  // Une Temas + Cursos em uma lista pronta para uso
+  const temasProntos = useMemo(() => {
+    return temasBrutos.map((tema) => ({
+      ...tema,
+      courses: allCourses.filter((c) => c.courses_id === tema.id)
+    }));
+  }, [temasBrutos, allCourses]);
+
   const categories = useMemo(() => {
-    const uniqueTypes = Array.from(new Set(temas.map((t) => t.type).filter(Boolean)));
+    const uniqueTypes = Array.from(new Set(temasProntos.map((t) => t.type).filter(Boolean)));
     return ["Todos", ...uniqueTypes];
-  }, [temas]);
+  }, [temasProntos]);
 
   const filteredTemas = useMemo(() => {
-    return temas.filter((t) => {
+    return temasProntos.filter((t) => {
       const q = search.toLowerCase();
       const matchSearch = !q || t.name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q);
       const matchType = activeType === "Todos" || t.type === activeType;
       return matchSearch && matchType;
     });
-  }, [temas, search, activeType]);
+  }, [temasProntos, search, activeType]);
 
   return (
     <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
       <Header />
       <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
-      <div className="absolute top-0 left-0 right-0 h-[50vh] bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
-
+      
       <AnimatePresence mode="wait">
         {!selectedTema ? (
           <motion.div 
@@ -191,7 +152,6 @@ async function SyncCourse(): Promise<void> {
             exit={{ opacity: 0, x: -20 }}
             className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-7xl mx-auto"
           >
-            {/* Hero & Search */}
             <div className="max-w-3xl mx-auto text-center mb-16">
               <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-6 leading-tight">
                 O que você quer <span className="text-primary text-glow">aprender</span> hoje?
@@ -205,22 +165,21 @@ async function SyncCourse(): Promise<void> {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Busque por área, tecnologia ou curso..."
-                  className="block w-full pl-12 pr-4 py-4 rounded-full bg-secondary/40 border border-border/50 text-foreground placeholder:text-muted-foreground focus:bg-secondary/80 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all outline-none text-base sm:text-lg backdrop-blur-sm"
+                  className="block w-full pl-12 pr-4 py-4 rounded-full bg-secondary/40 border border-border/50 text-foreground outline-none backdrop-blur-sm focus:border-primary/50 transition-all"
                 />
               </div>
             </div>
 
-            {/* Categorias */}
             <div className="mb-10">
               <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">
                 {categories.map((category) => (
                   <button
                     key={category}
                     onClick={() => setActiveType(category)}
-                    className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-accent font-semibold transition-all duration-200 border ${
+                    className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-accent font-semibold transition-all border ${
                       activeType === category
-                        ? "bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]"
-                        : "bg-secondary/30 text-muted-foreground border-border/40 hover:bg-secondary/60 hover:text-foreground"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-secondary/30 text-muted-foreground border-border/40 hover:bg-secondary/60"
                     }`}
                   >
                     {category}
@@ -229,39 +188,27 @@ async function SyncCourse(): Promise<void> {
               </div>
             </div>
 
-            {/* Grid */}
             <div className="min-h-[400px]">
               {loading ? (
-                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                <div className="flex flex-col items-center justify-center h-40">
                   <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="font-accent text-sm">Carregando áreas...</p>
                 </div>
               ) : filteredTemas.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 px-4 text-center border border-dashed border-border/50 rounded-2xl bg-secondary/10">
-                  <Compass className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                  <h3 className="text-xl font-display font-bold text-foreground mb-2">Nenhum resultado encontrado</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    Não encontramos nenhuma área correspondente a "{search}". Tente usar outros termos ou limpe os filtros.
-                  </p>
-                  <button 
-                    onClick={() => { setSearch(""); setActiveType("Todos"); }}
-                    className="mt-6 px-6 py-2 rounded-full bg-secondary hover:bg-secondary/80 text-foreground text-sm font-semibold transition-colors"
-                  >
-                    Limpar busca
-                  </button>
+                <div className="text-center py-20 border border-dashed border-border/50 rounded-2xl bg-secondary/10">
+                  <Compass className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold mb-2">Nenhum resultado encontrado</h3>
+                  <button onClick={() => { setSearch(""); setActiveType("Todos"); }} className="mt-4 text-primary underline">Limpar busca</button>
                 </div>
               ) : (
                 <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <AnimatePresence>
-                    {filteredTemas.map((tema, i) => (
-                      <TemaCard 
-                        key={tema.id} 
-                        tema={tema} 
-                        index={i}
-                        onClick={() => handleTemaClick(tema)} 
-                      />
-                    ))}
-                  </AnimatePresence>
+                  {filteredTemas.map((tema, i) => (
+                    <TemaCard 
+                      key={tema.id} 
+                      tema={tema} 
+                      index={i}
+                      onClick={() => setSelectedTema(tema)} 
+                    />
+                  ))}
                 </motion.div>
               )}
             </div>
