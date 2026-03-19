@@ -1127,7 +1127,7 @@ const CoursesPage = () => {
       >
         <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
           <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z" fill={showRoadmap ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
-          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showRoadmap ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
+          <path d="M28 0  18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showRoadmap ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingRight: 2 }}>
           <span style={{ fontSize: 13, color: showRoadmap ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
