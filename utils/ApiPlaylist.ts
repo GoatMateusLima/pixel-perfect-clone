@@ -1,8 +1,15 @@
-const API_KEY = 'AIzaSyB8j7ruBLTJh-uCXy_onELV9HxwAGY6Nxg'
-const PLAYLIST_ID = ''
+const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY
 
-async function getPlaylistVideos(playlistId: string) {
-  const videos = []
+export type Video = {
+  id: string
+  nome: string
+  url: string
+  thumb: string
+  descricao: string
+}
+
+export async function getPlaylistVideos(playlistId: string): Promise<Video[]> {
+  const videos: Video[] = []
   let nextPageToken = ''
 
   do {
@@ -23,8 +30,10 @@ async function getPlaylistVideos(playlistId: string) {
       const videoId = item.snippet.resourceId.videoId
       videos.push({
         id: videoId,
-        name: item.snippet.title,
+        nome: item.snippet.title,
         url: `https://www.youtube.com/watch?v=${videoId}`,
+        thumb: item.snippet.thumbnails?.medium?.url ?? '',
+        descricao: item.snippet.description ?? '',
       })
     }
 
@@ -33,21 +42,3 @@ async function getPlaylistVideos(playlistId: string) {
 
   return videos
 }
-
-// uso
-const videos = await getPlaylistVideos(PLAYLIST_ID)
-console.log(videos)
-
-
-
-
-import supabase from '../utils/supabase'
-
-interface  aulas {
-
-}
-
-
-
-const videoid = 
-const kind = 

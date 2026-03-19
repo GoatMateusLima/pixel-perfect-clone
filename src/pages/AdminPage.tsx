@@ -251,29 +251,69 @@ const AdminPage = () => {
     }));
   };
 
-  const handleSaveCourse = async () => {
-    if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
-      notify("error", "Preencha nome, dificuldade e o tema do curso.");
-      return;
-    }
-    setSavingCourse(true);
-    const { error } = await supabaseAdmin.from("courses").insert({
+ const handleSaveCourse = async () => {
+  if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
+    notify("error", "Preencha nome, dificuldade e o tema do curso.");
+    return;
+  }
+  setSavingCourse(true);
+
+  // 1. Salva o curso
+  const { data: course, error } = await supabaseAdmin
+    .from("courses")
+    .insert({
       name: courseForm.name.trim(),
       descricao: courseForm.descricao.trim() || null,
       difficult: courseForm.difficult,
       courses_id: courseForm.courses_id,
       playlist_id: courseForm.playlist_id || null,
-    });
-    setSavingCourse(false);
+    })
+    .select("id")
+    .single();
 
-    if (error) {
-      notify("error", "Erro ao salvar: " + error.message);
-    } else {
-      const temaNome = temas.find((t) => t.id === courseForm.courses_id)?.name ?? "";
-      notify("success", `Curso criado em "${temaNome}"!`);
-      setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlistUrl: "", playlist_id: "" });
+  if (error || !course) {
+    notify("error", "Erro ao salvar curso: " + error?.message);
+    setSavingCourse(false);
+    return;
+  }
+
+  // 2. Se tiver playlist, busca os vídeos e salva as aulas
+  if (courseForm.playlist_id) {
+    try {
+      const videos = await getPlaylistVideos(courseForm.playlist_id);
+
+      const aulas = videos.map((video, index) => ({
+        course_id: course.id,
+        nome: video.nome,
+        url_video: video.url,
+        descricao: video.descricao,
+        thumb: video.thumb,
+        position: index,
+      }));
+
+      const { error: aulasError } = await supabaseAdmin
+        .from("aulas")
+        .insert(aulas);
+
+      if (aulasError) {
+        notify("error", "Curso criado, mas erro ao salvar aulas: " + aulasError.message);
+        setSavingCourse(false);
+        return;
+      }
+
+      notify("success", `Curso criado com ${videos.length} aulas!`);
+    } catch (err: any) {
+      notify("error", "Erro ao buscar playlist: " + err.message);
+      setSavingCourse(false);
+      return;
     }
-  };
+  } else {
+    notify("success", `Curso "${courseForm.name}" criado!`);
+  }
+
+  setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlistUrl: "", playlist_id: "" });
+  setSavingCourse(false);
+};
 
   const selectedTema = temas.find((t) => t.id === courseForm.courses_id);
 
