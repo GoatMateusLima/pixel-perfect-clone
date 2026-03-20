@@ -273,7 +273,7 @@ const CommunityPage = () => {
     <div className="min-h-screen gradient-hero scanline">
       <Header />
 
-      <div className="px-4 pt-24 pb-16">
+      <div className="px-3 sm:px-4 pt-20 sm:pt-24 pb-16">
         <div className="max-w-7xl mx-auto ">
 
           {/* ── Cabeçalho Atualizado ── */}
@@ -303,10 +303,10 @@ const CommunityPage = () => {
           </motion.div>
 
           {/* ── Layout 3 colunas ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-[240px_1fr_260px] gap-4 xl:gap-6">
 
             {/* Sidebar esquerda */}
-            <aside className="hidden lg:block">
+            <aside className="hidden xl:block">
               <div className="sticky top-24">
                 <LeftSidebar
                   myName={myName}            myDisc={myDisc}
@@ -427,7 +427,7 @@ const CommunityPage = () => {
             </main>
 
             {/* Sidebar direita */}
-            <aside className="hidden lg:block">
+            <aside className="hidden xl:block">
               <div className="sticky top-24">
                 <RightSidebar />
               </div>
@@ -442,7 +442,7 @@ const CommunityPage = () => {
           post={openPost}
           onClose={closeModal}
           onLike={handleLike}   onSave={handleSave}
-          profilePhoto={profilePhoto} myName={myName}
+          myAvatarUrl={profilePhoto ?? null} myName={myName}
           myDisc={myDisc}           myDiscRingImg={myDiscRingImg}
           myUserId={myCreatorId}
         />

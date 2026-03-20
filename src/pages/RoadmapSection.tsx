@@ -6,6 +6,7 @@ import supabase from "../../utils/supabase.ts";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
 
+
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export type Course = { 
   id: string;
