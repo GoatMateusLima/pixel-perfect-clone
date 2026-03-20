@@ -296,34 +296,30 @@ const PostCard = ({
       </div>
 
       {/* ── Descrição ── */}
-      <div className="px-5 py-4 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
+      <div className="px-4 pt-3 pb-2 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
         <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">
           {post.description}
         </p>
       </div>
 
-      {/* ── Mídia (imagem, vídeo ou GIF) ── */}
+      {/* ── Mídia — borda-a-borda, sem padding lateral (igual Twitter) ── */}
       {post.midia && post.midia !== "EMPTY" && (
-        <div className="px-5 pb-2">
-          <PostMedia
-            midia={post.midia.startsWith("gif:") ? post.midia.replace("gif:", "") : post.midia}
-            maxHeight={340}
-            onClick={() => post && onOpenModal?.(post)}
-          />
+        <div className="mt-2 cursor-pointer overflow-hidden w-full"
+          onClick={() => post && onOpenModal?.(post)}>
+          <PostMedia midia={post.midia} maxHeight={520} />
         </div>
       )}
 
       {/* ── Contadores ── */}
-      <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
+      <div className="px-4 py-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/20 mt-1">
         <span>{post.like_qnt ?? 0} curtidas</span>
         <button onClick={() => post && onOpenModal?.(post)} className="hover:text-foreground transition">
-          {/* AQUI ESTÁ A MÁGICA: Usando o estado commentCount ao invés de post.comments.length */}
           {commentCount} {commentCount === 1 ? "comentário" : "comentários"} · Ver todos
         </button>
       </div>
 
       {/* ── Ações ── */}
-      <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
+      <div className="px-2 py-1 flex items-center gap-1 border-t border-border/20">
         {[
           { label: "Curtir",      el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike?.(post.id) },
           { label: "Comentar",    el: <MessageCircle size={14} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
