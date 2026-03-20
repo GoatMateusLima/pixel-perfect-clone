@@ -302,11 +302,11 @@ const CommunityPage = () => {
             </div>
           </motion.div>
 
-          {/* ── Layout 3 colunas ── */}
-          <div className="grid grid-cols-1 xl:grid-cols-[240px_1fr_260px] gap-4 xl:gap-6">
+          {/* ── Layout 3 colunas — estilo Twitter ── */}
+          <div className="flex gap-6 justify-center">
 
-            {/* Sidebar esquerda */}
-            <aside className="hidden xl:block">
+            {/* Sidebar esquerda — fixa, aparece em lg+ */}
+            <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
               <div className="sticky top-24">
                 <LeftSidebar
                   myName={myName}            myDisc={myDisc}
@@ -318,8 +318,8 @@ const CommunityPage = () => {
               </div>
             </aside>
 
-            {/* Feed central */}
-            <main className="space-y-4 min-w-0 relative">
+            {/* Feed central — largura máxima fixa como Twitter (~600px) */}
+            <main className="w-full max-w-[600px] flex-shrink-0 space-y-0 min-w-0 relative border-x border-border/20">
 
               {/* Filtro */}
               <div className="flex gap-2 flex items-center justify-center">
@@ -426,8 +426,8 @@ const CommunityPage = () => {
               )}
             </main>
 
-            {/* Sidebar direita */}
-            <aside className="hidden xl:block">
+            {/* Sidebar direita — fixa, aparece em xl+ */}
+            <aside className="hidden xl:block w-72 xl:w-80 flex-shrink-0">
               <div className="sticky top-24">
                 <RightSidebar />
               </div>
