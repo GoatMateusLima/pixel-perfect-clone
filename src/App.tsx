@@ -17,6 +17,7 @@ import CommunityPage from "./pages/CommunityPage (2)";
 import SupportPage from "./pages/SupportPage";
 import ProtectedRoute from "./contexts/ProtectedRoute";
 import AuthRoute from "./contexts/AuthRoute";
+// import AdminPage from "./pages/AdminPage";
 
 
 const queryClient = new QueryClient();
@@ -39,6 +40,8 @@ const App = () => (
             <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
             <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="/suporte" element={<SupportPage />} />
+            {/* <Route path="/admin" element={<AdminPage />} /> */}
+            <Route path="/curso/:courseId" element={<CoursesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

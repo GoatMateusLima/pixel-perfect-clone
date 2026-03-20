@@ -1,8 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import QuizTab from "../components/Quiztab";
+import { useAuth } from "@/contexts/AuthContext";
+import supabase from "../../utils/supabase.ts";
+import PostModal from "../components/PostModal";
 import {
   PlayCircle,
   ClipboardList,
@@ -11,26 +14,66 @@ import {
   CheckCircle2,
   Lock,
   Send,
-  ThumbsUp,
   Clock,
   BookOpen,
   Star,
+  Heart,
+  MessageCircle,
+  Loader2,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type Tab = "aula" | "quiz" | "duvidas";
 
+// Doubt é exatamente Post da Community — mesmas colunas de publications
 interface Doubt {
-  id: number;
-  author: string;
-  avatar: string;
-  time: string;
-  text: string;
-  likes: number;
-  answered: boolean;
-  reply?: string;
+  id: string;
+  creator_id: string;
+  description: string;
+  date: string;
+  midia?: string;
+  liked_by: string[];
+  like_qnt: number;
+  liked: boolean;
+  saved: boolean;
+  comments: any[];
+  profile?: {
+    id: string;
+    name: string;
+    avatar_url?: string;
+    disc_ring_img?: string;
+    role?: string;
+  };
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Cópia exata do rowToPost da CommunityPage
+const rowToDoubt = (row: any, userId?: string): Doubt => {
+  const profileRaw = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles ?? row.profile ?? null;
+  const bordaAtiva = (profileRaw?.bordas ?? []).find((b: any) => b.ativa) ?? null;
+
+  return {
+    id:          row.id,
+    creator_id:  row.creator_id,
+    description: row.description,
+    date:        row.date,
+    midia:       row.midia,
+    liked_by:    row.liked_by ?? [],
+    like_qnt:    (row.liked_by ?? []).length,
+    liked:       userId ? (row.liked_by ?? []).includes(userId) : false,
+    saved:       false,
+    comments:    [],
+    profile: profileRaw ? {
+      id:           profileRaw.user_id,
+      name:         profileRaw.name      ?? "Usuário",
+      avatar_url:   profileRaw.perfil    ?? undefined,
+      disc_ring_img: bordaAtiva?.img_url ?? undefined,
+      role:         profileRaw.descricao ?? undefined,
+    } : undefined,
+  };
+};
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
@@ -41,43 +84,6 @@ const LESSONS = [
   { id: 4, title: "Git & Versionamento", duration: "15min", done: false, locked: true },
   { id: 5, title: "Deploy na Nuvem", duration: "20min", done: false, locked: true },
 ];
-
-
-const DOUBTS: Doubt[] = [
-  {
-    id: 1,
-    author: "Lucas M.",
-    avatar: "L",
-    time: "há 2 horas",
-    text: "Como escolher entre aprender Python ou JavaScript primeiro?",
-    likes: 14,
-    answered: true,
-    reply:
-      "Para web, comece com JavaScript. Para dados e IA, Python é a escolha certa. Se ainda não sabe a área, JavaScript tem mais aplicações imediatas e vagas.",
-  },
-  {
-    id: 2,
-    author: "Ana P.",
-    avatar: "A",
-    time: "há 5 horas",
-    text: "Preciso de faculdade para trabalhar como dev ou bootcamp já é suficiente?",
-    likes: 21,
-    answered: true,
-    reply:
-      "Bootcamp + portfólio sólido te coloca no mercado. A maioria das empresas hoje avalia skills práticas acima de diplomas — mas faculdade ajuda em cargos sênior.",
-  },
-  {
-    id: 3,
-    author: "Fábio R.",
-    avatar: "F",
-    time: "há 1 dia",
-    text: "Qual a diferença entre front-end e back-end na prática do dia a dia?",
-    likes: 8,
-    answered: false,
-  },
-];
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
 
 const LESSON_INFO: Record<number, { title: string; description: string; duration: string; module: string; num: number }> = {
   1: { title: "Introdução ao Mercado Tech", description: "Uma visão geral do ecossistema tech, oportunidades de carreira e como se posicionar no mercado atual.", duration: "12:00", module: "Módulo 1", num: 1 },
@@ -179,36 +185,186 @@ const AulaTab = ({ activeLesson = 3 }: { activeLesson?: number }) => {
   );
 };
 
+// ─── DuvidasTab ───────────────────────────────────────────────────────────────
+
 const DuvidasTab = () => {
-  const [doubts, setDoubts] = useState<Doubt[]>(DOUBTS);
-  const [newDoubt, setNewDoubt] = useState("");
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+  const { user, profilePhoto } = useAuth();
+  const myCreatorId = user?.id;
+  const myName      = user?.name ?? "Você";
+  const myDisc      = user?.assessment?.discProfile ?? "S";
 
-  const handleSubmit = () => {
+  const [doubts,     setDoubts]     = useState<Doubt[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [newDoubt,   setNewDoubt]   = useState("");
+  const [filter,     setFilter]     = useState<"recentes" | "populares">("recentes");
+  const [openDoubt,  setOpenDoubt]  = useState<Doubt | null>(null);
+
+  // ── Carrega dúvidas — query idêntica à CommunityPage ────────────────────────
+  const fetchDoubts = useCallback(async () => {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("publications")
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+      .order("date", { ascending: false });
+
+    if (error) {
+      console.error("[DuvidasTab] Erro ao carregar dúvidas:", error.message);
+      setLoading(false);
+      return;
+    }
+
+    setDoubts((data ?? []).map((row) => rowToDoubt(row, myCreatorId)));
+    setLoading(false);
+  }, [myCreatorId]);
+
+  useEffect(() => { fetchDoubts(); }, [fetchDoubts]);
+
+  // ── Realtime — canal idêntico ao da CommunityPage ───────────────────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel("duvidas-realtime")
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "publications" },
+        async (payload) => {
+          if (payload.new.creator_id === myCreatorId) return;
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("user_id, name, perfil, descricao, bordas")
+            .eq("user_id", payload.new.creator_id)
+            .maybeSingle();
+
+          setDoubts((prev) => [
+            rowToDoubt({ ...payload.new, profiles: profile }, myCreatorId),
+            ...prev,
+          ]);
+        }
+      )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "publications" },
+        (payload) => {
+          setDoubts((prev) =>
+            prev.map((d) => {
+              if (d.id !== payload.new.id) return d;
+              const likedBy: string[] = payload.new.liked_by ?? [];
+              return {
+                ...d,
+                liked_by: likedBy,
+                like_qnt: likedBy.length,
+                liked:    myCreatorId ? likedBy.includes(myCreatorId) : d.liked,
+              };
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [myCreatorId]);
+
+  // ── Publicar dúvida — insert idêntico ao CreatePost da Community ─────────────
+  // Insere em publications com os mesmos campos existentes: description, date, liked_by
+  const handleSubmitDoubt = async () => {
     const text = newDoubt.trim();
-    if (!text) return;
-    const d: Doubt = {
-      id: Date.now(),
-      author: "Você",
-      avatar: "V",
-      time: "agora",
-      text,
-      likes: 0,
-      answered: false,
+    if (!text || !myCreatorId || submitting) return;
+
+    setSubmitting(true);
+
+    // Optimistic update — igual ao handlePost da CommunityPage
+    const now = new Date().toISOString();
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Doubt = {
+      id: tempId,
+      creator_id:  myCreatorId,
+      description: text,
+      date:        now,
+      liked_by:    [],
+      like_qnt:    0,
+      liked:       false,
+      saved:       false,
+      comments:    [],
+      profile: {
+        id:         myCreatorId,
+        name:       myName,
+        avatar_url: profilePhoto ?? undefined,
+        role:       "Membro · UpJobs",
+      },
     };
-    setDoubts((prev) => [d, ...prev]);
+    setDoubts((prev) => [optimistic, ...prev]);
     setNewDoubt("");
+
+    const { data, error } = await supabase
+      .from("publications")
+      .insert({
+        creator_id:  myCreatorId,
+        description: text,
+        date:        now,
+        liked_by:    [],
+        // midia não obrigatório — não passa
+      })
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+      .single();
+
+    if (error) {
+      console.error("[DuvidasTab] Erro ao publicar dúvida:", error.message);
+      setDoubts((prev) => prev.filter((d) => d.id !== tempId));
+      setNewDoubt(text);
+    } else {
+      setDoubts((prev) =>
+        prev.map((d) => (d.id === tempId ? rowToDoubt(data, myCreatorId) : d))
+      );
+    }
+
+    setSubmitting(false);
   };
 
-  const handleLike = (id: number) => {
-    if (likedIds.has(id)) return;
-    setLikedIds((prev) => new Set(prev).add(id));
-    setDoubts((prev) => prev.map((d) => (d.id === id ? { ...d, likes: d.likes + 1 } : d)));
+  // ── Like / Unlike — RPCs idênticas às da CommunityPage ──────────────────────
+  const handleLike = async (id: string) => {
+    if (!myCreatorId) return;
+    const doubt = doubts.find((d) => d.id === id);
+    if (!doubt) return;
+
+    const alreadyLiked = doubt.liked;
+    const prevDoubts   = doubts;
+
+    setDoubts((prev) =>
+      prev.map((d) => {
+        if (d.id !== id) return d;
+        const newLikedBy = alreadyLiked
+          ? d.liked_by.filter((uid) => uid !== myCreatorId)
+          : [...d.liked_by, myCreatorId];
+        return { ...d, liked_by: newLikedBy, like_qnt: newLikedBy.length, liked: !alreadyLiked };
+      })
+    );
+
+    const { error } = await supabase.rpc(
+      alreadyLiked ? "unlike_publication" : "like_publication",
+      { pub_id: id, uid: myCreatorId }
+    );
+
+    if (error) {
+      console.error("Like dúvida:", error.message);
+      setDoubts(prevDoubts);
+    }
   };
+
+  // ── Abre PostModal para ver/responder a dúvida — igual à CommunityPage ───────
+  const openModal = (doubt: Doubt) => setOpenDoubt(doubt);
+  const closeModal = () => setOpenDoubt(null);
+
+  const sorted = filter === "populares"
+    ? [...doubts].sort((a, b) => b.like_qnt - a.like_qnt)
+    : [...doubts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const getInitialLetter = (name?: string) =>
+    name?.charAt(0)?.toUpperCase() ?? "?";
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-5">
+
+      {/* ── Formulário de nova dúvida ── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -218,100 +374,177 @@ const DuvidasTab = () => {
           <MessageCircleQuestion size={14} className="text-primary" />
           Enviar uma Dúvida
         </h3>
-        <textarea
-          value={newDoubt}
-          onChange={(e) => setNewDoubt(e.target.value)}
-          rows={3}
-          placeholder="Escreva sua dúvida sobre o conteúdo desta aula..."
-          className="w-full px-4 py-3 rounded-sm bg-input border border-border text-foreground font-body text-sm focus:outline-none focus:border-primary/60 transition resize-none"
-        />
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={handleSubmit}
-            disabled={!newDoubt.trim()}
-            className="flex items-center gap-2 px-5 py-2 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold disabled:opacity-40 box-glow-accent hover:brightness-110 transition"
-          >
-            <Send size={13} /> Enviar
-          </button>
+        <div className="flex gap-3">
+          {/* Avatar do usuário logado */}
+          <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
+            style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
+            {profilePhoto
+              ? <img src={profilePhoto} alt={myName} className="w-full h-full object-cover" />
+              : getInitialLetter(myName)}
+          </div>
+          <div className="flex-1">
+            <textarea
+              value={newDoubt}
+              onChange={(e) => setNewDoubt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) handleSubmitDoubt(); }}
+              rows={3}
+              placeholder="Escreva sua dúvida sobre o conteúdo desta aula... (Ctrl+Enter para enviar)"
+              className="w-full px-4 py-3 rounded-sm bg-input border border-border text-foreground font-body text-sm focus:outline-none focus:border-primary/60 transition resize-none"
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={handleSubmitDoubt}
+                disabled={!newDoubt.trim() || submitting || !myCreatorId}
+                className="flex items-center gap-2 px-5 py-2 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold disabled:opacity-40 hover:brightness-110 transition"
+                style={{ boxShadow: newDoubt.trim() ? "0 0 12px hsl(25 90% 55% / 0.35)" : "none" }}
+              >
+                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                Publicar Dúvida
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
 
-      <div className="space-y-3">
-        {doubts.map((d, i) => (
-          <motion.div
-            key={d.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className={`hologram-panel rounded-sm p-4 transition-all ${expanded === d.id ? "border-primary/40" : ""}`}
+      {/* ── Filtro ── */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground font-body mr-1">Ordenar:</span>
+        {(["recentes", "populares"] as const).map((f) => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-sm text-xs font-accent font-semibold transition
+              ${f === filter
+                ? "text-primary-foreground"
+                : "text-muted-foreground border border-border hover:text-foreground"}`}
+            style={f === filter
+              ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.3)" }
+              : undefined}
           >
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 w-8 h-8 rounded-sm bg-primary/20 border border-primary/30 flex items-center justify-center font-display text-xs font-bold text-primary">
-                {d.avatar}
-              </div>
+            {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+          </button>
+        ))}
+        <span className="ml-auto text-xs text-muted-foreground/50 font-body">
+          {doubts.length} {doubts.length === 1 ? "dúvida" : "dúvidas"}
+        </span>
+      </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-accent font-semibold text-foreground">{d.author}</span>
-                  <span className="text-xs text-foreground/60 font-body">{d.time}</span>
-                  {d.answered && (
-                    <span className="text-xs font-accent font-semibold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10 border border-primary/20">
-                      Respondida
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-foreground/80 font-body leading-relaxed">{d.text}</p>
-
-                <AnimatePresence>
-                  {d.answered && expanded === d.id && d.reply && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-3 pl-3 border-l-2 border-primary/30"
-                    >
-                      <p className="text-xs font-accent font-semibold text-primary mb-0.5">Resposta do Instrutor</p>
-                      <p className="text-sm text-foreground/75 font-body leading-relaxed">{d.reply}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="flex items-center gap-3 mt-3">
-                  <button
-                    onClick={() => handleLike(d.id)}
-                    disabled={likedIds.has(d.id)}
-                    className="flex items-center gap-1 text-xs font-accent transition-all"
-                    style={likedIds.has(d.id)
-                      ? { color: "hsl(155 60% 50%)", cursor: "default" }
-                      : { color: "hsl(215 15% 50%)" }}
-                  >
-                    <motion.span
-                      animate={likedIds.has(d.id) ? { scale: [1, 1.4, 1] } : { scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                      style={{ display: "flex" }}
-                    >
-                      <ThumbsUp
-                        size={11}
-                        style={likedIds.has(d.id) ? { fill: "hsl(155 60% 50%)", color: "hsl(155 60% 50%)" } : {}}
-                      />
-                    </motion.span>
-                    {d.likes}
-                  </button>
-                  {d.answered && (
-                    <button
-                      onClick={() => setExpanded(expanded === d.id ? null : d.id)}
-                      className="flex items-center gap-1 text-xs text-muted-foreground font-accent hover:text-primary transition"
-                    >
-                      <MessageCircleQuestion size={11} />
-                      {expanded === d.id ? "Fechar" : "Ver resposta"}
-                    </button>
-                  )}
+      {/* ── Loading skeleton ── */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="hologram-panel rounded-sm p-4 animate-pulse">
+              <div className="flex gap-3">
+                <div className="w-9 h-9 rounded-full bg-secondary/60 shrink-0" />
+                <div className="flex-1 space-y-2 pt-1">
+                  <div className="h-3 bg-secondary/60 rounded w-1/4" />
+                  <div className="h-3 bg-secondary/50 rounded w-full" />
+                  <div className="h-3 bg-secondary/40 rounded w-4/5" />
                 </div>
               </div>
             </div>
-          </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="hologram-panel rounded-sm p-10 text-center">
+          <p className="text-sm text-muted-foreground font-body">
+            Nenhuma dúvida ainda. Seja o primeiro!
+          </p>
+        </div>
+      ) : (
+        /* ── Cards de dúvida ── */
+        <AnimatePresence mode="popLayout">
+          {sorted.map((doubt, i) => (
+            <motion.div
+              key={doubt.id}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ delay: i * 0.04 }}
+              className="hologram-panel rounded-sm p-4 cursor-pointer hover:border-primary/30 transition-all"
+              onClick={() => openModal(doubt)}
+            >
+              <div className="flex gap-3">
+                {/* Avatar */}
+                <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
+                  style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
+                  {doubt.profile?.avatar_url
+                    ? <img src={doubt.profile.avatar_url} alt={doubt.profile.name} className="w-full h-full object-cover" />
+                    : getInitialLetter(doubt.profile?.name)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-xs font-accent font-semibold text-foreground">
+                      {doubt.profile?.name ?? "Usuário"}
+                    </span>
+                    {doubt.profile?.role && (
+                      <span className="text-[10px] text-muted-foreground font-body">
+                        {doubt.profile.role}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground/50 font-body ml-auto">
+                      {doubt.date
+                        ? new Date(doubt.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+                        : ""}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-foreground/85 font-body leading-relaxed line-clamp-3 mb-3">
+                    {doubt.description}
+                  </p>
+
+                  {/* Action bar */}
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    {/* Like */}
+                    <button
+                      onClick={() => handleLike(doubt.id)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
+                      style={doubt.liked ? { color: "hsl(5 80% 60%)" } : { color: "hsl(215 15% 50%)" }}
+                    >
+                      <motion.span
+                        animate={doubt.liked ? { scale: [1, 1.5, 1] } : { scale: 1 }}
+                        transition={{ duration: 0.35 }}
+                        style={{ display: "flex" }}
+                      >
+                        <Heart
+                          size={13}
+                          style={doubt.liked ? { fill: "hsl(5 80% 60%)", color: "hsl(5 80% 60%)" } : {}}
+                        />
+                      </motion.span>
+                      <span>{doubt.like_qnt}</span>
+                    </button>
+
+                    {/* Comentários — abre PostModal */}
+                    <button
+                      onClick={() => openModal(doubt)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
+                      style={{ color: "hsl(215 15% 50%)" }}
+                    >
+                      <MessageCircle size={13} />
+                      <span>Responder</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
+
+      {/* ── PostModal para comentários — igual à CommunityPage ── */}
+      {openDoubt && (
+        <PostModal
+          post={openDoubt as any}
+          onClose={closeModal}
+          onLike={(id: string) => handleLike(id)}
+          onSave={() => {}}
+          profilePhoto={profilePhoto}
+          myName={myName}
+          myDisc={myDisc}
+          myDiscRingImg={undefined}
+          myUserId={myCreatorId}
+        />
+      )}
     </div>
   );
 };
@@ -894,7 +1127,7 @@ const CoursesPage = () => {
       >
         <svg width="28" height="72" viewBox="0 0 28 72" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
           <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72 Z" fill={showRoadmap ? "hsl(215 28% 8%)" : "hsl(215 24% 10%)"} />
-          <path d="M28 0 L18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showRoadmap ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
+          <path d="M28 0  18 0 C6 0 0 10 0 36 C0 62 6 72 18 72 L28 72" stroke={showRoadmap ? "hsl(155 60% 45% / 0.7)" : "hsl(215 20% 28%)"} strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-10 flex items-center justify-center w-full h-full" style={{ paddingRight: 2 }}>
           <span style={{ fontSize: 13, color: showRoadmap ? "hsl(155 60% 65%)" : "hsl(155 50% 50%)", lineHeight: 1 }}>
