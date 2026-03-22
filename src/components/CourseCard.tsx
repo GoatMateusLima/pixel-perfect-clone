@@ -27,10 +27,10 @@ export const CourseCard = ({ course, onClick }: CourseCardProps) => {
   const navigate = useNavigate();
   const difficultyStyle = getDifficultyStyle(course.difficult);
 
-  const handleClick = () => {
-    onClick?.(course);
-    navigate(`/courses`);
-  };
+ const handleClick = () => {
+  onClick?.(course);
+  navigate(`/courses/${course.id}`);
+};
 
   return (
     <motion.div
