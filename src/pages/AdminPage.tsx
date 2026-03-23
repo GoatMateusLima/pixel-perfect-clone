@@ -363,10 +363,9 @@ const AdminPage = () => {
   };
 
   // ── Form: criar curso ──
-  const [courseForm, setCourseForm] = useState({ name: "", difficult: "", courses_id: "" });
+  const [courseForm, setCourseForm] = useState({ name: "", difficult: "", courses_id: "", descricao: "", playlist_id: "" });
   const [savingCourse, setSavingCourse] = useState(false);
 
-<<<<<<< HEAD
   // Extrai o playlist_id da URL do YouTube automaticamente
   const extractPlaylistId = (raw: string): string => {
     try {
@@ -393,7 +392,7 @@ const AdminPage = () => {
   setSavingCourse(true);
 
   // 1. Salva o curso
-  const { data: course, error } = await supabaseAdmin
+  const { data: course, error } = await supabase
     .from("courses")
     .insert({
       name: courseForm.name.trim(),
@@ -425,7 +424,7 @@ const AdminPage = () => {
         position: index,
       }));
 
-      const { error: aulasError } = await supabaseAdmin
+      const { error: aulasError } = await supabase
         .from("aulas")
         .insert(aulas);
 
@@ -440,24 +439,12 @@ const AdminPage = () => {
       notify("error", "Erro ao buscar playlist: " + err.message);
       setSavingCourse(false);
       return;
-=======
-  const handleSaveCourse = async () => {
-    if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) { notify("error", "Preencha todos os campos."); return; }
-    setSavingCourse(true);
-    const { error } = await supabase.from("courses").insert({ name: courseForm.name.trim(), difficult: courseForm.difficult, courses_id: courseForm.courses_id });
-    setSavingCourse(false);
-    if (error) { notify("error", error.message); } else {
-      const tNome = temas.find(t => t.id === courseForm.courses_id)?.name ?? "";
-      notify("success", `Curso criado em "${tNome}"!`);
-      setCourseForm({ name: "", difficult: "", courses_id: "" });
-      loadCourses();
->>>>>>> 8555d3ac8e2868f1d0a1ef843d635f3b302d332a
     }
   } else {
     notify("success", `Curso "${courseForm.name}" criado!`);
   }
 
-  setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlistUrl: "", playlist_id: "" });
+  setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlist_id: "" });
   setSavingCourse(false);
 };
 
@@ -550,6 +537,14 @@ const AdminPage = () => {
             <div className="flex flex-col gap-5">
               <Field label="Nome do Curso" icon={Tag}>
                 <input type="text" value={courseForm.name} onChange={e => setCourseForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="ex: Python para Iniciantes" className={inputClass} />
+              </Field>
+              <Field label="Desvrição do Curso" icon={Tag}>
+                <input type="text" value={courseForm.descricao} onChange={e => setCourseForm(p => ({ ...p, descricao: e.target.value }))}
+                  placeholder="ex: Python para Iniciantes" className={inputClass} />
+              </Field>
+              <Field label="URL do Curso" icon={Tag}>
+                <input type="text" value={courseForm.playlist_id} onChange={e => setCourseForm(p => ({ ...p, playlist_id: e.target.value }))}
                   placeholder="ex: Python para Iniciantes" className={inputClass} />
               </Field>
               <Field label="Dificuldade" icon={Zap}>
