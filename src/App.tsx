@@ -41,7 +41,7 @@ const App = () => (
             <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="/suporte" element={<SupportPage />} />
             <Route path="/admin" element={<AdminPage />} />
-            <Route path="/curso/:courseId" element={<CoursesPage />} />
+            <Route path="/courses/:courseId" element={<CoursesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

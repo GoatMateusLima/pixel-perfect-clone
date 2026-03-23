@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useParams } from "react-router-dom";
 import Header from "@/components/Header";
-import QuizTab from "../components/Quiztab";
+import QuizTab, { QuizQuestion } from "../components/Quiztab";
 import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
 import PostModal from "../components/PostModal";
 import {
+<<<<<<< HEAD
   PlayCircle,
   ClipboardList,
   MessageCircleQuestion,
@@ -18,12 +19,18 @@ import {
   Heart,
   MessageCircle,
   Loader2,
+=======
+  PlayCircle, ClipboardList, MessageCircleQuestion, ArrowLeft,
+  CheckCircle2, Lock, Send, BookOpen, Heart, MessageCircle,
+  Loader2, ChevronRight, ShieldAlert,
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Tab = "aula" | "quiz" | "duvidas";
 
+<<<<<<< HEAD
 type Aula = {
   id: number;
   nome: string;
@@ -34,23 +41,28 @@ type Aula = {
 };
 
 interface Doubt {
+=======
+interface Aula {
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   id: string;
-  creator_id: string;
-  description: string;
-  date: string;
-  midia?: string;
-  liked_by: string[];
-  like_qnt: number;
-  liked: boolean;
-  saved: boolean;
-  comments: any[];
-  profile?: {
-    id: string;
-    name: string;
-    avatar_url?: string;
-    disc_ring_img?: string;
-    role?: string;
-  };
+  course_id: string;
+  nome: string;
+  url_video: string;
+  descricao: string;
+  thumb: string;
+  position: number;
+}
+
+interface CourseInfo {
+  id: string;
+  name: string;
+  difficult: string;
+}
+
+interface Doubt {
+  id: string; creator_id: string; description: string; date: string; midia?: string;
+  liked_by: string[]; like_qnt: number; liked: boolean; saved: boolean; comments: any[];
+  profile?: { id: string; name: string; avatar_url?: string; disc_ring_img?: string; role?: string };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -59,28 +71,30 @@ const rowToDoubt = (row: any, userId?: string): Doubt => {
   const profileRaw = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles ?? row.profile ?? null;
   const bordaAtiva = (profileRaw?.bordas ?? []).find((b: any) => b.ativa) ?? null;
   return {
-    id:          row.id,
-    creator_id:  row.creator_id,
-    description: row.description,
-    date:        row.date,
-    midia:       row.midia,
-    liked_by:    row.liked_by ?? [],
-    like_qnt:    (row.liked_by ?? []).length,
-    liked:       userId ? (row.liked_by ?? []).includes(userId) : false,
-    saved:       false,
-    comments:    [],
+    id: row.id, creator_id: row.creator_id, description: row.description, date: row.date, midia: row.midia,
+    liked_by: row.liked_by ?? [], like_qnt: (row.liked_by ?? []).length,
+    liked: userId ? (row.liked_by ?? []).includes(userId) : false,
+    saved: false, comments: [],
     profile: profileRaw ? {
+<<<<<<< HEAD
       id:            profileRaw.user_id,
       name:          profileRaw.name      ?? "Usuário",
       avatar_url:    profileRaw.perfil    ?? undefined,
       disc_ring_img: bordaAtiva?.img_url  ?? undefined,
       role:          profileRaw.descricao ?? undefined,
+=======
+      id: profileRaw.user_id, name: profileRaw.name ?? "Usuário",
+      avatar_url: profileRaw.perfil ?? undefined,
+      disc_ring_img: bordaAtiva?.img_url ?? undefined,
+      role: profileRaw.descricao ?? undefined,
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
     } : undefined,
   };
 };
 
 const extractVideoId = (url: string): string => {
   try {
+<<<<<<< HEAD
     return new URL(url).searchParams.get("v") ?? "";
   } catch {
     return "";
@@ -110,11 +124,37 @@ const AulaTab = ({
       </div>
     );
   }
+=======
+    const raw = typeof url === "object" ? (url as any)?.url ?? JSON.stringify(url) : url;
+    return new URL(raw).searchParams.get("v") ?? raw;
+  } catch { return url; }
+};
+
+
+
+// ─── AulaTab ─────────────────────────────────────────────────────────────────
+
+const AulaTab = ({
+  aulas, activeIndex, quizPassed, onGoToQuiz, onNext,
+}: {
+  aulas: Aula[]; activeIndex: number; quizPassed: boolean;
+  onGoToQuiz: () => void; onNext: () => void;
+}) => {
+  const aula = aulas[activeIndex];
+  const isLast = activeIndex === aulas.length - 1;
+  if (!aula) return null;
+
+  const rawUrl = typeof aula.url_video === "object"
+    ? (aula.url_video as any)?.url ?? JSON.stringify(aula.url_video)
+    : aula.url_video;
+  const videoId = extractVideoId(rawUrl);
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
 
   const videoId = extractVideoId(aula.url_video);
 
   return (
     <div className="space-y-4 max-w-3xl">
+<<<<<<< HEAD
       <motion.div
         key={aula.id}
         initial={{ opacity: 0, y: 16 }}
@@ -122,11 +162,15 @@ const AulaTab = ({
         className="hologram-panel rounded-sm overflow-hidden"
       >
         {/* Video */}
+=======
+      <motion.div key={aula.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="hologram-panel rounded-sm overflow-hidden">
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
         <div className="relative w-full bg-[hsl(200_30%_5%)]" style={{ aspectRatio: "16/9" }}>
           <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/60 z-10 pointer-events-none" />
           <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/60 z-10 pointer-events-none" />
           <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/60 z-10 pointer-events-none" />
           <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/60 z-10 pointer-events-none" />
+<<<<<<< HEAD
           {videoId ? (
             <iframe
               className="absolute inset-0 w-full h-full"
@@ -152,10 +196,65 @@ const AulaTab = ({
             <span className="flex items-center gap-1">
               <BookOpen size={12} /> Aula {aulaIndex + 1} de {totalAulas}
             </span>
+=======
+          <iframe
+            className="absolute inset-0 w-full h-full"
+            src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+            title={aula.nome}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-accent text-primary mb-1 uppercase tracking-widest">
+                Aula {activeIndex + 1} de {aulas.length}
+              </p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-1">{aula.nome}</h2>
+              {aula.descricao && (
+                <p className="text-sm text-foreground/75 font-body leading-relaxed">{aula.descricao}</p>
+              )}
+              <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground font-accent">
+                <span className="flex items-center gap-1"><BookOpen size={12} /> Aula {activeIndex + 1}</span>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex flex-col items-end gap-2">
+              {!isLast && !quizPassed && (
+                <button onClick={onGoToQuiz}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-sm font-accent font-bold text-xs uppercase tracking-widest transition-all hover:brightness-110"
+                  style={{ background: "hsl(25 90% 55% / 0.15)", color: "hsl(25 90% 65%)", border: "1px solid hsl(25 90% 55% / 0.4)" }}>
+                  <ShieldAlert size={13} /> Fazer Quiz
+                </button>
+              )}
+              {!isLast && quizPassed && (
+                <button onClick={onNext}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-sm font-accent font-bold text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-[0.98]"
+                  style={{ background: "hsl(155 60% 45%)", color: "hsl(220 15% 8%)", boxShadow: "0 0 14px hsl(155 60% 45% / 0.4)" }}>
+                  Próxima <ChevronRight size={14} />
+                </button>
+              )}
+              {isLast && (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-sm font-accent font-bold text-xs uppercase tracking-widest"
+                  style={{ background: "hsl(45 85% 55% / 0.15)", color: "hsl(45 85% 65%)", border: "1px solid hsl(45 85% 55% / 0.3)" }}>
+                  <CheckCircle2 size={14} /> Última aula
+                </div>
+              )}
+            </div>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
           </div>
+
+          {quizPassed && !isLast && (
+            <div className="mt-3 flex items-center gap-2 text-xs font-accent" style={{ color: "hsl(155 60% 50%)" }}>
+              <CheckCircle2 size={12} /> Quiz aprovado — você pode avançar!
+            </div>
+          )}
         </div>
       </motion.div>
 
+<<<<<<< HEAD
       {/* Mini lista de aulas — mobile */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -163,10 +262,16 @@ const AulaTab = ({
         transition={{ delay: 0.15 }}
         className="hologram-panel rounded-sm p-4 lg:hidden"
       >
+=======
+
+      {/* Mini lista mobile */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="hologram-panel rounded-sm p-4 lg:hidden">
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <BookOpen size={14} className="text-primary" /> Aulas do Curso
         </h3>
         <div className="space-y-1">
+<<<<<<< HEAD
           {aulas.map((a, i) => (
             <div
               key={a.id}
@@ -184,6 +289,17 @@ const AulaTab = ({
               <span className={`text-xs font-body flex-1 truncate ${i === aulaIndex ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
                 {a.nome}
               </span>
+=======
+          {aulas.map((l, i) => (
+            <div key={l.id} className={`flex items-center gap-3 px-3 py-2 rounded-sm border transition-all ${i === activeIndex ? "border-primary/40 bg-primary/10" : "border-transparent"}`}>
+              {i < activeIndex
+                ? <CheckCircle2 size={14} className="text-primary shrink-0" />
+                : i === activeIndex
+                  ? <PlayCircle size={14} className="text-accent shrink-0" />
+                  : <Lock size={14} className="text-muted-foreground shrink-0" />}
+              <span className={`text-xs font-body flex-1 truncate ${i === activeIndex ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{l.nome}</span>
+              <span className="text-xs font-accent text-muted-foreground">{i + 1}</span>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             </div>
           ))}
         </div>
@@ -197,15 +313,14 @@ const AulaTab = ({
 const DuvidasTab = () => {
   const { user, profilePhoto } = useAuth();
   const myCreatorId = user?.id;
-  const myName      = user?.name ?? "Você";
-  const myDisc      = user?.assessment?.discProfile ?? "S";
-
-  const [doubts,     setDoubts]     = useState<Doubt[]>([]);
-  const [loading,    setLoading]    = useState(true);
+  const myName = user?.name ?? "Você";
+  const myDisc = user?.assessment?.discProfile ?? "S";
+  const [doubts, setDoubts] = useState<Doubt[]>([]);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [newDoubt,   setNewDoubt]   = useState("");
-  const [filter,     setFilter]     = useState<"recentes" | "populares">("recentes");
-  const [openDoubt,  setOpenDoubt]  = useState<Doubt | null>(null);
+  const [newDoubt, setNewDoubt] = useState("");
+  const [filter, setFilter] = useState<"recentes" | "populares">("recentes");
+  const [openDoubt, setOpenDoubt] = useState<Doubt | null>(null);
 
   const fetchDoubts = useCallback(async () => {
     setLoading(true);
@@ -213,14 +328,22 @@ const DuvidasTab = () => {
       .from("publications")
       .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
       .order("date", { ascending: false });
+<<<<<<< HEAD
     if (error) { console.error("[DuvidasTab]", error.message); setLoading(false); return; }
     setDoubts((data ?? []).map((row) => rowToDoubt(row, myCreatorId)));
+=======
+    if (error) { console.error(error.message); setLoading(false); return; }
+    setDoubts((data ?? []).map(row => rowToDoubt(row, myCreatorId)));
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
     setLoading(false);
   }, [myCreatorId]);
+
+
 
   useEffect(() => { fetchDoubts(); }, [fetchDoubts]);
 
   useEffect(() => {
+<<<<<<< HEAD
     const channel = supabase
       .channel("duvidas-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "publications" }, async (payload) => {
@@ -232,12 +355,26 @@ const DuvidasTab = () => {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "publications" }, (payload) => {
         setDoubts((prev) => prev.map((d) => {
+=======
+    const channel = supabase.channel("duvidas-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "publications" }, async (payload) => {
+        if (payload.new.creator_id === myCreatorId) return;
+        const { data: profile } = await supabase.from("profiles").select("user_id, name, perfil, descricao, bordas").eq("user_id", payload.new.creator_id).maybeSingle();
+        setDoubts(prev => [rowToDoubt({ ...payload.new, profiles: profile }, myCreatorId), ...prev]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "publications" }, (payload) => {
+        setDoubts(prev => prev.map(d => {
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
           if (d.id !== payload.new.id) return d;
           const likedBy: string[] = payload.new.liked_by ?? [];
           return { ...d, liked_by: likedBy, like_qnt: likedBy.length, liked: myCreatorId ? likedBy.includes(myCreatorId) : d.liked };
         }));
+<<<<<<< HEAD
       })
       .subscribe();
+=======
+      }).subscribe();
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
     return () => { supabase.removeChannel(channel); };
   }, [myCreatorId]);
 
@@ -247,16 +384,25 @@ const DuvidasTab = () => {
     setSubmitting(true);
     const now = new Date().toISOString();
     const tempId = `temp-${Date.now()}`;
+<<<<<<< HEAD
     const optimistic: Doubt = {
       id: tempId, creator_id: myCreatorId, description: text, date: now,
       liked_by: [], like_qnt: 0, liked: false, saved: false, comments: [],
       profile: { id: myCreatorId, name: myName, avatar_url: profilePhoto ?? undefined, role: "Membro · UpJobs" },
     };
     setDoubts((prev) => [optimistic, ...prev]);
+=======
+    setDoubts(prev => [{
+      id: tempId, creator_id: myCreatorId, description: text, date: now,
+      liked_by: [], like_qnt: 0, liked: false, saved: false, comments: [],
+      profile: { id: myCreatorId, name: myName, avatar_url: profilePhoto ?? undefined, role: "Membro · UpJobs" },
+    }, ...prev]);
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
     setNewDoubt("");
     const { data, error } = await supabase.from("publications")
       .insert({ creator_id: myCreatorId, description: text, date: now, liked_by: [] })
       .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)").single();
+<<<<<<< HEAD
     if (error) {
       console.error("[DuvidasTab]", error.message);
       setDoubts((prev) => prev.filter((d) => d.id !== tempId));
@@ -264,14 +410,19 @@ const DuvidasTab = () => {
     } else {
       setDoubts((prev) => prev.map((d) => (d.id === tempId ? rowToDoubt(data, myCreatorId) : d)));
     }
+=======
+    if (error) { setDoubts(prev => prev.filter(d => d.id !== tempId)); setNewDoubt(text); }
+    else { setDoubts(prev => prev.map(d => d.id === tempId ? rowToDoubt(data, myCreatorId) : d)); }
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
     setSubmitting(false);
   };
 
   const handleLike = async (id: string) => {
     if (!myCreatorId) return;
-    const doubt = doubts.find((d) => d.id === id);
+    const doubt = doubts.find(d => d.id === id);
     if (!doubt) return;
     const alreadyLiked = doubt.liked;
+<<<<<<< HEAD
     const prevDoubts = doubts;
     setDoubts((prev) => prev.map((d) => {
       if (d.id !== id) return d;
@@ -280,12 +431,25 @@ const DuvidasTab = () => {
     }));
     const { error } = await supabase.rpc(alreadyLiked ? "unlike_publication" : "like_publication", { pub_id: id, uid: myCreatorId });
     if (error) { console.error("Like dúvida:", error.message); setDoubts(prevDoubts); }
+=======
+    const prev = doubts;
+    setDoubts(p => p.map(d => {
+      if (d.id !== id) return d;
+      const nb = alreadyLiked ? d.liked_by.filter(u => u !== myCreatorId) : [...d.liked_by, myCreatorId];
+      return { ...d, liked_by: nb, like_qnt: nb.length, liked: !alreadyLiked };
+    }));
+    const { error } = await supabase.rpc(alreadyLiked ? "unlike_publication" : "like_publication", { pub_id: id, uid: myCreatorId });
+    if (error) setDoubts(prev);
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   };
 
   const sorted = filter === "populares"
     ? [...doubts].sort((a, b) => b.like_qnt - a.like_qnt)
     : [...doubts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   const getInitialLetter = (name?: string) => name?.charAt(0)?.toUpperCase() ?? "?";
 
   return (
@@ -300,23 +464,15 @@ const DuvidasTab = () => {
             {profilePhoto ? <img src={profilePhoto} alt={myName} className="w-full h-full object-cover" /> : getInitialLetter(myName)}
           </div>
           <div className="flex-1">
-            <textarea
-              value={newDoubt}
-              onChange={(e) => setNewDoubt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) handleSubmitDoubt(); }}
-              rows={3}
-              placeholder="Escreva sua dúvida sobre o conteúdo desta aula... (Ctrl+Enter para enviar)"
-              className="w-full px-4 py-3 rounded-sm bg-input border border-border text-foreground font-body text-sm focus:outline-none focus:border-primary/60 transition resize-none"
-            />
+            <textarea value={newDoubt} onChange={e => setNewDoubt(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleSubmitDoubt(); }}
+              rows={3} placeholder="Escreva sua dúvida... (Ctrl+Enter para enviar)"
+              className="w-full px-4 py-3 rounded-sm bg-input border border-border text-foreground font-body text-sm focus:outline-none focus:border-primary/60 transition resize-none" />
             <div className="flex justify-end mt-2">
-              <button
-                onClick={handleSubmitDoubt}
-                disabled={!newDoubt.trim() || submitting || !myCreatorId}
+              <button onClick={handleSubmitDoubt} disabled={!newDoubt.trim() || submitting || !myCreatorId}
                 className="flex items-center gap-2 px-5 py-2 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold disabled:opacity-40 hover:brightness-110 transition"
-                style={{ boxShadow: newDoubt.trim() ? "0 0 12px hsl(25 90% 55% / 0.35)" : "none" }}
-              >
-                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                Publicar Dúvida
+                style={{ boxShadow: newDoubt.trim() ? "0 0 12px hsl(25 90% 55% / 0.35)" : "none" }}>
+                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Publicar Dúvida
               </button>
             </div>
           </div>
@@ -325,23 +481,26 @@ const DuvidasTab = () => {
 
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground font-body mr-1">Ordenar:</span>
-        {(["recentes", "populares"] as const).map((f) => (
+        {(["recentes", "populares"] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)}
+<<<<<<< HEAD
             className={`px-3 py-1.5 rounded-sm text-xs font-accent font-semibold transition
               ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
             style={f === filter ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.3)" } : undefined}
           >
+=======
+            className={`px-3 py-1.5 rounded-sm text-xs font-accent font-semibold transition ${f === filter ? "text-primary-foreground" : "text-muted-foreground border border-border hover:text-foreground"}`}
+            style={f === filter ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.3)" } : undefined}>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
           </button>
         ))}
-        <span className="ml-auto text-xs text-muted-foreground/50 font-body">
-          {doubts.length} {doubts.length === 1 ? "dúvida" : "dúvidas"}
-        </span>
+        <span className="ml-auto text-xs text-muted-foreground/50 font-body">{doubts.length} {doubts.length === 1 ? "dúvida" : "dúvidas"}</span>
       </div>
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3].map(i => (
             <div key={i} className="hologram-panel rounded-sm p-4 animate-pulse">
               <div className="flex gap-3">
                 <div className="w-9 h-9 rounded-full bg-secondary/60 shrink-0" />
@@ -361,6 +520,7 @@ const DuvidasTab = () => {
       ) : (
         <AnimatePresence mode="popLayout">
           {sorted.map((doubt, i) => (
+<<<<<<< HEAD
             <motion.div
               key={doubt.id} layout
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
@@ -368,6 +528,12 @@ const DuvidasTab = () => {
               className="hologram-panel rounded-sm p-4 cursor-pointer hover:border-primary/30 transition-all"
               onClick={() => setOpenDoubt(doubt)}
             >
+=======
+            <motion.div key={doubt.id} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97 }} transition={{ delay: i * 0.04 }}
+              className="hologram-panel rounded-sm p-4 cursor-pointer hover:border-primary/30 transition-all"
+              onClick={() => setOpenDoubt(doubt)}>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
               <div className="flex gap-3">
                 <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
                   style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
@@ -384,7 +550,11 @@ const DuvidasTab = () => {
                     </span>
                   </div>
                   <p className="text-sm text-foreground/85 font-body leading-relaxed line-clamp-3 mb-3">{doubt.description}</p>
+<<<<<<< HEAD
                   <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+=======
+                  <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                     <button onClick={() => handleLike(doubt.id)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
                       style={doubt.liked ? { color: "hsl(5 80% 60%)" } : { color: "hsl(215 15% 50%)" }}>
@@ -407,6 +577,7 @@ const DuvidasTab = () => {
       )}
 
       {openDoubt && (
+<<<<<<< HEAD
         <PostModal
           post={openDoubt as any}
           onClose={() => setOpenDoubt(null)}
@@ -418,6 +589,12 @@ const DuvidasTab = () => {
           myDiscRingImg={undefined}
           myUserId={myCreatorId}
         />
+=======
+        <PostModal post={openDoubt as any} onClose={() => setOpenDoubt(null)}
+          onLike={(id: string) => handleLike(id)} onSave={() => { }}
+          profilePhoto={profilePhoto} myName={myName} myDisc={myDisc}
+          myDiscRingImg={undefined} myUserId={myCreatorId} />
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
       )}
     </div>
   );
@@ -434,6 +611,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 // ─── RoadmapPanel ─────────────────────────────────────────────────────────────
 
 const RoadmapPanel = ({
+<<<<<<< HEAD
   aulas,
   activeIndex,
   courseName,
@@ -445,8 +623,15 @@ const RoadmapPanel = ({
   onSelectIndex: (index: number) => void;
 }) => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+=======
+  aulas, activeIndex, passedIndexes, onSelectIndex,
+}: {
+  aulas: Aula[]; activeIndex: number; passedIndexes: Set<number>; onSelectIndex: (i: number) => void;
+}) => {
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   const containerRef = useRef<HTMLDivElement>(null);
   const [panelW, setPanelW] = useState(220);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -456,6 +641,7 @@ const RoadmapPanel = ({
     return () => ro.disconnect();
   }, []);
 
+<<<<<<< HEAD
   const isLastNode = (index: number) => index === aulas.length - 1;
 
   const HEADER_H_V = 110;
@@ -470,19 +656,31 @@ const RoadmapPanel = ({
     const x = isLast ? midX : midX + (i % 2 === 0 ? -ampX : ampX);
     return { x, y };
   });
+=======
+  const HEADER_H = 110;
+  const ROW_H = 100;
+  const totalH = HEADER_H + aulas.length * ROW_H + 60;
+  const midX = panelW / 2;
+  const ampX = Math.min(panelW * 0.28, 70);
 
-  const vRoadPath = (() => {
-    if (vNodePos.length === 0) return "";
-    let d = `M ${vNodePos[0].x} ${vNodePos[0].y}`;
-    for (let i = 1; i < vNodePos.length; i++) {
-      const p0 = vNodePos[i - 1];
-      const p1 = vNodePos[i];
+  const nodePos = aulas.map((_, i) => ({
+    x: midX + (i % 2 === 0 ? -ampX : ampX),
+    y: HEADER_H + i * ROW_H + ROW_H / 2,
+  }));
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
+
+  const roadPath = (() => {
+    if (nodePos.length === 0) return "";
+    let d = `M ${nodePos[0].x} ${nodePos[0].y}`;
+    for (let i = 1; i < nodePos.length; i++) {
+      const p0 = nodePos[i - 1]; const p1 = nodePos[i];
       const dy = (p1.y - p0.y) * 0.5;
       d += ` C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
     }
     return d;
   })();
 
+<<<<<<< HEAD
   const vSegments = aulas.slice(1).map((_, i) => {
     const p0 = vNodePos[i];
     const p1 = vNodePos[i + 1];
@@ -498,6 +696,22 @@ const RoadmapPanel = ({
     locked: "hsl(215 20% 30%)",
     last:   "hsl(45 90% 55%)",
   };
+=======
+  const segments = aulas.slice(1).map((_, i) => {
+    const p0 = nodePos[i]; const p1 = nodePos[i + 1];
+    const dy = (p1.y - p0.y) * 0.5;
+    return {
+      d: `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`,
+      lit: passedIndexes.has(i),
+      key: aulas[i + 1].id,
+    };
+  });
+
+  const PIN_DONE = "hsl(155 60% 42%)";
+  const PIN_ACTIVE = "hsl(25 90% 55%)";
+  const PIN_LOCKED = "hsl(215 20% 30%)";
+  const progress = aulas.length > 1 ? Math.round((passedIndexes.size / (aulas.length - 1)) * 100) : 0;
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
 
   const getStatus = (i: number) =>
     i < activeIndex ? "done" : i === activeIndex ? "active" : "locked";
@@ -514,11 +728,16 @@ const RoadmapPanel = ({
       <div className="shrink-0 sticky top-0 z-10 px-4 pt-4 pb-3 bg-background/60 backdrop-blur-sm border-b border-border/30">
         <p className="text-xs font-accent font-semibold text-foreground/70 tracking-widest uppercase mb-0.5">Aulas do Curso</p>
         <h2 className="font-display text-sm font-bold text-foreground leading-tight">
+<<<<<<< HEAD
           <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>{courseName}</span>
+=======
+          <span className="text-primary" style={{ textShadow: "0 0 10px hsl(155 60% 45% / 0.6)" }}>{aulas.length} aulas</span>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
         </h2>
         <div className="mt-2">
           <div className="flex justify-between text-xs font-accent text-muted-foreground mb-1">
             <span>Progresso</span>
+<<<<<<< HEAD
             <span className="text-primary font-bold">{doneCount} / {aulas.length}</span>
           </div>
           <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
@@ -526,6 +745,13 @@ const RoadmapPanel = ({
               initial={{ width: 0 }}
               animate={{ width: `${progressPct}%` }}
               transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
+=======
+            <span className="text-primary font-bold">{passedIndexes.size} / {Math.max(aulas.length - 1, 1)} quizzes</span>
+          </div>
+          <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
+            <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }}
+              transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
               className="h-full rounded-full bg-primary"
               style={{ boxShadow: "0 0 6px hsl(155 60% 45% / 0.8)" }}
             />
@@ -549,7 +775,7 @@ const RoadmapPanel = ({
               </filter>
             </defs>
 
-            {vSegments.map(({ d, lit, key }) => (
+            {segments.map(({ d, lit, key }) => (
               <g key={key}>
                 <path d={d} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
                 <path d={d} fill="none" stroke={lit ? "hsl(155, 42%, 20%)" : "hsl(215, 18%, 13%)"} strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
@@ -557,19 +783,18 @@ const RoadmapPanel = ({
               </g>
             ))}
 
-            <path d={vRoadPath} fill="none" stroke="hsl(215, 15%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
-
-            {vSegments.filter(s => s.lit).map(({ d, key }) => (
-              <path key={`vdash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
+            <path d={roadPath} fill="none" stroke="hsl(215, 15%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
+            {segments.filter(s => s.lit).map(({ d, key }) => (
+              <path key={`dash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
             ))}
-
-            {vSegments.filter(s => s.lit).map(({ d, key }) => (
-              <circle key={`vdot-${key}`} r="3" fill="hsl(155, 70%, 62%)" filter="url(#vRoadGlow)" opacity="0.9">
+            {segments.filter(s => s.lit).map(({ d, key }) => (
+              <circle key={`dot-${key}`} r="3" fill="hsl(155, 70%, 62%)" filter="url(#vRoadGlow)" opacity="0.9">
                 <animateMotion dur="3s" repeatCount="indefinite" path={d} />
               </circle>
             ))}
 
             {aulas.map((aula, index) => {
+<<<<<<< HEAD
               const { x, y } = vNodePos[index];
               const isLast = isLastNode(index);
               const status = getStatus(index);
@@ -582,6 +807,17 @@ const RoadmapPanel = ({
               const isOnRight = x > midX;
               const pinW = isLast ? 44 : 36;
               const pinH = isLast ? 54 : 46;
+=======
+              const { x, y } = nodePos[index];
+              const isDone = passedIndexes.has(index);
+              const isActive = index === activeIndex;
+              const isUnlocked = index === 0 || passedIndexes.has(index - 1);
+              const isLocked = !isUnlocked && !isDone;
+              const isHovered = hoveredIdx === index;
+              const pinColor = isDone ? PIN_DONE : isActive ? PIN_ACTIVE : PIN_LOCKED;
+              const isOnRight = x > midX;
+              const pinW = 36; const pinH = 46;
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
               const pinX = isOnRight ? x + 10 : x - 10;
               const pinTop = y - pinH - 2;
               const icon = isLocked ? "🔒" : isDone ? "✅" : isActive ? "▶️" : "🏆";
@@ -589,16 +825,24 @@ const RoadmapPanel = ({
               return (
                 <g key={aula.id}
                   onClick={() => !isLocked && onSelectIndex(index)}
+<<<<<<< HEAD
                   onMouseEnter={() => setHoveredId(index)}
                   onMouseLeave={() => setHoveredId(null)}
                   style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
                 >
                   {(isActive || isSelected) && !isLast && (
+=======
+                  onMouseEnter={() => setHoveredIdx(index)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  style={{ cursor: isLocked ? "not-allowed" : "pointer" }}>
+                  {isActive && (
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                     <circle cx={x} cy={y} r="13" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
                       <animate attributeName="r" values="12;22;12" dur="1.8s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
                     </circle>
                   )}
+<<<<<<< HEAD
                   {isLast && (
                     <circle cx={x} cy={y} r="20" fill="none" stroke="hsl(45, 90%, 55%)" strokeWidth="2" opacity="0.35">
                       <animate attributeName="r" values="18;32;18" dur="2.5s" repeatCount="indefinite" />
@@ -608,10 +852,15 @@ const RoadmapPanel = ({
 
                   <ellipse cx={pinX} cy={pinTop + pinH + 3} rx={pinW * 0.28} ry={3.5} fill="rgba(0,0,0,0.45)" />
                   <g filter={isHovered || isSelected ? "url(#vPinGlow)" : "none"}
+=======
+                  <ellipse cx={pinX} cy={pinTop + pinH + 3} rx={pinW * 0.28} ry={3.5} fill="rgba(0,0,0,0.45)" />
+                  <g filter={isHovered || isActive ? "url(#vPinGlow)" : "none"}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                     style={{ transition: "transform 0.15s ease", transform: isHovered && !isLocked ? "translate(0px, -5px)" : "none" }}>
                     <path
                       d={`M ${pinX} ${pinTop + pinH} C ${pinX - 2} ${pinTop + pinH - 10}, ${pinX - pinW / 2} ${pinTop + pinH * 0.65}, ${pinX - pinW / 2} ${pinTop + pinH * 0.42} A ${pinW / 2} ${pinH * 0.45} 0 1 1 ${pinX + pinW / 2} ${pinTop + pinH * 0.42} C ${pinX + pinW / 2} ${pinTop + pinH * 0.65}, ${pinX + 2} ${pinTop + pinH - 10}, ${pinX} ${pinTop + pinH} Z`}
                       fill={isLocked ? "hsl(215, 18%, 18%)" : pinColor}
+<<<<<<< HEAD
                       stroke={isSelected && !isLast ? "white" : isLocked ? "hsl(215, 20%, 28%)" : "rgba(255,255,255,0.18)"}
                       strokeWidth={isSelected ? "2" : "1"}
                       opacity={isLocked ? 0.6 : 1}
@@ -622,6 +871,18 @@ const RoadmapPanel = ({
                       fontSize={isLast ? 17 : 14}
                       style={{ filter: isLocked ? "grayscale(1) opacity(0.5)" : "none", userSelect: "none" }}>
                       {icon}
+=======
+                      stroke={isActive ? "white" : isLocked ? "hsl(215, 20%, 28%)" : "rgba(255,255,255,0.18)"}
+                      strokeWidth={isActive ? "2" : "1"}
+                      opacity={isLocked ? 0.5 : 1}
+                    />
+                    <ellipse cx={pinX - pinW * 0.1} cy={pinTop + pinH * 0.28} rx={pinW * 0.18} ry={pinH * 0.14}
+                      fill="rgba(255,255,255,0.22)" style={{ filter: isLocked ? "grayscale(1)" : "none" }} />
+                    <text x={pinX} y={pinTop + pinH * 0.46} textAnchor="middle" dominantBaseline="middle"
+                      fontSize="11" fontWeight="bold" fontFamily="monospace"
+                      style={{ fill: isLocked ? "hsl(215 20% 40%)" : "white", userSelect: "none" }}>
+                      {isLocked ? "🔒" : index + 1}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                     </text>
                     {isDone && (
                       <g>
@@ -630,7 +891,11 @@ const RoadmapPanel = ({
                       </g>
                     )}
                   </g>
+<<<<<<< HEAD
                   <circle cx={x} cy={y} r={isSelected ? 6 : 4}
+=======
+                  <circle cx={x} cy={y} r={isActive ? 6 : 4}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                     fill={isLocked ? "hsl(215, 20%, 28%)" : pinColor}
                     stroke="hsl(215, 25%, 9%)" strokeWidth="2"
                     style={{ filter: !isLocked ? `drop-shadow(0 0 5px ${pinColor})` : "none" }} />
@@ -642,6 +907,7 @@ const RoadmapPanel = ({
             })}
           </svg>
 
+<<<<<<< HEAD
           {/* Labels */}
           {aulas.map((aula, index) => {
             const { x, y } = vNodePos[index];
@@ -664,6 +930,21 @@ const RoadmapPanel = ({
                   {aula.nome}
                 </p>
                 <p className="text-xs font-body text-muted-foreground/85 mt-0.5 leading-tight">Aula {index + 1}</p>
+=======
+          {aulas.map((aula, index) => {
+            const { x, y } = nodePos[index];
+            const isOnRight = x > midX;
+            const pinH = 46;
+            const labelX = isOnRight ? x - ampX - 12 : x + ampX + 12;
+            const labelW = 80;
+            const isUnlocked = index === 0 || passedIndexes.has(index - 1);
+            return (
+              <div key={`label-${aula.id}`} className="absolute pointer-events-none"
+                style={{ left: isOnRight ? labelX - labelW : labelX, top: y - pinH / 2 - 4, width: labelW, textAlign: isOnRight ? "right" : "left" }}>
+                <p className={`font-display text-xs font-bold leading-tight truncate ${isUnlocked || passedIndexes.has(index) ? "text-foreground" : "text-muted-foreground/50"}`}>
+                  {aula.nome}
+                </p>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
               </div>
             );
           })}
@@ -675,20 +956,12 @@ const RoadmapPanel = ({
 
 // ─── AI Chat ──────────────────────────────────────────────────────────────────
 
-interface ChatMessage {
-  id: number;
-  role: "user" | "assistant";
-  text: string;
-  ts: string;
-}
+interface ChatMessage { id: number; role: "user" | "assistant"; text: string; ts: string; }
 
 const SUGGESTIONS = [
-  "O que é uma closure em JavaScript?",
-  "Como funciona o Git rebase?",
-  "Explique REST vs GraphQL",
-  "Qual a diferença entre == e === ?",
-  "Como funciona async/await?",
-  "O que é Docker e por que usar?",
+  "O que é uma closure em JavaScript?", "Como funciona o Git rebase?",
+  "Explique REST vs GraphQL", "Qual a diferença entre == e === ?",
+  "Como funciona async/await?", "O que é Docker e por que usar?",
 ];
 
 const AI_KEY = import.meta.env.VITE_AI_KEY;
@@ -702,12 +975,16 @@ const AIChatPanel = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   const scrollToBottom = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
+<<<<<<< HEAD
     const userMsg: ChatMessage = { id: Date.now(), role: "user", text: trimmed, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -715,11 +992,18 @@ const AIChatPanel = () => {
     scrollToBottom();
     try {
       const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role, content: m.text }));
+=======
+    setMessages(prev => [...prev, { id: Date.now(), role: "user", text: trimmed, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }]);
+    setInput(""); setLoading(true); scrollToBottom();
+    try {
+      const history = messages.filter(m => m.id !== 0).slice(-4).map(m => ({ role: m.role, content: m.text }));
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
         body: JSON.stringify({
           model: "llama-3.1-8b-instant",
+<<<<<<< HEAD
           messages: [{ role: "system", content: "Responda td" }, ...history, { role: "user", content: trimmed }],
         }),
       });
@@ -732,13 +1016,39 @@ const AIChatPanel = () => {
       setLoading(false);
       scrollToBottom();
     }
+=======
+          messages: [
+            { role: "system", content: "Você é um tutor de programação. Responda em português." },
+            ...history,
+            { role: "user", content: trimmed },
+          ],
+        }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1, role: "assistant",
+        text: data.choices?.[0]?.message?.content || "Desculpe, não consegui responder.",
+        ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      }]);
+    } catch {
+      setMessages(prev => [...prev, { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar com a IA.", ts: "agora" }]);
+    } finally { setLoading(false); scrollToBottom(); }
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   };
 
   return (
     <div className="flex flex-col h-full">
+<<<<<<< HEAD
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}>
         {messages.map((msg, i) => (
           <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0.2 : 0 }}
+=======
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}>
+        {messages.map((msg, i) => (
+          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i === 0 ? 0.2 : 0 }}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={msg.role === "assistant"
@@ -759,7 +1069,12 @@ const AIChatPanel = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={{ background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)" }}>IA</div>
+<<<<<<< HEAD
             <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5" style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(155 60% 45% / 0.2)" }}>
+=======
+            <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5"
+              style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(155 60% 45% / 0.2)" }}>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
               {[0, 0.15, 0.3].map((delay, i) => (
                 <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-primary" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay }} />
               ))}
@@ -772,17 +1087,30 @@ const AIChatPanel = () => {
         <div className="shrink-0 px-3 pb-2">
           <p className="text-xs font-accent text-foreground/65 uppercase tracking-widest mb-2">Sugestões</p>
           <div className="flex flex-wrap gap-1.5">
+<<<<<<< HEAD
             {SUGGESTIONS.map((s) => (
               <button key={s} onClick={() => sendMessage(s)}
                 className="text-xs font-body px-2 py-1 rounded-sm border border-border/60 text-foreground/65 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all">{s}</button>
+=======
+            {SUGGESTIONS.map(s => (
+              <button key={s} onClick={() => sendMessage(s)}
+                className="text-xs font-body px-2 py-1 rounded-sm border border-border/60 text-foreground/65 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all">
+                {s}
+              </button>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             ))}
           </div>
         </div>
       )}
       <div className="shrink-0 px-3 pb-3 pt-2 border-t border-border/40">
         <div className="flex gap-2 items-end">
+<<<<<<< HEAD
           <textarea value={input} onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+=======
+          <textarea value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             rows={1} placeholder="Digite sua dúvida... (Enter para enviar)" disabled={loading}
             className="flex-1 px-3 py-2 rounded-sm bg-input border border-border text-foreground font-body text-xs focus:outline-none focus:border-primary/60 transition resize-none disabled:opacity-50"
             style={{ minHeight: 36, maxHeight: 80 }} />
@@ -801,6 +1129,7 @@ const AIChatPanel = () => {
 
 const CoursesPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
+<<<<<<< HEAD
   const [activeTab,      setActiveTab]      = useState<Tab>("aula");
   const [activeIndex,    setActiveIndex]    = useState(0);
   const [showChat,       setShowChat]       = useState(false);
@@ -808,9 +1137,105 @@ const CoursesPage = () => {
   const [aulas,          setAulas]          = useState<Aula[]>([]);
   const [courseName,     setCourseName]     = useState("");
   const [loadingAulas,   setLoadingAulas]   = useState(true);
+=======
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>("aula");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [showChat, setShowChat] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(true);
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
 
+
+
+  const [aulas, setAulas] = useState<Aula[]>([]);
+
+  // --- LOGICA DE PROGRESSO AUTOMÁTICO ---
+  useEffect(() => {
+    const saveProgress = async () => {
+      const aulaAtual = aulas[activeIndex];
+      if (!user || !aulaAtual) return;
+
+      try {
+        // 1. Garante que o usuário está "inscrito" no curso (tabela watch)
+        // Se já estiver, o upsert não faz nada.
+        await supabase
+          .from('watch')
+          .upsert({
+            user_id: user.id,
+            course_id: courseId
+          }, { onConflict: 'user_id,course_id' });
+
+        // 2. Registra o progresso da aula
+        await supabase
+          .from('lesson_progress')
+          .upsert({
+            user_id: user.id,
+            aula_id: aulaAtual.id,
+            completed: true,
+            completed_at: new Date().toISOString()
+          }, { onConflict: 'user_id,aula_id' });
+
+      } catch (err) {
+        console.error("Erro ao processar progresso:", err);
+      }
+    };
+
+    saveProgress();
+  }, [activeIndex, aulas, user, courseId]);
+
+  const [courseInfo, setCourseInfo] = useState<CourseInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [passedIndexes, setPassedIndexes] = useState<Set<number>>(new Set());
+
+  // Carrega curso + aulas
+  useEffect(() => {
+    if (!courseId) return;
+    async function load() {
+      setLoading(true);
+      const { data: course } = await supabase.from("courses").select("id, name, difficult").eq("id", courseId).single();
+      if (course) setCourseInfo(course);
+      const { data: aulasData } = await supabase.from("aulas").select("*").eq("course_id", courseId).order("position", { ascending: true });
+      if (aulasData) setAulas(aulasData);
+      setLoading(false);
+    }
+    load();
+  }, [courseId]);
+
+  // Carrega quiz da aula ativa
+  useEffect(() => {
+    const aula = aulas[activeIndex];
+    if (!aula) return;
+    async function loadQuiz() {
+      setQuizLoading(true);
+      const { data } = await supabase.from("quizzes").select("questions").eq("aula_id", aula.id).maybeSingle();
+      if (data?.questions && Array.isArray(data.questions)) {
+        setQuizQuestions(data.questions as QuizQuestion[]);
+      } else {
+        setQuizQuestions([]);
+      }
+      setQuizLoading(false);
+    }
+    loadQuiz();
+  }, [aulas, activeIndex]);
+
+  const handleQuizPass = () => {
+    setPassedIndexes(prev => new Set([...prev, activeIndex]));
+  };
+
+  const handleNext = () => {
+    if (activeIndex < aulas.length - 1) {
+      setActiveIndex(i => i + 1);
+      setActiveTab("aula");
+    }
+  };
+
+  const quizPassed = passedIndexes.has(activeIndex);
   const columnHeight = "calc(100vh - 108px)";
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!courseId) return;
 
@@ -830,17 +1255,44 @@ const CoursesPage = () => {
   }, [courseId]);
 
   const aulaAtiva = aulas[activeIndex] ?? null;
+=======
+  if (loading) return (
+    <div className="min-h-screen gradient-hero scanline flex flex-col items-center justify-center gap-4" style={{ paddingTop: 64 }}>
+      <Header />
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm font-accent text-muted-foreground">Carregando aulas...</p>
+    </div>
+  );
+
+  if (!loading && aulas.length === 0) return (
+    <div className="min-h-screen gradient-hero scanline flex flex-col items-center justify-center gap-4" style={{ paddingTop: 64 }}>
+      <Header />
+      <p className="text-sm font-accent text-muted-foreground">Nenhuma aula encontrada para este curso.</p>
+      <Link to="/roadmap" className="text-primary underline text-sm font-accent">Voltar</Link>
+    </div>
+  );
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
 
   return (
     <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
       <Header />
 
       <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border/50 bg-background/40 backdrop-blur-sm">
+        <Link to="/roadmap" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition">
+          <ArrowLeft size={14} /> Voltar
+        </Link>
         <div className="flex items-center gap-3">
-          <Link to="/perfil" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition">
-            <ArrowLeft size={14} /> Voltar
-          </Link>
+          {courseInfo && (
+            <>
+              <span className="text-xs font-accent text-muted-foreground tracking-widest uppercase hidden sm:block">{courseInfo.difficult}</span>
+              <span className="text-muted-foreground/85 hidden sm:block">·</span>
+              <h1 className="font-display text-sm font-bold text-foreground">
+                <span className="text-primary" style={{ textShadow: "0 0 12px hsl(155 60% 45% / 0.5)" }}>{courseInfo.name}</span>
+              </h1>
+            </>
+          )}
         </div>
+<<<<<<< HEAD
         <div className="flex items-center gap-3">
           <h1 className="font-display text-sm font-bold text-foreground">
             <span className="text-primary" style={{ textShadow: "0 0 12px hsl(155 60% 45% / 0.5)" }}>
@@ -849,24 +1301,45 @@ const CoursesPage = () => {
           </h1>
         </div>
         <div className="flex items-center gap-3" />
+=======
+        <div />
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
       </div>
 
       <div className="relative flex flex-1 overflow-hidden divide-x divide-border/30">
 
+<<<<<<< HEAD
         {/* COL 1 — Conteúdo */}
+=======
+        {/* Col conteúdo */}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
         <motion.div layout transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
           className="relative flex flex-col bg-background/10 backdrop-blur-sm overflow-hidden"
           style={{ flex: 1, minWidth: 0 }}>
           <div className="overflow-y-auto px-4 py-4"
             style={{ height: columnHeight, scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent", display: "flex", flexDirection: "column", alignItems: showRoadmap ? "flex-start" : "center" }}>
 
+<<<<<<< HEAD
             <div className="flex gap-1.5 mb-5 flex-wrap" style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
               {TABS.map((tab) => (
+=======
+            {/* Tabs */}
+            <div className="flex gap-1.5 mb-5 flex-wrap" style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
+              {TABS.map(tab => (
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs font-accent font-semibold transition-all
                     ${activeTab === tab.id ? "bg-primary/15 text-primary border border-primary/50" : "text-foreground/65 border border-border hover:border-primary/30 hover:text-foreground hover:bg-primary/5"}`}
                   style={activeTab === tab.id ? { boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)" } : {}}>
                   {tab.icon}{tab.label}
+<<<<<<< HEAD
+=======
+                  {/* Badge laranja no quiz se ainda não passou */}
+                  {tab.id === "quiz" && !quizPassed && activeIndex < aulas.length - 1 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent absolute top-1 right-1"
+                      style={{ boxShadow: "0 0 4px hsl(25 90% 55%)" }} />
+                  )}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                   {activeTab === tab.id && (
                     <motion.span layoutId="tab-ul" className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-primary"
                       style={{ boxShadow: "0 0 5px hsl(155 60% 45%)" }} />
@@ -876,6 +1349,7 @@ const CoursesPage = () => {
             </div>
 
             <AnimatePresence mode="wait">
+<<<<<<< HEAD
               <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }} style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
                 {activeTab === "aula" && (
@@ -895,12 +1369,33 @@ const CoursesPage = () => {
                   )
                 )}
                 {activeTab === "quiz"    && <QuizTab />}
+=======
+              <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
+                {activeTab === "aula" && (
+                  <AulaTab
+                    aulas={aulas} activeIndex={activeIndex}
+                    quizPassed={quizPassed}
+                    onGoToQuiz={() => setActiveTab("quiz")}
+                    onNext={handleNext}
+                  />
+                )}
+                {activeTab === "quiz" && (
+                  <QuizTab
+                    questions={quizQuestions}
+                    loading={quizLoading}
+                    onPass={() => { handleQuizPass(); setActiveTab("aula"); }}
+                  />
+                )}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
                 {activeTab === "duvidas" && <DuvidasTab />}
               </motion.div>
             </AnimatePresence>
           </div>
         </motion.div>
 
+<<<<<<< HEAD
         {/* COL 2 — Roadmap */}
         <AnimatePresence initial={false}>
           {showRoadmap && (
@@ -923,15 +1418,37 @@ const CoursesPage = () => {
                     onSelectIndex={(i) => { setActiveIndex(i); setActiveTab("aula"); }}
                   />
                 )}
+=======
+        {/* Col roadmap */}
+        <AnimatePresence initial={false}>
+          {showRoadmap && (
+            <motion.div key="roadmap-col" initial={{ width: 0, opacity: 0 }} animate={{ width: "50%", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+              className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden shrink-0"
+              style={{ minWidth: 0 }}>
+              <div style={{ height: columnHeight }}>
+                <RoadmapPanel
+                  aulas={aulas} activeIndex={activeIndex} passedIndexes={passedIndexes}
+                  onSelectIndex={i => {
+                    const isUnlocked = i === 0 || passedIndexes.has(i - 1);
+                    if (isUnlocked || passedIndexes.has(i)) { setActiveIndex(i); setActiveTab("aula"); }
+                  }}
+                />
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
+<<<<<<< HEAD
       {/* Botão Roadmap */}
       <motion.button onClick={() => setShowRoadmap((v) => !v)}
         title={showRoadmap ? "Ocultar Roadmap" : "Mostrar Roadmap"}
+=======
+      {/* Toggle roadmap */}
+      <motion.button onClick={() => setShowRoadmap(v => !v)}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
         animate={{ right: showRoadmap ? "50%" : "0px" }}
         transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
         className="fixed z-50 cursor-pointer border-0 p-0"
@@ -948,6 +1465,7 @@ const CoursesPage = () => {
       </motion.button>
 
       {/* Botão IA */}
+<<<<<<< HEAD
       <motion.button onClick={() => setShowChat((v) => !v)} title={showChat ? "Fechar Tutor IA" : "Abrir Tutor IA"}
         whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
         className="fixed z-50 cursor-pointer flex items-center justify-center rounded-full border-0"
@@ -957,6 +1475,11 @@ const CoursesPage = () => {
           border: showChat ? "1.5px solid hsl(155 60% 45% / 0.7)" : "1.5px solid hsl(215 20% 32%)",
           boxShadow: showChat ? "0 0 20px hsl(155 60% 45% / 0.55), 0 4px 16px rgba(0,0,0,0.5)" : "0 0 12px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4)",
         }}>
+=======
+      <motion.button onClick={() => setShowChat(v => !v)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
+        className="fixed z-50 cursor-pointer flex items-center justify-center rounded-full border-0"
+        style={{ bottom: 28, right: 28, width: 52, height: 52, background: showChat ? "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))" : "radial-gradient(circle at 35% 35%, hsl(215 28% 18%), hsl(215 28% 10%))", border: showChat ? "1.5px solid hsl(155 60% 45% / 0.7)" : "1.5px solid hsl(215 20% 32%)", boxShadow: showChat ? "0 0 20px hsl(155 60% 45% / 0.55), 0 4px 16px rgba(0,0,0,0.5)" : "0 0 12px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4)" }}>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
         <MessageCircleQuestion size={22} style={{ color: showChat ? "hsl(155 60% 80%)" : "hsl(155 50% 60%)" }} />
         {!showChat && (
           <span className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-primary"
@@ -964,12 +1487,20 @@ const CoursesPage = () => {
         )}
       </motion.button>
 
+<<<<<<< HEAD
       {/* Chat Drawer */}
       <AnimatePresence>
         {showChat && (
           <motion.div key="chat-drawer"
             initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+=======
+      {/* Chat drawer */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div key="chat-drawer" initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.95 }} transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             className="fixed z-40 flex flex-col overflow-hidden"
             style={{ bottom: 92, right: 28, width: 360, height: 480, background: "hsl(215 28% 9%)", border: "1px solid hsl(155 60% 45% / 0.3)", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 30px hsl(155 60% 45% / 0.12)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/40" style={{ background: "hsl(215 28% 11%)" }}>
@@ -977,7 +1508,11 @@ const CoursesPage = () => {
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
                 <span className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</span>
               </div>
+<<<<<<< HEAD
               <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground transition text-base leading-none" style={{ lineHeight: 1 }}>✕</button>
+=======
+              <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground transition" style={{ lineHeight: 1 }}>✕</button>
+>>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
             </div>
             <div className="flex-1 overflow-hidden"><AIChatPanel /></div>
           </motion.div>

@@ -16,15 +16,16 @@ export type AssessmentData = {
 };
 
 type AuthContextType = {
-  session:          Session | null;
-  user:             User | null;
-  loading:          boolean;
-  assessment:       AssessmentData;
-  profilePhoto:     string | null;
-  updateAssessment: (partial: Partial<AssessmentData>) => void;
-  refreshPhoto:     () => void;
-  signOutUser:      () => Promise<void>;
-  logout:           () => Promise<void>;
+  session:            Session | null;
+  user:               User | null;
+  loading:            boolean;
+  assessment:         AssessmentData;
+  profilePhoto:       string | null;
+  updateAssessment:   (partial: Partial<AssessmentData>) => void;
+  saveAssessmentToDb: (data: AssessmentData) => Promise<void>;
+  refreshPhoto:       () => void;
+  signOutUser:        () => Promise<void>;
+  logout:             () => Promise<void>;
 };
 
 const ASSESSMENT_KEY = "upjobs_assessment";
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     catch { return {}; }
   });
 
-  // Busca foto em background — NÃO bloqueia o carregamento da sessão
+  // ── Busca foto do perfil em background ───────────────────────────────────────
   const fetchProfilePhoto = (userId: string) => {
     supabase
       .from("profiles")
@@ -53,38 +54,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   };
 
-  // refreshPhoto: chame no ProfilePage após salvar nova foto
+  // ── Busca assessment do banco e mescla com localStorage ──────────────────────
+  // O banco é fonte de verdade — sobrescreve o localStorage
+  const fetchAssessmentFromDb = (userId: string) => {
+    supabase
+      .from("profiles")
+      .select("calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data) return;
+
+        // Só atualiza se tiver pelo menos algum dado de assessment no banco
+        const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
+        if (!hasDbData) return;
+
+        const fromDb: AssessmentData = {
+          // calculo_marcius guarda os dados do Cálculo Marcius
+          ...(data.calculo_marcius as AssessmentData ?? {}),
+          // colunas dedicadas têm prioridade
+          ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
+          ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
+          ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
+          completed: data.assessment_completed ?? false,
+        };
+
+        setAssessment((prev) => {
+          const merged = { ...prev, ...fromDb };
+          localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      });
+  };
+
   const refreshPhoto = () => {
     if (user?.id) fetchProfilePhoto(user.id);
   };
 
   useEffect(() => {
-    // 1. Carrega sessão existente imediatamente
     supabase.auth.getSession().then(({ data, error }) => {
       if (!error && data.session?.user) {
         setSession(data.session);
         setUser(data.session.user);
-        fetchProfilePhoto(data.session.user.id); // em background, não bloqueia
+        fetchProfilePhoto(data.session.user.id);
+        fetchAssessmentFromDb(data.session.user.id); // banco tem prioridade
       }
-      setLoading(false); // libera o app para renderizar
+      setLoading(false);
     });
 
-    // 2. Escuta mudanças de auth (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session ?? null);
       setUser(session?.user ?? null);
       setLoading(false);
 
       if (session?.user) {
-        fetchProfilePhoto(session.user.id); // em background
+        fetchProfilePhoto(session.user.id);
+        fetchAssessmentFromDb(session.user.id);
       } else {
         setProfilePhoto(null);
+        setAssessment({});
+        localStorage.removeItem(ASSESSMENT_KEY);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── updateAssessment — apenas estado + localStorage (durante o fluxo) ────────
   function updateAssessment(partial: Partial<AssessmentData>) {
     setAssessment((prev) => {
       const updated = { ...prev, ...partial };
@@ -93,17 +129,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  // ── saveAssessmentToDb — persiste tudo no banco nas colunas corretas ──────────
+  async function saveAssessmentToDb(data: AssessmentData) {
+    if (!user?.id) return;
+
+    // 1. Atualiza estado e localStorage
+    setAssessment((prev) => {
+      const updated = { ...prev, ...data };
+      localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    // 2. Monta payload com cada dado na coluna certa
+    const payload: Record<string, any> = {
+      user_id:              user.id,
+      assessment_completed: data.completed ?? false,
+    };
+
+    // Dados do Cálculo Marcius vão em calculo_marcius
+    if (
+      data.salarioBruto !== undefined ||
+      data.horasSemana !== undefined ||
+      data.tempoDeslocamento !== undefined ||
+      data.valorHoraBruta !== undefined ||
+      data.valorHoraLiquida !== undefined
+    ) {
+      payload.calculo_marcius = {
+        salarioBruto:      data.salarioBruto,
+        horasSemana:       data.horasSemana,
+        tempoDeslocamento: data.tempoDeslocamento,
+        valorHoraBruta:    data.valorHoraBruta,
+        valorHoraLiquida:  data.valorHoraLiquida,
+      };
+    }
+
+    // DISC vai nas colunas dedicadas
+    if (data.discProfile) payload.disc_profile = data.discProfile;
+    if (data.discScores)  payload.disc_scores  = data.discScores;
+
+    // Áreas de interesse
+    if (data.areasInteresse) payload.areas_interesse = data.areasInteresse;
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "user_id" });
+
+    if (error) {
+      console.error("[AuthContext] Erro ao salvar assessment:", error.message);
+      throw error;
+    }
+
+    // 3. Se completou, dá a borda DISC
+    if (data.completed && data.discProfile) {
+      await grantDiscBorder(user.id, data.discProfile);
+    }
+  }
+
+  // ── Dá a borda DISC ao usuário ────────────────────────────────────────────────
+  async function grantDiscBorder(userId: string, discProfile: string) {
+    const DISC_BORDERS: Record<string, { id: string; img_url: string; nome: string }> = {
+      D: { id: "disc-d", img_url: "/src/assets/disc/Dominancia.webp",   nome: "Dominância"   },
+      I: { id: "disc-i", img_url: "/src/assets/disc/Influencia.webp",   nome: "Influência"   },
+      S: { id: "disc-s", img_url: "/src/assets/disc/Estabilidade.webp", nome: "Estabilidade" },
+      C: { id: "disc-c", img_url: "/src/assets/disc/Conformidade.webp", nome: "Conformidade" },
+    };
+
+    const novaBorda = DISC_BORDERS[discProfile];
+    if (!novaBorda) return;
+
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("bordas")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const bordasAtuais: any[] = prof?.bordas ?? [];
+    const jaTemBorda = bordasAtuais.some((b: any) => b.id === novaBorda.id);
+    if (jaTemBorda) return;
+
+    // Adiciona nova borda e a deixa ativa, desativa as outras
+    const novasBordas = [
+      ...bordasAtuais.map((b: any) => ({ ...b, ativa: false })),
+      { ...novaBorda, ativa: true },
+    ];
+
+    await supabase
+      .from("profiles")
+      .upsert({ user_id: userId, bordas: novasBordas }, { onConflict: "user_id" });
+  }
+
   async function signOutUser() {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setProfilePhoto(null);
+    setAssessment({});
+    localStorage.removeItem(ASSESSMENT_KEY);
   }
 
   return (
     <AuthContext.Provider value={{
       session, user, loading,
-      assessment, updateAssessment,
+      assessment, updateAssessment, saveAssessmentToDb,
       profilePhoto, refreshPhoto,
       signOutUser,
       logout: signOutUser,

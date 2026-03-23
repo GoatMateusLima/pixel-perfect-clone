@@ -246,10 +246,10 @@ const PostCard = ({
     <motion.div layout
       initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
-      className="hologram-panel rounded-sm overflow-hidden">
+      className="bg-transparent border-b border-border/20 overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="p-5 pb-0 flex items-start justify-between gap-3">
+      <div className="px-4 pt-4 pb-0 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
           <UserAvatar
             avatarUrl={authorAvatarUrl}
@@ -296,34 +296,31 @@ const PostCard = ({
       </div>
 
       {/* ── Descrição ── */}
-      <div className="px-5 py-4 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
+      <div className="px-4 pt-3 pb-2 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
         <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">
           {post.description}
         </p>
       </div>
 
-      {/* ── Mídia (imagem, vídeo ou GIF) ── */}
+      {/* ── Mídia — borda-a-borda, max-height controlado como Twitter ── */}
       {post.midia && post.midia !== "EMPTY" && (
-        <div className="px-5 pb-2">
-          <PostMedia
-            midia={post.midia.startsWith("gif:") ? post.midia.replace("gif:", "") : post.midia}
-            maxHeight={340}
-            onClick={() => post && onOpenModal?.(post)}
-          />
+        <div className="mt-2 cursor-pointer overflow-hidden w-full rounded-xl mx-4"
+          style={{ width: "calc(100% - 2rem)" }}
+          onClick={() => post && onOpenModal?.(post)}>
+          <PostMedia midia={post.midia} maxHeight={400} />
         </div>
       )}
 
       {/* ── Contadores ── */}
-      <div className="px-5 pb-2 flex items-center justify-between text-[11px] text-muted-foreground font-body border-t border-border/30 pt-3">
+      <div className="px-4 py-1.5 flex items-center justify-between text-[11px] text-muted-foreground font-body">
         <span>{post.like_qnt ?? 0} curtidas</span>
         <button onClick={() => post && onOpenModal?.(post)} className="hover:text-foreground transition">
-          {/* AQUI ESTÁ A MÁGICA: Usando o estado commentCount ao invés de post.comments.length */}
           {commentCount} {commentCount === 1 ? "comentário" : "comentários"} · Ver todos
         </button>
       </div>
 
       {/* ── Ações ── */}
-      <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30">
+      <div className="px-2 py-1 flex items-center gap-1 border-t border-border/10">
         {[
           { label: "Curtir",      el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike?.(post.id) },
           { label: "Comentar",    el: <MessageCircle size={14} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },

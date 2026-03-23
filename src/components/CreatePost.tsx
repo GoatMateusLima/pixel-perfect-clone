@@ -161,7 +161,7 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   ) : null);
 
   return (
-    <motion.div layout className="hologram-panel rounded-sm p-5">
+    <motion.div layout className="bg-transparent border-b border-border/20 px-4 py-3">
       <div className="flex gap-3 items-center">
 
         {/* Sua Foto de Perfil na hora de criar */}

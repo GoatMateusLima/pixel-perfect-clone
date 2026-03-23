@@ -285,7 +285,7 @@ const PostModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.2 }}
-          className="hologram-panel rounded-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          className="hologram-panel rounded-sm w-full max-w-2xl flex flex-col overflow-hidden" style={{ maxHeight: "min(90vh, calc(100dvh - 2rem))" }}
           onClick={(e) => e.stopPropagation()}>
 
           {/* ── Header ── */}

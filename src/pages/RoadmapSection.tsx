@@ -6,10 +6,11 @@ import supabase from "../../utils/supabase.ts";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
 
+
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export type Course = { 
   id: string;
-  courses_id: string; // Verifique se no banco é courses_id ou tema_id
+  courses_id: string;
   name: string;
   difficult: string;
 }
@@ -116,7 +117,6 @@ const RoadmapSection = () => {
     if (!error) setTemasBrutos(data || []);
   }
 
-  // Une Temas + Cursos em uma lista pronta para uso
   const temasProntos = useMemo(() => {
     return temasBrutos.map((tema) => ({
       ...tema,
