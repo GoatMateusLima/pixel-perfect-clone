@@ -308,21 +308,12 @@ const AdminPage = () => {
     }
   };
 
-<<<<<<< HEAD
   // ── Form: criar curso ──
   const [courseForm, setCourseForm] = useState({ name: "", difficult: "", courses_id: "", descricao: "", playlist_id: "" });
-=======
-  // ── Form curso ──
-  const EMPTY: CourseForm = { name: "", descricao: "", difficult: "", courses_id: "", playlistUrl: "", playlist_id: "" };
-  const [courseForm, setCourseForm] = useState<CourseForm>(EMPTY);
->>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   const [savingCourse, setSavingCourse] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
-<<<<<<< HEAD
   // Extrai o playlist_id da URL do YouTube automaticamente
-=======
->>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
   const extractPlaylistId = (raw: string): string => {
     try { return new URL(raw).searchParams.get("list") ?? raw.trim(); }
     catch { return raw.trim(); }
@@ -332,7 +323,6 @@ const AdminPage = () => {
     setCourseForm(p => ({ ...p, playlistUrl: raw, playlist_id: extractPlaylistId(raw) }));
   };
 
-<<<<<<< HEAD
  const handleSaveCourse = async () => {
   if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
     notify("error", "Preencha nome, dificuldade e o tema do curso.");
@@ -388,23 +378,12 @@ const AdminPage = () => {
       notify("error", "Erro ao buscar playlist: " + err.message);
       setSavingCourse(false);
       return;
-=======
-  const handleSaveCourse = async () => {
-    if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
-      notify("error", "Preencha nome, dificuldade e o tema do curso."); return;
->>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
     }
     setSavingCourse(true); setSaveStatus("Salvando curso...");
 
-<<<<<<< HEAD
   setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlist_id: "" });
   setSavingCourse(false);
 };
-=======
-    const { data: course, error } = await supabase.from("courses")
-      .insert({ name: courseForm.name.trim(), descricao: courseForm.descricao.trim() || null, difficult: courseForm.difficult, courses_id: courseForm.courses_id, playlist_id: courseForm.playlist_id || null })
-      .select("id").single();
->>>>>>> 4fb6b655660ecba58df86c4dde9f6b494ec67fa8
 
     if (error || !course) { notify("error", "Erro ao salvar curso: " + error?.message); setSavingCourse(false); setSaveStatus(""); return; }
 
