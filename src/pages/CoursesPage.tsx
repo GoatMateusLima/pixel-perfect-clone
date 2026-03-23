@@ -64,6 +64,8 @@ const extractVideoId = (url: string): string => {
   } catch { return url; }
 };
 
+
+
 // ─── AulaTab ─────────────────────────────────────────────────────────────────
 
 const AulaTab = ({
@@ -145,6 +147,7 @@ const AulaTab = ({
         </div>
       </motion.div>
 
+
       {/* Mini lista mobile */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="hologram-panel rounded-sm p-4 lg:hidden">
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -156,8 +159,8 @@ const AulaTab = ({
               {i < activeIndex
                 ? <CheckCircle2 size={14} className="text-primary shrink-0" />
                 : i === activeIndex
-                ? <PlayCircle size={14} className="text-accent shrink-0" />
-                : <Lock size={14} className="text-muted-foreground shrink-0" />}
+                  ? <PlayCircle size={14} className="text-accent shrink-0" />
+                  : <Lock size={14} className="text-muted-foreground shrink-0" />}
               <span className={`text-xs font-body flex-1 truncate ${i === activeIndex ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{l.nome}</span>
               <span className="text-xs font-accent text-muted-foreground">{i + 1}</span>
             </div>
@@ -192,6 +195,8 @@ const DuvidasTab = () => {
     setDoubts((data ?? []).map(row => rowToDoubt(row, myCreatorId)));
     setLoading(false);
   }, [myCreatorId]);
+
+
 
   useEffect(() => { fetchDoubts(); }, [fetchDoubts]);
 
@@ -357,7 +362,7 @@ const DuvidasTab = () => {
 
       {openDoubt && (
         <PostModal post={openDoubt as any} onClose={() => setOpenDoubt(null)}
-          onLike={(id: string) => handleLike(id)} onSave={() => {}}
+          onLike={(id: string) => handleLike(id)} onSave={() => { }}
           profilePhoto={profilePhoto} myName={myName} myDisc={myDisc}
           myDiscRingImg={undefined} myUserId={myCreatorId} />
       )}
@@ -697,12 +702,50 @@ const AIChatPanel = () => {
 
 const CoursesPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("aula");
   const [activeIndex, setActiveIndex] = useState(0);
   const [showChat, setShowChat] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(true);
 
+
+
   const [aulas, setAulas] = useState<Aula[]>([]);
+
+  // --- LOGICA DE PROGRESSO AUTOMÁTICO ---
+  useEffect(() => {
+    const saveProgress = async () => {
+      const aulaAtual = aulas[activeIndex];
+      if (!user || !aulaAtual) return;
+
+      try {
+        // 1. Garante que o usuário está "inscrito" no curso (tabela watch)
+        // Se já estiver, o upsert não faz nada.
+        await supabase
+          .from('watch')
+          .upsert({
+            user_id: user.id,
+            course_id: courseId
+          }, { onConflict: 'user_id,course_id' });
+
+        // 2. Registra o progresso da aula
+        await supabase
+          .from('lesson_progress')
+          .upsert({
+            user_id: user.id,
+            aula_id: aulaAtual.id,
+            completed: true,
+            completed_at: new Date().toISOString()
+          }, { onConflict: 'user_id,aula_id' });
+
+      } catch (err) {
+        console.error("Erro ao processar progresso:", err);
+      }
+    };
+
+    saveProgress();
+  }, [activeIndex, aulas, user, courseId]);
+
   const [courseInfo, setCourseInfo] = useState<CourseInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
