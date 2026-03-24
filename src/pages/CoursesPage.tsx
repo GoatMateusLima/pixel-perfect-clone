@@ -33,16 +33,6 @@ type Aula = {
   position: number;
 };
 
-interface Doubt {
-  id: string;
-  course_id: string;
-  nome: string;
-  url_video: string;
-  descricao: string;
-  thumb: string;
-  position: number;
-}
-
 interface CourseInfo {
   id: string;
   name: string;
@@ -91,12 +81,16 @@ const AulaTab = ({
   totalAulas,
   aulas,
   onSelectAula,
+  quizPassed,
+  isLast,
 }: {
   aula: Aula | null;
   aulaIndex: number;
   totalAulas: number;
   aulas: Aula[];
   onSelectAula: (index: number) => void;
+  quizPassed: boolean;
+  isLast: boolean;
 }) => {
   if (!aula) {
     return (
@@ -218,8 +212,6 @@ const DuvidasTab = () => {
     setDoubts((data ?? []).map((row) => rowToDoubt(row, myCreatorId)));
     setLoading(false);
   }, [myCreatorId]);
-
-
 
   useEffect(() => { fetchDoubts(); }, [fetchDoubts]);
 
@@ -439,7 +431,6 @@ const RoadmapPanel = ({
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [panelW, setPanelW] = useState(220);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -465,10 +456,10 @@ const RoadmapPanel = ({
   });
 
   const roadPath = (() => {
-    if (nodePos.length === 0) return "";
-    let d = `M ${nodePos[0].x} ${nodePos[0].y}`;
-    for (let i = 1; i < nodePos.length; i++) {
-      const p0 = nodePos[i - 1]; const p1 = nodePos[i];
+    if (vNodePos.length === 0) return "";
+    let d = `M ${vNodePos[0].x} ${vNodePos[0].y}`;
+    for (let i = 1; i < vNodePos.length; i++) {
+      const p0 = vNodePos[i - 1]; const p1 = vNodePos[i];
       const dy = (p1.y - p0.y) * 0.5;
       d += ` C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
     }
@@ -541,7 +532,7 @@ const RoadmapPanel = ({
               </filter>
             </defs>
 
-            {segments.map(({ d, lit, key }) => (
+            {vSegments.map(({ d, lit, key }) => (
               <g key={key}>
                 <path d={d} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
                 <path d={d} fill="none" stroke={lit ? "hsl(155, 42%, 20%)" : "hsl(215, 18%, 13%)"} strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
@@ -550,10 +541,12 @@ const RoadmapPanel = ({
             ))}
 
             <path d={roadPath} fill="none" stroke="hsl(215, 15%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
-            {segments.filter(s => s.lit).map(({ d, key }) => (
+            
+            {vSegments.filter(s => s.lit).map(({ d, key }) => (
               <path key={`dash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
             ))}
-            {segments.filter(s => s.lit).map(({ d, key }) => (
+            
+            {vSegments.filter(s => s.lit).map(({ d, key }) => (
               <circle key={`dot-${key}`} r="3" fill="hsl(155, 70%, 62%)" filter="url(#vRoadGlow)" opacity="0.9">
                 <animateMotion dur="3s" repeatCount="indefinite" path={d} />
               </circle>
@@ -673,9 +666,47 @@ const SUGGESTIONS = [
   "Como funciona async/await?", "O que é Docker e por que usar?",
 ];
 
+// O Novo Prompt Dinâmico
+const generateSystemPrompt = (courseName: string, lessonName: string, lessonDescription: string) => `
+Você é um Professor Auxiliar Virtual de uma plataforma educacional. Sua função é ler o material didático da página em que foi acionado, compreender o assunto e ajudar os alunos a tirarem suas dúvidas sobre aquele tema específico de forma clara, paciente e didática.
+
+Sua tarefa é analisar o [CONTEÚDO DA PÁGINA] e a [PERGUNTA DO ALUNO] e decidir como responder.
+
+REGRAS DE COMPORTAMENTO:
+
+1. FOCO NO TEMA (Obrigatório):
+- Responda APENAS a perguntas que tenham relação direta ou indireta com o conteúdo da página atual (${courseName} - ${lessonName}).
+- Se o aluno fizer perguntas totalmente irrelevantes, fora de contexto (ex: receitas de bolo em uma aula de história, esportes, política externa) ou tentar mudar o assunto, você DEVE recusar educadamente.
+
+2. COMO NEGAR RESPOSTAS OFF-TOPIC:
+- Quando a pergunta for fora do tema, use uma variação da seguinte frase: "Olá! Como sou o professor auxiliar desta aula, meu foco é te ajudar apenas com dúvidas sobre o tema: ${lessonName}. Tem algo sobre esse assunto que eu possa te explicar?"
+- Não dê sermões, apenas redirecione o aluno de volta para o conteúdo.
+
+3. ESTILO DE ENSINO:
+- Seja encorajador e utilize um tom amigável.
+- Evite dar apenas a "resposta final" se for um exercício. Tente explicar o "porquê" ou o passo a passo para que o aluno realmente aprenda.
+- Adapte sua linguagem para ser simples e acessível.
+- Baseie suas respostas nas informações fornecidas no contexto da página. Se a página não tiver a resposta completa, mas for sobre o mesmo tema, use seu conhecimento para complementar.
+
+ESTRUTURA DA SUA RESPOSTA:
+- Responda diretamente ao aluno em texto natural (Markdown é permitido para formatação, como negrito ou listas).
+- Não invente informações se não tiver certeza; prefira dizer que não encontrou a resposta no material.
+
+Abaixo estão os dados do material atual:
+[CONTEÚDO DA PÁGINA]: 
+Curso: ${courseName}
+Aula atual: ${lessonName}
+Descrição do conteúdo: ${lessonDescription || "O aluno está assistindo a um vídeo sobre este tema."}
+`;
+
 const AI_KEY = import.meta.env.VITE_AI_KEY;
 
-const AIChatPanel = () => {
+interface AIChatPanelProps {
+  courseName: string;
+  aula: Aula | null;
+}
+
+const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: 0, role: "assistant",
     text: "Olá! Sou seu tutor de programação. Pergunte qualquer coisa sobre o conteúdo da trilha 🚀",
@@ -689,19 +720,28 @@ const AIChatPanel = () => {
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
+    
     const userMsg: ChatMessage = { id: Date.now(), role: "user", text: trimmed, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
     scrollToBottom();
+    
     try {
+      // Injetando as variáveis aula.nome e aula.descricao direto do banco de dados
+      const dynamicPrompt = generateSystemPrompt(
+        courseName || "Curso não identificado",
+        aula?.nome || "Aula não identificada",
+        aula?.descricao || "Nenhuma descrição fornecida para esta aula."
+      );
+
       const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role, content: m.text }));
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
         body: JSON.stringify({
           model: "llama-3.1-8b-instant",
-          messages: [{ role: "system", content: "Responda td" }, ...history, { role: "user", content: trimmed }],
+          messages: [{ role: "system", content: dynamicPrompt }, ...history, { role: "user", content: trimmed }],
         }),
       });
       const data = await res.json();
@@ -781,28 +821,23 @@ const AIChatPanel = () => {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const CoursesPage = () => {
+  const { user } = useAuth();
   const { courseId } = useParams<{ courseId: string }>();
   const [activeTab,      setActiveTab]      = useState<Tab>("aula");
   const [activeIndex,    setActiveIndex]    = useState(0);
   const [showChat,       setShowChat]       = useState(false);
   const [showRoadmap,    setShowRoadmap]    = useState(true);
-  //const [aulas,          setAulas]          = useState<Aula[]>([]);
   const [courseName,     setCourseName]     = useState("");
   const [loadingAulas,   setLoadingAulas]   = useState(true);
-
-
-
   const [aulas, setAulas] = useState<Aula[]>([]);
 
-  // --- LOGICA DE PROGRESSO AUTOMÁTICO ---
+  // --- LÓGICA DE PROGRESSO AUTOMÁTICO ---
   useEffect(() => {
     const saveProgress = async () => {
       const aulaAtual = aulas[activeIndex];
       if (!user || !aulaAtual) return;
 
       try {
-        // 1. Garante que o usuário está "inscrito" no curso (tabela watch)
-        // Se já estiver, o upsert não faz nada.
         await supabase
           .from('watch')
           .upsert({
@@ -810,7 +845,6 @@ const CoursesPage = () => {
             course_id: courseId
           }, { onConflict: 'user_id,course_id' });
 
-        // 2. Registra o progresso da aula
         await supabase
           .from('lesson_progress')
           .upsert({
@@ -826,7 +860,7 @@ const CoursesPage = () => {
     };
 
     saveProgress();
-  }, [activeIndex, aulas, courseId]);
+  }, [activeIndex, aulas, courseId, user]);
 
   const [courseInfo, setCourseInfo] = useState<CourseInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -835,7 +869,6 @@ const CoursesPage = () => {
   const [quizLoading, setQuizLoading] = useState(false);
   const [passedIndexes, setPassedIndexes] = useState<Set<number>>(new Set());
 
-  // Carrega curso + aulas
   useEffect(() => {
     if (!courseId) return;
     async function load() {
@@ -849,7 +882,6 @@ const CoursesPage = () => {
     load();
   }, [courseId]);
 
-  // Carrega quiz da aula ativa
   useEffect(() => {
     const aula = aulas[activeIndex];
     if (!aula) return;
@@ -883,11 +915,9 @@ const CoursesPage = () => {
   useEffect(() => {
     if (!courseId) return;
 
-    // Busca nome do curso
     supabase.from("courses").select("name").eq("id", courseId).single()
       .then(({ data }) => { if (data) setCourseName(data.name); });
 
-    // Busca aulas
     supabase.from("aulas")
       .select("id, nome, url_video, thumb, descricao, position")
       .eq("course_id", courseId)
@@ -969,6 +999,8 @@ const CoursesPage = () => {
                       totalAulas={aulas.length}
                       aulas={aulas}
                       onSelectAula={(i) => setActiveIndex(i)}
+                      quizPassed={quizPassed}
+                      isLast={activeIndex === aulas.length - 1}
                     />
                   )
                 )}
@@ -1057,7 +1089,12 @@ const CoursesPage = () => {
               </div>
               <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground transition text-base leading-none" style={{ lineHeight: 1 }}>✕</button>
             </div>
-            <div className="flex-1 overflow-hidden"><AIChatPanel /></div>
+            <div className="flex-1 overflow-hidden">
+              <AIChatPanel 
+                courseName={courseName} 
+                aula={aulaAtiva} 
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
