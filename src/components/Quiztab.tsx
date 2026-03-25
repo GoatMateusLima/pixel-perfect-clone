@@ -63,7 +63,7 @@ const AI_KEY = import.meta.env.VITE_AI_KEY;
 
   const data = await response.json();
 
-  console.log(data)
+  console.log(response.status)
   const text = data.content
     .filter((b: { type: string }) => b.type === "text")
     .map((b: { text: string }) => b.text)
@@ -113,7 +113,7 @@ const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }:
       setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
       setGenError("Não foi possível gerar as questões. Tente novamente.");
-      //console.error(topic);
+      //console.error(Response.ok);
     } finally {
       setGenerating(false);
     }
