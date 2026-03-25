@@ -4,7 +4,7 @@
  * Messenger flutuante estilo Facebook/Telegram.
  * Adicione <MessengerWidget /> no seu layout raiz (ex: App.tsx) para ele
  * aparecer em todas as páginas. Ele é controlado por um evento global:
- *   window.dispatchEvent(new CustomEvent("open-chat", { detail: { userId, name, avatar } }))
+ * window.dispatchEvent(new CustomEvent("open-chat", { detail: { userId, name, avatar } }))
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -98,7 +98,32 @@ const ConversationList = ({
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Realtime para a lista de conversas
+  useEffect(() => {
+    load();
+
+    const channel = supabase
+      .channel(`conversation-list-${myId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${myId}` },
+        () => {
+          // Trigger: Alguém te mandou mensagem!
+          load();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${myId}` },
+        () => {
+          // Trigger: Você enviou mensagem (útil se estiver com abas múltiplas abertas)
+          load();
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [load, myId]);
 
   // Amigos sem conversa ainda
   const convUserIds = new Set((convs ?? []).map(c => c.other_user_id));
@@ -131,7 +156,7 @@ const ConversationList = ({
 
       {/* Lista */}
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}>
-        {loading ? (
+        {loading && convs.length === 0 ? (
           <div className="flex items-center justify-center py-8 gap-2">
             <Loader2 size={14} className="animate-spin text-muted-foreground" />
             <span className="text-xs text-muted-foreground font-body">Carregando...</span>
@@ -264,23 +289,43 @@ const ChatWindow = ({
   // Realtime
   useEffect(() => {
     const channel = supabase
-      .channel(`chat-${[myId, chat.userId].sort().join("-")}`)
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "messages",
-        filter: `or(and(sender_id=eq.${myId},receiver_id=eq.${chat.userId}),and(sender_id=eq.${chat.userId},receiver_id=eq.${myId}))`,
-      }, (payload) => {
-        const msg = payload.new as Message;
-        setMessages(prev => {
-          // Evita duplicar mensagens otimistas
-          if (prev.some(m => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-        scrollToBottom();
-        if (msg.sender_id !== myId) {
-          supabase.rpc("mark_messages_read", { other_user: chat.userId });
+      .channel(`chat-window-${myId}-${chat.userId}`)
+      // Escuta mensagens recebidas
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${myId}` },
+        (payload) => {
+          const msg = payload.new as Message;
+          // Confirma que a mensagem veio da pessoa que estou conversando
+          if (msg.sender_id === chat.userId) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+            scrollToBottom();
+            // Marca como lida instantaneamente
+            supabase.rpc("mark_messages_read", { other_user: chat.userId });
+          }
         }
-      })
+      )
+      // Escuta mensagens enviadas por VOCÊ (útil se você usar 2 abas/celular ao mesmo tempo)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${myId}` },
+        (payload) => {
+          const msg = payload.new as Message;
+          // Se eu mandei para essa pessoa específica
+          if (msg.receiver_id === chat.userId) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+            scrollToBottom();
+          }
+        }
+      )
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, [chat.userId, myId, scrollToBottom]);
 
@@ -290,7 +335,7 @@ const ChatWindow = ({
     setSending(true);
     setInput("");
 
-    // Optimistic
+    // Optimistic UI (Aparece instantaneamente)
     const tempId = `temp-${Date.now()}`;
     const optimistic: Message = {
       id: tempId, sender_id: myId, content: text,
@@ -311,7 +356,7 @@ const ChatWindow = ({
       setInput(text);
       return;
     }
-    // Troca o optimistic pelo real
+    // Troca a mensagem "temp" pela mensagem real salva no banco
     setMessages(prev => prev.map(m => m.id === tempId ? (data as Message) : m));
   };
 

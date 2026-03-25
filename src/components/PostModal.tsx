@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Heart, Bookmark, Share2, Send, Loader2, ImageIcon, Video, Smile } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
+import { useNavigate } from "react-router-dom"; // <-- Adicionado
 import {
   Post,
   DISC_COLOR, DISC_LABEL,
@@ -33,6 +34,8 @@ const PostModal = ({
   post, onClose, onLike, onSave,
   myAvatarUrl, myName, myDisc, myDiscRingImg, myUserId,
 }: PostModalProps) => {
+
+  const navigate = useNavigate(); // <-- Adicionado
 
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -74,6 +77,15 @@ const PostModal = ({
     setPreviewUrl(null);
     setGifUrl(null);
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  // ── Função de Navegação para o Perfil ──
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    if (post?.creator_id) {
+      onClose(); // Fecha o modal antes de navegar
+      navigate(`/u/${post.creator_id}`);
+    }
   };
 
   // ── Carrega comentários ──
@@ -165,7 +177,7 @@ const PostModal = ({
     // 1. Fazemos o upload ANTES de inserir no banco
     const midiaUrl = await uploadCommentMedia(mediaFile, gifUrl);
 
-    // 2. Inserimos o comentário já com a mídia embutida (Ignora a necessidade de ter permissão de UPDATE)
+    // 2. Inserimos o comentário já com a mídia embutida
     const { data, error } = await supabase
       .from("comments")
       .insert({
@@ -307,7 +319,11 @@ const PostModal = ({
 
           {/* ── Header ── */}
           <div className="p-5 pb-0 flex items-start justify-between gap-3 flex-shrink-0">
-            <div className="flex items-start gap-3">
+            {/* Div alterada para ser clicável e redirecionar ao perfil */}
+            <div 
+              className="flex items-start gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleAvatarClick}
+            >
               <UserAvatar
                 avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
                 name={isMe ? myName : authorName}
