@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogIn, LogOut, User, LifeBuoy, Home, Globe } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
+import NotificationBell from "./NotificationBell"; // <-- IMPORT ADICIONADO
 
 const NAV_ITEMS = [
   { label: "Início",     href: "/roadmap",    icon: Home     },
@@ -79,6 +80,9 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
+              {/* 🟢 SININHO ADICIONADO AQUI (Desktop) */}
+              <NotificationBell />
+
               <Link to="/perfil"
                 className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center transition hover:brightness-110"
                 style={{ border: "2px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)", background: "hsl(155 60% 45% / 0.15)" }}
@@ -111,11 +115,16 @@ const Header = () => {
           )}
         </div>
 
-        {/* Mobile burger */}
-        <button className="md:hidden text-muted-foreground hover:text-foreground transition p-1"
-          onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        {/* Mobile menu e sininho */}
+        <div className="flex items-center gap-2 md:hidden">
+          {/* 🟢 SININHO ADICIONADO AQUI (Mobile) */}
+          {user && <NotificationBell />}
+          
+          <button className="text-muted-foreground hover:text-foreground transition p-1"
+            onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}

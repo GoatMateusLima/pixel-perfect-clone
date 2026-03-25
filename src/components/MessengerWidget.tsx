@@ -246,6 +246,8 @@ const ConversationList = ({
 
 // ─── ChatWindow ───────────────────────────────────────────────────────────────
 
+// ─── ChatWindow (Versão Bucket JSON) ─────────────────────────────────────────
+
 const ChatWindow = ({
   chat, myId, onBack,
 }: {
@@ -259,105 +261,111 @@ const ChatWindow = ({
   const [sending,  setSending]    = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Gera um nome único e consistente para o arquivo JSON desta conversa
+  const getChatFileName = useCallback(() => {
+    const sortedIds = [myId, chat.userId].sort();
+    return `${sortedIds[0]}_${sortedIds[1]}.json`;
+  }, [myId, chat.userId]);
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
 
-  // Carrega histórico
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      const { data } = await supabase
-        .from("messages")
-        .select("id, sender_id, content, created_at, read")
-        .or(`and(sender_id.eq.${myId},receiver_id.eq.${chat.userId}),and(sender_id.eq.${chat.userId},receiver_id.eq.${myId})`)
-        .order("created_at", { ascending: true })
-        .limit(100);
-      if (!cancelled) {
-        setMessages(data ?? []);
-        setLoading(false);
-        scrollToBottom();
-        // Marca como lidas
-        supabase.rpc("mark_messages_read", { other_user: chat.userId });
+  // 1. Função para BAXIAR o JSON do Bucket
+  const loadMessagesFromBucket = useCallback(async () => {
+    const fileName = getChatFileName();
+    
+    const { data, error } = await supabase.storage.from('chats').download(fileName);
+    
+    if (error) {
+      // Se o erro for "Not Found", significa que é uma conversa nova e o arquivo não existe ainda
+      if (error.message.includes("not found") || error.message.includes("Object not found")) {
+        setMessages([]);
+      } else {
+        console.error("Erro ao baixar conversa:", error.message);
+      }
+    } else if (data) {
+      // Transforma o arquivo em texto e faz o parse para JSON
+      const text = await data.text();
+      try {
+        const parsedMessages = JSON.parse(text) as Message[];
+        setMessages(parsedMessages);
+      } catch (e) {
+        console.error("Erro ao ler o JSON:", e);
       }
     }
-    load();
-    return () => { cancelled = true; };
-  }, [chat.userId, myId, scrollToBottom]);
+    
+    setLoading(false);
+    scrollToBottom();
+  }, [getChatFileName, scrollToBottom]);
 
-  // Realtime
+  // Carrega histórico inicial
   useEffect(() => {
-    const channel = supabase
-      .channel(`chat-window-${myId}-${chat.userId}`)
-      // Escuta mensagens recebidas
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${myId}` },
-        (payload) => {
-          const msg = payload.new as Message;
-          // Confirma que a mensagem veio da pessoa que estou conversando
-          if (msg.sender_id === chat.userId) {
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg];
-            });
-            scrollToBottom();
-            // Marca como lida instantaneamente
-            supabase.rpc("mark_messages_read", { other_user: chat.userId });
-          }
+    setLoading(true);
+    loadMessagesFromBucket();
+  }, [loadMessagesFromBucket]);
+
+  // 2. O Canal de BROADCAST (Avisa o outro usuário para baixar o novo JSON)
+  useEffect(() => {
+    const channelName = `chat-ping-${getChatFileName()}`;
+    
+    const channel = supabase.channel(channelName)
+      .on('broadcast', { event: 'new-message' }, (payload) => {
+        // Quando receber o "ping" do outro usuário, baixa o JSON atualizado!
+        if (payload.payload.sender_id !== myId) {
+          loadMessagesFromBucket();
         }
-      )
-      // Escuta mensagens enviadas por VOCÊ (útil se você usar 2 abas/celular ao mesmo tempo)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${myId}` },
-        (payload) => {
-          const msg = payload.new as Message;
-          // Se eu mandei para essa pessoa específica
-          if (msg.receiver_id === chat.userId) {
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg];
-            });
-            scrollToBottom();
-          }
-        }
-      )
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [chat.userId, myId, scrollToBottom]);
+  }, [getChatFileName, myId, loadMessagesFromBucket]);
 
+  // 3. Função para ENVIAR e salvar no Bucket
   const send = async () => {
     const text = input.trim();
     if (!text || sending) return;
     setSending(true);
     setInput("");
 
-    // Optimistic UI (Aparece instantaneamente)
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: Message = {
-      id: tempId, sender_id: myId, content: text,
-      created_at: new Date().toISOString(), read: false,
+    const newMessage: Message = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      sender_id: myId,
+      content: text,
+      created_at: new Date().toISOString(),
+      read: false, // Como estamos usando JSON, o controle de leitura terá que ser manual depois
     };
-    setMessages(prev => [...prev, optimistic]);
+
+    // Atualiza a tela instantaneamente (Optimistic UI)
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
     scrollToBottom();
 
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({ sender_id: myId, receiver_id: chat.userId, content: text })
-      .select("id, sender_id, content, created_at, read")
-      .single();
+    // Transforma a lista de mensagens inteira em uma string JSON
+    const jsonString = JSON.stringify(updatedMessages);
+    const fileName = getChatFileName();
+
+    // Faz o upload sobrescrevendo o arquivo anterior (upsert: true)
+    const { error } = await supabase.storage.from('chats').upload(fileName, jsonString, {
+      contentType: 'application/json',
+      upsert: true 
+    });
+
+    if (error) {
+      console.error("Erro ao salvar no Bucket:", error.message);
+      // Se falhar, remove a mensagem da tela e devolve para o input
+      setMessages(messages); 
+      setInput(text);
+    } else {
+      // Se salvou com sucesso, avisa o outro usuário via Broadcast
+      supabase.channel(`chat-ping-${fileName}`).send({
+        type: 'broadcast',
+        event: 'new-message',
+        payload: { sender_id: myId }
+      });
+    }
 
     setSending(false);
-    if (error) {
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-      setInput(text);
-      return;
-    }
-    // Troca a mensagem "temp" pela mensagem real salva no banco
-    setMessages(prev => prev.map(m => m.id === tempId ? (data as Message) : m));
   };
 
   // Agrupa mensagens por dia e por remetente consecutivo
@@ -406,7 +414,6 @@ const ChatWindow = ({
             const isLast  = i === messages.length - 1;
             const nextMsg = messages[i + 1];
             const isLastOfGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
-            const isTemp  = msg.id.startsWith("temp-");
 
             return (
               <div key={msg.id}>
@@ -420,36 +427,28 @@ const ChatWindow = ({
                 <motion.div
                   initial={{ opacity: 0, y: 6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className={`flex items-end gap-1.5 ${isMe ? "justify-end" : "justify-start"}
+                  className={`flex items-end gap-1.5 w-full ${isMe ? "justify-end" : "justify-start"}
                     ${isLastOfGroup ? "mb-2" : "mb-0.5"}`}>
 
-                  {/* Avatar do outro lado */}
                   {!isMe && (
                     <div className="w-5 shrink-0">
                       {isLastOfGroup && <Avatar src={chat.avatar} name={chat.name} size={20} />}
                     </div>
                   )}
 
-                  <div className={`max-w-[75%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                    <div className={`px-3 py-2 text-xs font-body leading-relaxed break-words
+                  <div className={`max-w-[75%] flex flex-col min-w-0 ${isMe ? "items-end" : "items-start"}`}>
+                    <div className={`px-3 py-2 text-xs font-body leading-relaxed whitespace-pre-wrap break-words
                       ${isMe
                         ? "rounded-t-2xl rounded-bl-2xl rounded-br-sm text-white"
                         : "rounded-t-2xl rounded-br-2xl rounded-bl-sm text-foreground"}`}
-                      style={isMe
-                        ? { background: "hsl(155 60% 38%)", boxShadow: isTemp ? "none" : "0 1px 4px rgba(0,0,0,0.3)" }
-                        : { background: "hsl(215 25% 18%)", border: "1px solid hsl(215 20% 26%)" }}>
+                      style={{
+                        wordBreak: 'break-word',
+                        ...(isMe
+                          ? { background: "hsl(155 60% 38%)", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }
+                          : { background: "hsl(215 25% 18%)", border: "1px solid hsl(215 20% 26%)" })
+                      }}>
                       {msg.content}
                     </div>
-
-                    {isMe && isLast && (
-                      <span className="flex items-center gap-0.5 mt-0.5 text-[9px] text-muted-foreground/40 font-accent">
-                        {isTemp
-                          ? <Loader2 size={9} className="animate-spin" />
-                          : msg.read
-                            ? <CheckCheck size={9} style={{ color: "hsl(155 60% 50%)" }} />
-                            : <Check size={9} />}
-                      </span>
-                    )}
                   </div>
                 </motion.div>
               </div>
@@ -478,7 +477,7 @@ const ChatWindow = ({
           disabled={!input.trim() || sending}
           className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-40"
           style={{ background: "hsl(155 60% 38%)", boxShadow: input.trim() ? "0 0 8px hsl(155 60% 40% / 0.4)" : "none" }}>
-          <Send size={13} style={{ color: "white" }} />
+          {sending ? <Loader2 size={13} className="animate-spin text-white" /> : <Send size={13} style={{ color: "white" }} />}
         </button>
       </div>
     </div>
@@ -660,18 +659,3 @@ const MessengerWidget = () => {
 };
 
 export default MessengerWidget;
-
-// ─── Como usar ────────────────────────────────────────────────────────────────
-//
-// 1. Importe e adicione em App.tsx (ou qualquer layout raiz):
-//    import MessengerWidget from "@/components/MessengerWidget";
-//    // dentro do JSX:
-//    <MessengerWidget />
-//
-// 2. Para abrir uma conversa a partir de qualquer página:
-//    window.dispatchEvent(new CustomEvent("open-chat", {
-//      detail: { userId: "uuid-do-usuario", name: "Nome", avatar: "url-ou-null" }
-//    }));
-//
-// 3. Habilite o Realtime no Supabase Dashboard:
-//    Database > Replication > Adicione a tabela "messages"
