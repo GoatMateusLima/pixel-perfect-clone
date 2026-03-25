@@ -40,7 +40,11 @@ Formato obrigatório:
   {
     "id": 1,
     "text": "Pergunta aqui?",
-    "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+    "options": ["Opção A", 
+                "Opção B", 
+                "Opção C", 
+                "Opção D"
+              ],
     "correct": 0
   }
 ]
@@ -63,7 +67,7 @@ const AI_KEY = import.meta.env.VITE_AI_KEY;
 
   const data = await response.json();
 
-  console.log(response.status)
+  console.log(generateQuestions)
   const text = data.content
     .filter((b: { type: string }) => b.type === "text")
     .map((b: { text: string }) => b.text)
