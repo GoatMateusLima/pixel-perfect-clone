@@ -885,7 +885,7 @@ const CoursesPage = () => {
   useEffect(() => {
     const aula = aulas[activeIndex];
     if (!aula) return;
-    async function loadQuiz() {
+    (async () => {
       setQuizLoading(true);
       const { data } = await supabase.from("quizzes").select("questions").eq("aula_id", aula.id).maybeSingle();
       if (data?.questions && Array.isArray(data.questions)) {
@@ -894,8 +894,8 @@ const CoursesPage = () => {
         setQuizQuestions([]);
       }
       setQuizLoading(false);
-    }
-    loadQuiz();
+      console.log(quizQuestions)
+    })();
   }, [aulas, activeIndex]);
 
   const handleQuizPass = () => {
