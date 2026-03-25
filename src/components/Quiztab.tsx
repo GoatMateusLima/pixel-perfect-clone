@@ -67,11 +67,8 @@ const AI_KEY = import.meta.env.VITE_AI_KEY;
 
   const data = await response.json();
 
-  console.log(generateQuestions)
-  const text = data.content
-    .filter((b: { type: string }) => b.type === "text")
-    .map((b: { text: string }) => b.text)
-    .join("");
+  console.log(data)
+  const text = data.choices?.[0]?.message?.content ?? "";
 
   // Remove possíveis backticks/markdown caso o modelo adicione mesmo assim
   const clean = text.replace(/```json|```/gi, "").trim();
