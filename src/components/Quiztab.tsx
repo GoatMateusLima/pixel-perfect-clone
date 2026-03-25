@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardList, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+import { ClipboardList, CheckCircle2, ChevronRight, Loader2, Sparkles } from "lucide-react";
 
 export interface QuizQuestion {
   id: number;
@@ -10,41 +10,74 @@ export interface QuizQuestion {
 }
 
 interface QuizTabProps {
+  /** Tópico ou conteúdo da aula para gerar as questões */
+  topic: string;
+  /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
   loading?: boolean;
 }
 
-const shuffleArray = <T,>(arr: T[]): T[] => {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
-
-const FALLBACK_QUESTIONS: QuizQuestion[] = [
-  { id: 1, text: "Qual das alternativas descreve melhor um algoritmo?", options: ["Um programa de computador pronto", "Uma sequência finita de instruções para resolver um problema", "Uma linguagem de programação específica", "Um banco de dados estruturado"], correct: 1 },
-  { id: 2, text: "O que é versionamento de código?", options: ["Nomear arquivos com datas", "Controlar e registrar alterações ao longo do tempo", "Compactar arquivos para economizar espaço", "Converter código entre linguagens"], correct: 1 },
-  { id: 3, text: "Em programação, o que significa 'debug'?", options: ["Escrever código novo do zero", "Executar o programa mais rápido", "Encontrar e corrigir erros no código", "Publicar o software na internet"], correct: 2 },
-  { id: 4, text: "O que é uma variável em programação?", options: ["Um tipo de loop que se repete infinitamente", "Um espaço na memória para armazenar e manipular dados", "Uma função que retorna sempre o mesmo valor", "Um arquivo de configuração do sistema"], correct: 1 },
-  { id: 5, text: "Qual das opções abaixo é uma estrutura de controle de fluxo?", options: ["Variável", "Função pura", "Condicional if/else", "Comentário de código"], correct: 2 },
-  { id: 6, text: "O que é front-end no desenvolvimento web?", options: ["A parte do sistema que gerencia o banco de dados", "A interface visual com a qual o usuário interage", "O servidor que processa as requisições", "O sistema de autenticação de usuários"], correct: 1 },
-  { id: 7, text: "O que significa a sigla HTML?", options: ["HyperText Markup Language", "High Text Machine Learning", "HyperText Management Logic", "Hosted Terminal Markup Layer"], correct: 0 },
-  { id: 8, text: "Para que serve o CSS em desenvolvimento web?", options: ["Criar lógica de negócios no servidor", "Conectar o front-end ao banco de dados", "Estilizar a aparência visual das páginas", "Gerenciar requisições HTTP"], correct: 2 },
-  { id: 9, text: "O que é uma função em programação?", options: ["Um tipo de dado que armazena números", "Um bloco de código reutilizável que realiza uma tarefa específica", "Uma estrutura de repetição infinita", "Um arquivo de configuração externo"], correct: 1 },
-  { id: 10, text: "O que é um loop (laço de repetição)?", options: ["Um erro que trava o programa", "Uma estrutura que executa um bloco de código várias vezes", "Um tipo especial de variável numérica", "Uma função que retorna valores booleanos"], correct: 1 },
-];
-
 const QUESTIONS_PER_QUIZ = 5;
 const PASS_THRESHOLD = 0.8;
 
-const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
-  const source = questions && questions.length > 0 ? questions : FALLBACK_QUESTIONS;
-  const pickRandom = () => shuffleArray(source).slice(0, Math.min(QUESTIONS_PER_QUIZ, source.length));
+// ─── Geração de questões via Anthropic API ───────────────────────────────────
 
-  const [queue, setQueue] = useState<QuizQuestion[]>(() => pickRandom());
+async function generateQuestions(topic: string): Promise<QuizQuestion[]> {
+  const prompt = `Você é um professor especialista. Gere ${QUESTIONS_PER_QUIZ} questões de múltipla escolha sobre o seguinte tópico:
+
+"${topic}"
+
+Regras:
+- Cada questão deve ter exatamente 4 alternativas (A, B, C, D)
+- Apenas uma alternativa deve estar correta
+- As questões devem ser variadas e cobrir diferentes aspectos do tópico
+- Dificuldade média-alta
+- Responda SOMENTE com JSON válido, sem nenhum texto extra, sem markdown, sem backticks
+
+Formato obrigatório:
+[
+  {
+    "id": 1,
+    "text": "Pergunta aqui?",
+    "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+    "correct": 0
+  }
+]
+
+O campo "correct" é o índice (0-3) da opção correta no array "options".`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+  const data = await response.json();
+  const text = data.content
+    .filter((b: { type: string }) => b.type === "text")
+    .map((b: { text: string }) => b.text)
+    .join("");
+
+  // Remove possíveis backticks/markdown caso o modelo adicione mesmo assim
+  const clean = text.replace(/```json|```/gi, "").trim();
+  const parsed: QuizQuestion[] = JSON.parse(clean);
+
+  // Validação básica
+  if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
+  return parsed;
+}
+
+// ─── Componente ──────────────────────────────────────────────────────────────
+
+const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }: QuizTabProps) => {
+  const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -52,23 +85,54 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
   const [finished, setFinished] = useState(false);
   const [attempt, setAttempt] = useState(1);
   const [passed, setPassed] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Gera ou carrega questões
+  const loadQuestions = useCallback(async () => {
+    // Se vieram questões fixas por prop, usa elas
     if (questions && questions.length > 0) {
-      setQueue(shuffleArray(questions).slice(0, Math.min(QUESTIONS_PER_QUIZ, questions.length)));
-      setCurrent(0); setSelected(null); setConfirmed(false);
-      setScore(0); setFinished(false); setAttempt(1); setPassed(false);
+      const shuffled = [...questions].sort(() => Math.random() - 0.5);
+      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
+      return;
     }
-  }, [questions]);
 
-  const q = queue[current];
+    // Sem tópico e sem questões fixas: nada a fazer
+    if (!topic) return;
+
+    // Gera via IA
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const generated = await generateQuestions(topic);
+      setQueue(generated);
+    } catch (err) {
+      setGenError("Não foi possível gerar as questões. Tente novamente.");
+      console.error(err);
+    } finally {
+      setGenerating(false);
+    }
+  }, [topic, questions]);
+
+  // Carrega na montagem
+  useEffect(() => {
+    loadQuestions();
+  }, [loadQuestions]);
+
+  const resetState = () => {
+    setCurrent(0);
+    setSelected(null);
+    setConfirmed(false);
+    setScore(0);
+    setFinished(false);
+  };
 
   const handleSelect = (idx: number) => { if (!confirmed) setSelected(idx); };
 
   const handleConfirm = () => {
-    if (selected === null) return;
+    if (selected === null || !queue[current]) return;
     setConfirmed(true);
-    if (selected === q.correct) setScore(s => s + 1);
+    if (selected === queue[current].correct) setScore(s => s + 1);
   };
 
   const handleNext = () => {
@@ -76,21 +140,94 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
     else { setCurrent(c => c + 1); setSelected(null); setConfirmed(false); }
   };
 
-  const handleRetry = () => {
-    setQueue(shuffleArray(source).slice(0, Math.min(QUESTIONS_PER_QUIZ, source.length)));
-    setCurrent(0); setSelected(null); setConfirmed(false);
-    setScore(0); setFinished(false); setAttempt(a => a + 1);
+  // Retry: regenera as questões (novas perguntas a cada tentativa)
+  const handleRetry = async () => {
+    resetState();
+    setAttempt(a => a + 1);
+    setPassed(false);
+
+    if (topic && !(questions && questions.length > 0)) {
+      // Regera via IA
+      setGenerating(true);
+      setGenError(null);
+      try {
+        const generated = await generateQuestions(topic);
+        setQueue(generated);
+      } catch {
+        setGenError("Não foi possível gerar as questões. Tente novamente.");
+      } finally {
+        setGenerating(false);
+      }
+    } else if (questions && questions.length > 0) {
+      // Embaralha as questões fixas
+      const shuffled = [...questions].sort(() => Math.random() - 0.5);
+      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
+    }
   };
 
-  if (loading) {
+  const isLoading = externalLoading || generating;
+
+  // ── Loading ──
+  if (isLoading) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hologram-panel rounded-sm p-12 max-w-lg mx-auto flex flex-col items-center gap-4">
-        <Loader2 size={32} className="animate-spin text-primary" style={{ filter: "drop-shadow(0 0 8px hsl(155 60% 45% / 0.6))" }} />
-        <p className="text-sm font-accent text-muted-foreground">Carregando quiz da aula...</p>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="hologram-panel rounded-sm p-12 max-w-lg mx-auto flex flex-col items-center gap-4"
+      >
+        <div className="relative">
+          <Loader2 size={32} className="animate-spin text-primary" style={{ filter: "drop-shadow(0 0 8px hsl(155 60% 45% / 0.6))" }} />
+          <Sparkles size={14} className="absolute -top-1 -right-1 text-primary animate-pulse" />
+        </div>
+        <p className="text-sm font-accent text-muted-foreground">
+          {generating ? "Gerando questões com IA..." : "Carregando quiz da aula..."}
+        </p>
+        {generating && (
+          <p className="text-xs text-muted-foreground/60 font-body text-center max-w-xs">
+            As questões são geradas especialmente para este tópico a cada tentativa.
+          </p>
+        )}
       </motion.div>
     );
   }
 
+  // ── Erro ──
+  if (genError) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-4 text-center"
+      >
+        <ClipboardList size={40} className="text-destructive" style={{ filter: "drop-shadow(0 0 12px hsl(0 80% 55% / 0.5))" }} />
+        <p className="text-sm font-body text-muted-foreground">{genError}</p>
+        <button
+          onClick={loadQuestions}
+          className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+        >
+          Tentar Novamente <ChevronRight size={14} />
+        </button>
+      </motion.div>
+    );
+  }
+
+  // ── Sem tópico e sem questões ──
+  if (!topic && (!questions || questions.length === 0)) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-3 text-center"
+      >
+        <ClipboardList size={40} className="text-muted-foreground/40" />
+        <p className="text-sm font-body text-muted-foreground">
+          Forneça um <code className="text-primary">topic</code> ou <code className="text-primary">questions</code> para iniciar o quiz.
+        </p>
+      </motion.div>
+    );
+  }
+
+  // ── Resultado Final ──
   if (finished) {
     const pct = Math.round((score / queue.length) * 100);
     const didPass = score / queue.length >= PASS_THRESHOLD;
@@ -101,8 +238,17 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
     }
 
     return (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center">
-        <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="mb-5">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center"
+      >
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 18 }}
+          className="mb-5"
+        >
           {didPass ? (
             <CheckCircle2 size={56} className="mx-auto" style={{ color: "hsl(155 60% 45%)", filter: "drop-shadow(0 0 16px hsl(155 60% 45% / 0.7))" }} />
           ) : (
@@ -128,13 +274,22 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
 
         {attempt > 1 && !didPass && (
           <p className="text-xs text-muted-foreground font-body mb-1">
-            Tentativa <span className="text-accent font-semibold">#{attempt}</span> — As questões foram embaralhadas.
+            Tentativa <span className="text-accent font-semibold">#{attempt}</span>
+            {topic ? " — Novas questões geradas pela IA." : " — As questões foram embaralhadas."}
           </p>
         )}
 
         <div className="my-5 h-2 rounded-full bg-secondary overflow-hidden">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7, ease: "easeOut" }} className="h-full rounded-full"
-            style={{ background: didPass ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)", boxShadow: didPass ? "0 0 10px hsl(155 60% 45% / 0.6)" : "0 0 10px hsl(25 90% 55% / 0.6)" }} />
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="h-full rounded-full"
+            style={{
+              background: didPass ? "hsl(155 60% 45%)" : "hsl(25 90% 55%)",
+              boxShadow: didPass ? "0 0 10px hsl(155 60% 45% / 0.6)" : "0 0 10px hsl(25 90% 55% / 0.6)",
+            }}
+          />
         </div>
 
         <div className="relative h-0 mb-4">
@@ -142,32 +297,55 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
           <span className="absolute text-xs font-accent text-primary/70" style={{ left: "80%", transform: "translateX(-50%) translateY(-22px)" }}>80%</span>
         </div>
 
-        <div className="flex justify-center gap-3 mt-6">
+        {topic && (
+          <p className="text-xs text-muted-foreground/50 font-accent mb-4 flex items-center justify-center gap-1">
+            <Sparkles size={10} /> Questões geradas por IA com base no tópico da aula
+          </p>
+        )}
+
+        <div className="flex justify-center gap-3 mt-2">
           {didPass ? (
             <>
-              <button onClick={handleRetry} className="px-5 py-2.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold hover:bg-primary/10 transition">
+              <button
+                onClick={handleRetry}
+                className="px-5 py-2.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-semibold hover:bg-primary/10 transition"
+              >
                 Refazer
               </button>
-              <button onClick={onPass} className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition" style={{ boxShadow: "0 0 14px hsl(155 60% 45% / 0.5)" }}>
+              <button
+                onClick={onPass}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+                style={{ boxShadow: "0 0 14px hsl(155 60% 45% / 0.5)" }}
+              >
                 Próxima Aula <ChevronRight size={14} />
               </button>
             </>
           ) : (
-            <button onClick={handleRetry} className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold hover:brightness-110 transition">
-              Tentar Novamente <ChevronRight size={14} />
+            <button
+              onClick={handleRetry}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+            >
+              {generating ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
+              Tentar Novamente
             </button>
           )}
         </div>
 
         {!didPass && (
-          <p className="text-xs text-muted-foreground font-body mt-4">As questões serão embaralhadas na próxima tentativa.</p>
+          <p className="text-xs text-muted-foreground font-body mt-4">
+            {topic
+              ? "Novas questões serão geradas pela IA na próxima tentativa."
+              : "As questões serão embaralhadas na próxima tentativa."}
+          </p>
         )}
       </motion.div>
     );
   }
 
+  const q = queue[current];
   if (!q) return null;
 
+  // ── Quiz em andamento ──
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -175,17 +353,35 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
           Questão <span className="text-primary font-semibold">{current + 1}</span> / {queue.length}
           {attempt > 1 && <span className="ml-2 text-accent">· Tentativa #{attempt}</span>}
         </span>
-        <span className="text-xs font-accent text-muted-foreground">
-          Acertos: <span className="text-primary font-semibold">{score}</span>
-        </span>
+        <div className="flex items-center gap-3">
+          {topic && (
+            <span className="text-xs font-accent text-muted-foreground/50 flex items-center gap-1">
+              <Sparkles size={10} /> IA
+            </span>
+          )}
+          <span className="text-xs font-accent text-muted-foreground">
+            Acertos: <span className="text-primary font-semibold">{score}</span>
+          </span>
+        </div>
       </div>
 
       <div className="h-1 rounded-full bg-secondary overflow-hidden">
-        <motion.div animate={{ width: `${(current / queue.length) * 100}%` }} transition={{ duration: 0.4 }} className="h-full rounded-full bg-primary" style={{ boxShadow: "0 0 8px hsl(155 60% 45% / 0.5)" }} />
+        <motion.div
+          animate={{ width: `${(current / queue.length) * 100}%` }}
+          transition={{ duration: 0.4 }}
+          className="h-full rounded-full bg-primary"
+          style={{ boxShadow: "0 0 8px hsl(155 60% 45% / 0.5)" }}
+        />
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div key={current} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="hologram-panel rounded-sm p-6 space-y-5">
+        <motion.div
+          key={current}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="hologram-panel rounded-sm p-6 space-y-5"
+        >
           <h3 className="font-display text-base font-bold text-foreground leading-snug">{q.text}</h3>
 
           <div className="space-y-3">
@@ -197,7 +393,9 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
               } else if (idx === selected) state = "selected";
 
               return (
-                <button key={idx} onClick={() => handleSelect(idx)}
+                <button
+                  key={idx}
+                  onClick={() => handleSelect(idx)}
                   className={`w-full text-left px-4 py-3 rounded-sm border text-sm font-body transition-all
                     ${state === "default" ? "border-border hover:border-primary/40 hover:bg-primary/5 text-muted-foreground" : ""}
                     ${state === "selected" ? "border-primary/60 bg-primary/10 text-foreground" : ""}
@@ -206,11 +404,13 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
                   `}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`shrink-0 w-5 h-5 rounded-sm border flex items-center justify-center text-xs font-accent font-bold
-                      ${state === "selected" ? "border-primary text-primary" : ""}
-                      ${state === "correct" ? "border-[hsl(155_60%_45%)] text-[hsl(155_60%_45%)]" : ""}
-                      ${state === "wrong" ? "border-destructive text-destructive" : "border-border text-muted-foreground"}
-                    `}>
+                    <span
+                      className={`shrink-0 w-5 h-5 rounded-sm border flex items-center justify-center text-xs font-accent font-bold
+                        ${state === "selected" ? "border-primary text-primary" : ""}
+                        ${state === "correct" ? "border-[hsl(155_60%_45%)] text-[hsl(155_60%_45%)]" : ""}
+                        ${state === "wrong" ? "border-destructive text-destructive" : "border-border text-muted-foreground"}
+                      `}
+                    >
                       {["A", "B", "C", "D"][idx]}
                     </span>
                     {opt}
@@ -223,13 +423,19 @@ const QuizTab = ({ questions, onPass, loading = false }: QuizTabProps) => {
 
           <div className="flex justify-end gap-3 pt-2">
             {!confirmed ? (
-              <button onClick={handleConfirm} disabled={selected === null}
+              <button
+                onClick={handleConfirm}
+                disabled={selected === null}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold disabled:opacity-40 hover:brightness-110 transition"
-                style={{ boxShadow: selected !== null ? "0 0 12px hsl(155 60% 45% / 0.4)" : "none" }}>
+                style={{ boxShadow: selected !== null ? "0 0 12px hsl(155 60% 45% / 0.4)" : "none" }}
+              >
                 Confirmar
               </button>
             ) : (
-              <button onClick={handleNext} className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold hover:brightness-110 transition">
+              <button
+                onClick={handleNext}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-accent text-accent-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+              >
                 {current + 1 >= queue.length ? "Ver Resultado" : "Próxima"} <ChevronRight size={14} />
               </button>
             )}
