@@ -1004,7 +1004,24 @@ const CoursesPage = () => {
                     />
                   )
                 )}
-                {activeTab === "quiz"    && <QuizTab />}
+                {activeTab === "quiz" && (
+                  <QuizTab
+                    topic={
+                      aulaAtiva
+                        ? [
+                            `Aula: ${aulaAtiva.nome}`,
+                            aulaAtiva.descricao ? `Descrição: ${aulaAtiva.descricao}` : "",
+                            aulaAtiva.url_video  ? `URL do vídeo: ${aulaAtiva.url_video}` : "",
+                          ]
+                            .filter(Boolean)
+                            .join("\n")
+                        : courseName
+                    }
+                    questions={quizQuestions.length > 0 ? quizQuestions : undefined}
+                    onPass={handleQuizPass}
+                    loading={quizLoading}
+                  />
+                )}
                 {activeTab === "duvidas" && <DuvidasTab />}
               </motion.div>
             </AnimatePresence>
