@@ -12,35 +12,40 @@ const NotificationBell = () => {
   useEffect(() => {
     if (!user) return;
 
-    // 1. Busca inicial de quantas solicitações pendentes existem
+    // Busca inicial
     const fetchPending = async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("friendships")
         .select("*", { count: "exact", head: true })
         .eq("receiver_id", user.id)
         .eq("status", "pending");
       
-      setPendingCount(count || 0);
+      if (!error && count !== null) {
+        setPendingCount(count);
+      }
     };
 
     fetchPending();
 
-    // 2. Escuta o Realtime para novas solicitações em tempo real
+    // Escuta Realtime com LOGS
     const channel = supabase
       .channel("friend-requests")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*", 
           schema: "public",
           table: "friendships",
           filter: `receiver_id=eq.${user.id}`,
         },
-        () => {
-          setPendingCount((prev) => prev + 1);
+        (payload) => {
+          console.log("🔔 [REALTIME] Evento de amizade recebido!", payload);
+          fetchPending();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("🔌 [REALTIME] Status da conexão do Sininho:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
