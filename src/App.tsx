@@ -18,7 +18,8 @@ import SupportPage from "./pages/SupportPage";
 import ProtectedRoute from "./contexts/ProtectedRoute";
 import AuthRoute from "./contexts/AuthRoute";
 import AdminPage from "./pages/AdminPage";
-
+import MessengerWidget from "@/components/MessengerWidget";
+import PublicProfilePage from "./pages/PublicProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -27,8 +28,12 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      
       <BrowserRouter>
         <AuthProvider>
+          {/* ✅ O MessengerWidget DEVE ficar aqui dentro do AuthProvider, mas fora do <Routes> */}
+          <MessengerWidget />
+          
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
@@ -42,6 +47,9 @@ const App = () => (
             <Route path="/suporte" element={<SupportPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/courses/:courseId" element={<CoursesPage />} />
+            <Route path="/u/:identifier" element={<PublicProfilePage />} />
+            
+            {/* A rota de NotFound (*) deve ser sempre a última */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
