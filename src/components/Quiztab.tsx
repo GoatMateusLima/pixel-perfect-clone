@@ -11,7 +11,7 @@ export interface QuizQuestion {
 
 interface QuizTabProps {
   /** Tópico ou conteúdo da aula para gerar as questões */
-  topic: string;
+  topic?: string;
   /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
@@ -47,19 +47,23 @@ Formato obrigatório:
 
 O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+
+const AI_KEY = import.meta.env.VITE_AI_KEY;
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{ role: "system", content: prompt }],
+        }),
+      });
 
   if (!response.ok) throw new Error(`API error: ${response.status}`);
 
   const data = await response.json();
+
+  console.log(data)
   const text = data.content
     .filter((b: { type: string }) => b.type === "text")
     .map((b: { text: string }) => b.text)
@@ -105,10 +109,11 @@ const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }:
     setGenError(null);
     try {
       const generated = await generateQuestions(topic);
-      setQueue(generated);
+      const shuffled = [...generated].sort(() => Math.random() - 0.5);
+      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
       setGenError("Não foi possível gerar as questões. Tente novamente.");
-      console.error(topic);
+      //console.error(topic);
     } finally {
       setGenerating(false);
     }
