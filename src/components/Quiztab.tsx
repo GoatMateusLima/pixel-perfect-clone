@@ -108,7 +108,7 @@ const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }:
       setQueue(generated);
     } catch (err) {
       setGenError("Não foi possível gerar as questões. Tente novamente.");
-      console.error(err);
+      console.error(topic);
     } finally {
       setGenerating(false);
     }
