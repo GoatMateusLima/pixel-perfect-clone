@@ -40,7 +40,11 @@ Formato obrigatório:
   {
     "id": 1,
     "text": "Pergunta aqui?",
-    "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+    "options": ["Opção A", 
+                "Opção B", 
+                "Opção C", 
+                "Opção D"
+              ],
     "correct": 0
   }
 ]
@@ -64,10 +68,7 @@ const AI_KEY = import.meta.env.VITE_AI_KEY;
   const data = await response.json();
 
   console.log(data)
-  const text = data.content
-    .filter((b: { type: string }) => b.type === "text")
-    .map((b: { text: string }) => b.text)
-    .join("");
+  const text = data.choices?.[0]?.message?.content ?? "";
 
   // Remove possíveis backticks/markdown caso o modelo adicione mesmo assim
   const clean = text.replace(/```json|```/gi, "").trim();
@@ -113,7 +114,7 @@ const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }:
       setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
       setGenError("Não foi possível gerar as questões. Tente novamente.");
-      //console.error(topic);
+      //console.error(Response.ok);
     } finally {
       setGenerating(false);
     }
