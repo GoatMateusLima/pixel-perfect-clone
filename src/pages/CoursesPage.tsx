@@ -838,11 +838,13 @@ const CoursesPage = () => {
       if (!user || !aulaAtual) return;
 
       try {
+        // Salva a aula atual em last_aula_id para poder retomar exatamente de onde parou
         await supabase
           .from('watch')
           .upsert({
             user_id: user.id,
-            course_id: courseId
+            course_id: courseId,
+            last_aula_id: aulaAtual.id,
           }, { onConflict: 'user_id,course_id' });
 
         await supabase
@@ -873,14 +875,68 @@ const CoursesPage = () => {
     if (!courseId) return;
     async function load() {
       setLoading(true);
-      const { data: course } = await supabase.from("courses").select("id, name, difficult").eq("id", courseId).single();
-      if (course) setCourseInfo(course);
-      const { data: aulasData } = await supabase.from("aulas").select("*").eq("course_id", courseId).order("position", { ascending: true });
-      if (aulasData) setAulas(aulasData);
+
+      // 1. Busca dados do curso
+      const { data: course } = await supabase
+        .from("courses").select("id, name, difficult").eq("id", courseId).single();
+      if (course) {
+        setCourseInfo(course);
+        setCourseName(course.name);
+      }
+
+      // 2. Busca aulas ordenadas
+      const { data: aulasData } = await supabase
+        .from("aulas").select("*").eq("course_id", courseId).order("position", { ascending: true });
+      const listaAulas: Aula[] = aulasData ?? [];
+      setAulas(listaAulas);
+      setLoadingAulas(false);
+
+      // 3. Restaura progresso do usuário (aula atual + quizzes aprovados)
+      if (user && listaAulas.length > 0) {
+        const aulaIds = listaAulas.map((a: Aula) => a.id);
+
+        // Busca em paralelo: aulas completadas + última aula visitada
+        const [{ data: progressData }, { data: watchData }] = await Promise.all([
+          supabase
+            .from("lesson_progress")
+            .select("aula_id, completed")
+            .eq("user_id", user.id)
+            .in("aula_id", aulaIds),
+          supabase
+            .from("watch")
+            .select("last_aula_id")
+            .eq("user_id", user.id)
+            .eq("course_id", courseId)
+            .maybeSingle(),
+        ]);
+
+        if (progressData && progressData.length > 0) {
+          const completedIds = new Set(
+            progressData.filter((p: any) => p.completed).map((p: any) => p.aula_id)
+          );
+
+          // Mapeia quais índices foram completados (para restaurar o roadmap)
+          const completedIndexes = listaAulas
+            .map((a: Aula, i: number) => completedIds.has(a.id) ? i : -1)
+            .filter((i: number) => i !== -1);
+
+          if (completedIndexes.length > 0) {
+            setPassedIndexes(new Set(completedIndexes));
+          }
+        }
+
+        // Retoma exatamente na aula onde o usuário estava (last_aula_id)
+        const lastAulaId = watchData?.last_aula_id;
+        if (lastAulaId) {
+          const resumeIndex = listaAulas.findIndex((a: Aula) => a.id === lastAulaId);
+          if (resumeIndex !== -1) setActiveIndex(resumeIndex);
+        }
+      }
+
       setLoading(false);
     }
     load();
-  }, [courseId]);
+  }, [courseId, user]);
 
   useEffect(() => {
     const aula = aulas[activeIndex];
@@ -919,21 +975,7 @@ const CoursesPage = () => {
   const quizPassed = passedIndexes.has(activeIndex);
   const columnHeight = "calc(100vh - 108px)";
 
-  useEffect(() => {
-    if (!courseId) return;
 
-    supabase.from("courses").select("name").eq("id", courseId).single()
-      .then(({ data }) => { if (data) setCourseName(data.name); });
-
-    supabase.from("aulas")
-      .select("id, nome, url_video, thumb, descricao, position")
-      .eq("course_id", courseId)
-      .order("position", { ascending: true })
-      .then(({ data, error }) => {
-        if (!error) setAulas(data ?? []);
-        setLoadingAulas(false);
-      });
-  }, [courseId]);
 
   const aulaAtiva = aulas[activeIndex] ?? null;
 
