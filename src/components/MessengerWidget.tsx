@@ -70,7 +70,7 @@ const Avatar = ({ src, name, size = 36 }: { src?: string | null; name?: string; 
 
 // ─── ConversationList ─────────────────────────────────────────────────────────
 
-const ConversationList = ({ onSelectChat, myId }: { onSelectChat: (chat: ActiveChat) => void; myId: string; }) => {
+const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (chat: ActiveChat) => void; myId: string; refreshKey: number }) => {
   const [convs,   setConvs]   = useState<Conversation[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,9 +87,11 @@ const ConversationList = ({ onSelectChat, myId }: { onSelectChat: (chat: ActiveC
     setLoading(false);
   }, []);
 
+  // Reload when returning from a chat (refreshKey muda)
+  useEffect(() => { load(); }, [load, refreshKey]);
+
   // Escuta Realtime na tabela de sessões para atualizar a lista instantaneamente
   useEffect(() => {
-    load();
     const channel = supabase.channel('sessions-list')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_sessions' }, (payload) => {
         const row = payload.new as any;
@@ -129,7 +131,7 @@ const ConversationList = ({ onSelectChat, myId }: { onSelectChat: (chat: ActiveC
           </div>
         ) : (
           <>
-            {(filtered ? filtered.filter(i => "last_message" in i) : convs).map((conv) => {
+            {(filtered ? filtered.filter(i => "last_message" in i) : convs.slice().sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())).map((conv) => {
               const c = conv as Conversation;
               const hasUnread = c.unread_count > 0;
               return (
@@ -191,6 +193,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   const [input,    setInput]    = useState("");
   const [sending,  setSending]  = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<any>(null);
 
   const getChatFileName = useCallback(() => {
     const sortedIds = [myId, chat.userId].sort();
@@ -222,25 +225,21 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
             contentType: 'application/json', upsert: true,
           });
           // Avisa o remetente que as mensagens foram lidas
-          supabase.channel(`chat-ping-${getChatFileName()}`).send({
-            type: 'broadcast', event: 'messages-read', payload: { reader_id: myId },
-          });
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast', event: 'messages-read', payload: { reader_id: myId },
+            });
+          }
         }
       } catch (e) { console.error("Erro JSON:", e); }
     }
     
     // Zera contagem de não lidas no banco
-    supabase.rpc('reset_chat_unread', { p_target_id: chat.userId });
+    await supabase.rpc('reset_chat_unread', { p_target_id: chat.userId });
     setLoading(false);
     scrollToBottom();
   }, [getChatFileName, myId, chat.userId, scrollToBottom]);
 
-  useEffect(() => {
-    setLoading(true);
-    loadMessagesFromBucket();
-  }, [loadMessagesFromBucket]);
-
-  // Canal Broadcast para saber quando o JSON foi atualizado pelo outro
   useEffect(() => {
     const channelName = `chat-ping-${getChatFileName()}`;
     const channel = supabase.channel(channelName)
@@ -252,9 +251,18 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
         if (payload.payload.reader_id !== myId) {
           setMessages(prev => prev.map(m => m.sender_id === myId ? { ...m, read: true } : m));
         }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      });
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        channelRef.current = channel;
+        // Carrega as mensagens apenas APÓS estar inscrito para não perder eventos
+        setLoading(true);
+        loadMessagesFromBucket();
+      }
+    });
+
+    return () => { supabase.removeChannel(channel); channelRef.current = null; };
   }, [getChatFileName, myId, loadMessagesFromBucket]);
 
   const send = async () => {
@@ -284,7 +292,9 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
       // 2. Avisa o Banco (atualiza a tabela de sessões para aparecer na lista do amigo)
       await supabase.rpc('update_chat_session', { p_target_id: chat.userId, p_last_message: text });
       // 3. Avisa o canal realtime do amigo para ele baixar o novo arquivo
-      supabase.channel(`chat-ping-${getChatFileName()}`).send({ type: 'broadcast', event: 'new-message', payload: { sender_id: myId } });
+      if (channelRef.current) {
+        channelRef.current.send({ type: 'broadcast', event: 'new-message', payload: { sender_id: myId } });
+      }
     }
     setSending(false);
   };
@@ -370,6 +380,7 @@ const MessengerWidget = () => {
   const [view,        setView]        = useState<View>("list");
   const [activeChat,  setActiveChat]  = useState<ActiveChat | null>(null);
   const [unreadTotal, setUnreadTotal] = useState(0);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -402,8 +413,18 @@ const MessengerWidget = () => {
   const openChat = (chat: ActiveChat) => {
     setActiveChat(chat);
     setView("chat");
-    // Já podemos zerar a badge de não lidas imediatamente ao clicar
-    supabase.rpc('reset_chat_unread', { p_target_id: chat.userId });
+  };
+
+  const goBackToList = (chatUserId?: string) => {
+    if (chatUserId) {
+      // Zera unread no banco e recarrega badge
+      supabase.rpc('reset_chat_unread', { p_target_id: chatUserId }).then(() => loadBadge());
+    } else {
+      loadBadge();
+    }
+    setView("list");
+    setActiveChat(null);
+    setListRefreshKey(k => k + 1); // força reload da lista
   };
 
   return (
@@ -423,7 +444,7 @@ const MessengerWidget = () => {
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/25" style={{ background: "hsl(215 30% 12%)" }}>
               <div className="flex items-center gap-2">
                 {view === "chat" && activeChat ? (
-                  <><button onClick={() => { setView("list"); setActiveChat(null); loadBadge(); }} className="text-muted-foreground hover:text-foreground transition mr-1"><ArrowLeft size={14} /></button><Avatar src={activeChat.avatar} name={activeChat.name} size={26} /><span className="text-xs font-accent font-semibold text-foreground truncate max-w-[140px]">{activeChat.name}</span></>
+                  <><button onClick={() => goBackToList(activeChat.userId)} className="text-muted-foreground hover:text-foreground transition mr-1"><ArrowLeft size={14} /></button><Avatar src={activeChat.avatar} name={activeChat.name} size={26} /><span className="text-xs font-accent font-semibold text-foreground truncate max-w-[140px]">{activeChat.name}</span></>
                 ) : (
                   <><div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} /><span className="text-xs font-accent font-semibold text-foreground tracking-wide">Mensagens</span>{unreadTotal > 0 && <span className="text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(0 70% 55% / 0.2)", color: "hsl(0 70% 65%)", border: "1px solid hsl(0 70% 55% / 0.35)" }}>{unreadTotal} não {unreadTotal === 1 ? "lida" : "lidas"}</span>}</>
                 )}
@@ -432,8 +453,8 @@ const MessengerWidget = () => {
             </div>
             <div className="flex-1 overflow-hidden">
               <AnimatePresence mode="wait">
-                {view === "list" ? <motion.div key="list" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} className="h-full"><ConversationList onSelectChat={openChat} myId={user.id} /></motion.div>
-                : <motion.div key="chat" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.18 }} className="h-full">{activeChat && <ChatWindow chat={activeChat} myId={user.id} onBack={() => { setView("list"); setActiveChat(null); loadBadge(); }} />}</motion.div>}
+                {view === "list" ? <motion.div key="list" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} className="h-full"><ConversationList onSelectChat={openChat} myId={user.id} refreshKey={listRefreshKey} /></motion.div>
+                : <motion.div key="chat" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.18 }} className="h-full">{activeChat && <ChatWindow chat={activeChat} myId={user.id} onBack={() => goBackToList(activeChat.userId)} />}</motion.div>}
               </AnimatePresence>
             </div>
           </motion.div>
