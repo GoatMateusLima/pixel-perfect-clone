@@ -94,6 +94,15 @@ const NotificationBell = () => {
         },
         () => fetchRequests()
       )
+      .on(
+        "broadcast",
+        { event: "new-request" },
+        (payload) => {
+          if (payload.payload.receiver_id === user.id) {
+            fetchRequests();
+          }
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

@@ -64,7 +64,21 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
       status:       "pending",
     });
     setSaving(false);
-    if (!error) setStatus("pending_sent");
+    if (!error) {
+      setStatus("pending_sent");
+      const ch = supabase.channel("friend-requests-bell");
+      ch.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          ch.send({
+            type: "broadcast",
+            event: "new-request",
+            payload: { receiver_id: targetUserId },
+          }).then(() => {
+            supabase.removeChannel(ch);
+          });
+        }
+      });
+    }
   };
 
   const cancelOrUnfriend = async () => {
