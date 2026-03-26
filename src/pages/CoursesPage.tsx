@@ -83,6 +83,7 @@ const AulaTab = ({
   onSelectAula,
   quizPassed,
   isLast,
+  onNext,
 }: {
   aula: Aula | null;
   aulaIndex: number;
@@ -91,6 +92,7 @@ const AulaTab = ({
   onSelectAula: (index: number) => void;
   quizPassed: boolean;
   isLast: boolean;
+  onNext: () => void;
 }) => {
   if (!aula) {
     return (
@@ -145,9 +147,18 @@ const AulaTab = ({
           </div>
 
           {quizPassed && !isLast && (
-            <div className="mt-3 flex items-center gap-2 text-xs font-accent" style={{ color: "hsl(155 60% 50%)" }}>
-              <CheckCircle2 size={12} /> Quiz aprovado — você pode avançar!
-            </div>
+            <button
+              onClick={onNext}
+              className="mt-4 flex items-center gap-2 px-4 py-2 rounded-sm text-xs font-accent font-bold transition-all"
+              style={{
+                background: "hsl(155 60% 20% / 0.4)",
+                border: "1px solid hsl(155 60% 45% / 0.6)",
+                color: "hsl(155 60% 65%)",
+                boxShadow: "0 0 12px hsl(155 60% 45% / 0.25)",
+              }}
+            >
+              <CheckCircle2 size={13} /> Próxima aula
+            </button>
           )}
         </div>
       </motion.div>
@@ -956,13 +967,6 @@ const CoursesPage = () => {
 
   const handleQuizPass = () => {
     setPassedIndexes(prev => new Set([...prev, activeIndex]));
-    // Avança automaticamente para a próxima aula após 1.5s (dá tempo do usuário ver o feedback de aprovação)
-    if (activeIndex < aulas.length - 1) {
-      setTimeout(() => {
-        setActiveIndex(i => i + 1);
-        setActiveTab("aula");
-      }, 1500);
-    }
   };
 
   const handleNext = () => {
@@ -1050,6 +1054,7 @@ const CoursesPage = () => {
                       onSelectAula={(i) => setActiveIndex(i)}
                       quizPassed={quizPassed}
                       isLast={activeIndex === aulas.length - 1}
+                      onNext={handleNext}
                     />
                   )
                 )}
@@ -1068,6 +1073,8 @@ const CoursesPage = () => {
                     }
                     questions={quizQuestions.length > 0 ? quizQuestions : undefined}
                     onPass={handleQuizPass}
+                    onNext={handleNext}
+                    isLast={activeIndex === aulas.length - 1}
                     loading={quizLoading}
                   />
                 )}
