@@ -15,6 +15,8 @@ interface QuizTabProps {
   /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
+  onNext?: () => void;
+  isLast?: boolean;
   loading?: boolean;
 }
 
@@ -81,7 +83,7 @@ const AI_KEY = import.meta.env.VITE_AI_KEY;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }: QuizTabProps) => {
+const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -318,13 +320,20 @@ const QuizTab = ({ topic, questions, onPass, loading: externalLoading = false }:
               >
                 Refazer
               </button>
-              <button
-                onClick={onPass}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
-                style={{ boxShadow: "0 0 14px hsl(155 60% 45% / 0.5)" }}
-              >
-                Próxima Aula <ChevronRight size={14} />
-              </button>
+              {!isLast && (
+                <button
+                  onClick={onNext}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+                  style={{ boxShadow: "0 0 14px hsl(155 60% 45% / 0.5)" }}
+                >
+                  Próxima Aula <ChevronRight size={14} />
+                </button>
+              )}
+              {isLast && (
+                <span className="flex items-center gap-2 px-6 py-2.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-bold">
+                  🏆 Curso Concluído!
+                </span>
+              )}
             </>
           ) : (
             <button
