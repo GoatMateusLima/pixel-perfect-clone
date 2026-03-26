@@ -56,11 +56,11 @@ const rowToDoubt = (row: any, userId?: string): Doubt => {
     liked: userId ? (row.liked_by ?? []).includes(userId) : false,
     saved: false, comments: [],
     profile: profileRaw ? {
-      id: profileRaw.user_id,
-      name: profileRaw.name ?? "Usuário",
-      avatar_url: profileRaw.perfil ?? undefined,
-      disc_ring_img: bordaAtiva?.img_url ?? undefined,
-      role: profileRaw.descricao ?? undefined,
+      id:            profileRaw.user_id,
+      name:          profileRaw.name      ?? "Usuário",
+      avatar_url:    profileRaw.perfil    ?? undefined,
+      disc_ring_img: bordaAtiva?.img_url  ?? undefined,
+      role:          profileRaw.descricao ?? undefined,
     } : undefined,
   };
 };
@@ -174,8 +174,8 @@ const AulaTab = ({
               {i < aulaIndex
                 ? <CheckCircle2 size={14} className="text-primary shrink-0" />
                 : i === aulaIndex
-                  ? <PlayCircle size={14} className="text-accent shrink-0" />
-                  : <Lock size={14} className="text-muted-foreground shrink-0" />
+                ? <PlayCircle size={14} className="text-accent shrink-0" />
+                : <Lock size={14} className="text-muted-foreground shrink-0" />
               }
               <span className={`text-xs font-body flex-1 truncate ${i === aulaIndex ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
                 {a.nome}
@@ -395,7 +395,7 @@ const DuvidasTab = () => {
           post={openDoubt as any}
           onClose={() => setOpenDoubt(null)}
           onLike={(id: string) => handleLike(id)}
-          onSave={() => { }}
+          onSave={() => {}}
           profilePhoto={profilePhoto}
           myName={myName}
           myDisc={myDisc}
@@ -410,8 +410,8 @@ const DuvidasTab = () => {
 // ─── Tabs config ──────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "aula", label: "Aula", icon: <PlayCircle size={15} /> },
-  { id: "quiz", label: "Quiz", icon: <ClipboardList size={15} /> },
+  { id: "aula",    label: "Aula",    icon: <PlayCircle size={15} /> },
+  { id: "quiz",    label: "Quiz",    icon: <ClipboardList size={15} /> },
   { id: "duvidas", label: "Dúvidas", icon: <MessageCircleQuestion size={15} /> },
 ];
 
@@ -476,10 +476,10 @@ const RoadmapPanel = ({
   });
 
   const PIN_COLORS = {
-    done: "hsl(155 60% 42%)",
+    done:   "hsl(155 60% 42%)",
     active: "hsl(25 90% 55%)",
     locked: "hsl(215 20% 30%)",
-    last: "hsl(45 90% 55%)",
+    last:   "hsl(45 90% 55%)",
   };
 
   const getStatus = (i: number) =>
@@ -541,11 +541,11 @@ const RoadmapPanel = ({
             ))}
 
             <path d={roadPath} fill="none" stroke="hsl(215, 15%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.4" />
-
+            
             {vSegments.filter(s => s.lit).map(({ d, key }) => (
               <path key={`dash-${key}`} d={d} fill="none" stroke="hsl(155, 60%, 48%)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="10 8" opacity="0.55" />
             ))}
-
+            
             {vSegments.filter(s => s.lit).map(({ d, key }) => (
               <circle key={`dot-${key}`} r="3" fill="hsl(155, 70%, 62%)" filter="url(#vRoadGlow)" opacity="0.9">
                 <animateMotion dur="3s" repeatCount="indefinite" path={d} />
@@ -556,11 +556,11 @@ const RoadmapPanel = ({
               const { x, y } = vNodePos[index];
               const isLast = isLastNode(index);
               const status = getStatus(index);
-              const isDone = status === "done";
+              const isDone   = status === "done";
               const isActive = status === "active";
               const isLocked = status === "locked";
               const isSelected = index === activeIndex;
-              const isHovered = hoveredId === index;
+              const isHovered  = hoveredId === index;
               const pinColor = isLast ? PIN_COLORS.last : PIN_COLORS[status];
               const isOnRight = x > midX;
               const pinW = isLast ? 44 : 36;
@@ -630,7 +630,7 @@ const RoadmapPanel = ({
             const { x, y } = vNodePos[index];
             const isLast = isLastNode(index);
             const status = getStatus(index);
-            const isDone = status === "done";
+            const isDone   = status === "done";
             const isActive = status === "active";
             const isSelected = index === activeIndex;
             const isOnRight = x > midX;
@@ -720,13 +720,13 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
-
+    
     const userMsg: ChatMessage = { id: Date.now(), role: "user", text: trimmed, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
     scrollToBottom();
-
+    
     try {
       // Injetando as variáveis aula.nome e aula.descricao direto do banco de dados
       const dynamicPrompt = generateSystemPrompt(
@@ -823,12 +823,12 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
 const CoursesPage = () => {
   const { user } = useAuth();
   const { courseId } = useParams<{ courseId: string }>();
-  const [activeTab, setActiveTab] = useState<Tab>("aula");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [showChat, setShowChat] = useState(false);
-  const [showRoadmap, setShowRoadmap] = useState(true);
-  const [courseName, setCourseName] = useState("");
-  const [loadingAulas, setLoadingAulas] = useState(true);
+  const [activeTab,      setActiveTab]      = useState<Tab>("aula");
+  const [activeIndex,    setActiveIndex]    = useState(0);
+  const [showChat,       setShowChat]       = useState(false);
+  const [showRoadmap,    setShowRoadmap]    = useState(true);
+  const [courseName,     setCourseName]     = useState("");
+  const [loadingAulas,   setLoadingAulas]   = useState(true);
   const [aulas, setAulas] = useState<Aula[]>([]);
 
   // --- LÓGICA DE PROGRESSO AUTOMÁTICO ---
@@ -898,24 +898,17 @@ const CoursesPage = () => {
     })();
   }, [aulas, activeIndex]);
 
-  // DEPOIS
   const handleQuizPass = () => {
     setPassedIndexes(prev => new Set([...prev, activeIndex]));
-
-    // Avança para a próxima aula automaticamente após 1.5s
-    const isLast = activeIndex >= aulas.length - 1;
-    if (!isLast) {
+    // Avança automaticamente para a próxima aula após 1.5s (dá tempo do usuário ver o feedback de aprovação)
+    if (activeIndex < aulas.length - 1) {
       setTimeout(() => {
         setActiveIndex(i => i + 1);
         setActiveTab("aula");
       }, 1500);
     }
   };
-  /*
-    const handleQuizPass = () => {
-      setPassedIndexes(prev => new Set([...prev, activeIndex]));
-    };
-  */
+
   const handleNext = () => {
     if (activeIndex < aulas.length - 1) {
       setActiveIndex(i => i + 1);
@@ -1023,12 +1016,12 @@ const CoursesPage = () => {
                     topic={
                       aulaAtiva
                         ? [
-                          `Aula: ${aulaAtiva.nome}`,
-                          aulaAtiva.descricao ? `Descrição: ${aulaAtiva.descricao}` : "",
-                          aulaAtiva.url_video ? `URL do vídeo: ${aulaAtiva.url_video}` : "",
-                        ]
-                          .filter(Boolean)
-                          .join("\n")
+                            `Aula: ${aulaAtiva.nome}`,
+                            aulaAtiva.descricao ? `Descrição: ${aulaAtiva.descricao}` : "",
+                            aulaAtiva.url_video  ? `URL do vídeo: ${aulaAtiva.url_video}` : "",
+                          ]
+                            .filter(Boolean)
+                            .join("\n")
                         : courseName
                     }
                     questions={quizQuestions.length > 0 ? quizQuestions : undefined}
@@ -1121,9 +1114,9 @@ const CoursesPage = () => {
               <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground transition text-base leading-none" style={{ lineHeight: 1 }}>✕</button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <AIChatPanel
-                courseName={courseName}
-                aula={aulaAtiva}
+              <AIChatPanel 
+                courseName={courseName} 
+                aula={aulaAtiva} 
               />
             </div>
           </motion.div>
