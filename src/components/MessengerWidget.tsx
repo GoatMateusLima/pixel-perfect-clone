@@ -211,9 +211,21 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
     } else if (data) {
       try {
         const parsed = JSON.parse(await data.text()) as Message[];
-        // Marca todas as recebidas como lidas visualmente
+        // Marca todas as recebidas como lidas
+        const hasNewlyRead = parsed.some(m => m.sender_id !== myId && !m.read);
         const markedRead = parsed.map(m => m.sender_id !== myId ? { ...m, read: true } : m);
         setMessages(markedRead);
+
+        // Salva o JSON atualizado no bucket para o remetente ver a confirmação de leitura
+        if (hasNewlyRead) {
+          await supabase.storage.from('chats').upload(getChatFileName(), JSON.stringify(markedRead), {
+            contentType: 'application/json', upsert: true,
+          });
+          // Avisa o remetente que as mensagens foram lidas
+          supabase.channel(`chat-ping-${getChatFileName()}`).send({
+            type: 'broadcast', event: 'messages-read', payload: { reader_id: myId },
+          });
+        }
       } catch (e) { console.error("Erro JSON:", e); }
     }
     
@@ -234,7 +246,14 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
     const channel = supabase.channel(channelName)
       .on('broadcast', { event: 'new-message' }, (payload) => {
         if (payload.payload.sender_id !== myId) loadMessagesFromBucket();
-      }).subscribe();
+      })
+      .on('broadcast', { event: 'messages-read' }, (payload) => {
+        // O receptor leu nossas mensagens → atualiza read: true no estado local
+        if (payload.payload.reader_id !== myId) {
+          setMessages(prev => prev.map(m => m.sender_id === myId ? { ...m, read: true } : m));
+        }
+      })
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [getChatFileName, myId, loadMessagesFromBucket]);
 
@@ -271,6 +290,8 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   };
 
   let lastSender = "", lastDate = "";
+  // Índice da última mensagem enviada por mim (para exibir status de leitura)
+  const lastMyMsgIndex = messages.reduce((acc, m, i) => m.sender_id === myId ? i : acc, -1);
 
   return (
     <div className="flex flex-col h-full">
@@ -314,6 +335,14 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
                       style={{ wordBreak: 'break-word', ...(isMe ? { background: "hsl(155 60% 38%)", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" } : { background: "hsl(215 25% 18%)", border: "1px solid hsl(215 20% 26%)" }) }}>
                       {msg.content}
                     </div>
+                    {isMe && i === lastMyMsgIndex && (
+                      <span className="mt-0.5 flex items-center">
+                        {msg.read
+                          ? <CheckCheck size={11} style={{ color: "hsl(155 60% 60%)" }} />
+                          : <Check size={11} className="text-muted-foreground/40" />
+                        }
+                      </span>
+                    )}
                   </div>
                 </motion.div>
               </div>
