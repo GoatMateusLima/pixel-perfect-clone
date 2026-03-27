@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     catch { return {}; }
   });
 
-  // ── Busca foto do perfil em background ───────────────────────────────────────
+  // ── Busca foto do perfil em background (mantida para refresh explícito) ────
   const fetchProfilePhoto = (userId: string) => {
     supabase
       .from("profiles")
@@ -54,36 +54,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   };
 
-  // ── Busca assessment do banco e mescla com localStorage ──────────────────────
-  // O banco é fonte de verdade — sobrescreve o localStorage
-  const fetchAssessmentFromDb = (userId: string) => {
+  // ── Busca todos os dados iniciais do usuário numa única requisição ─────────
+  const fetchUserData = (userId: string) => {
     supabase
       .from("profiles")
-      .select("calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed")
+      .select("perfil, calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed")
       .eq("user_id", userId)
       .maybeSingle()
       .then(({ data, error }) => {
         if (error || !data) return;
 
-        // Só atualiza se tiver pelo menos algum dado de assessment no banco
+        // Foto de perfil
+        if (data.perfil) setProfilePhoto(data.perfil);
+
+        // Assessment
         const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
-        if (!hasDbData) return;
+        if (hasDbData) {
+          const fromDb: AssessmentData = {
+            ...(data.calculo_marcius as AssessmentData ?? {}),
+            ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
+            ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
+            ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
+            completed: data.assessment_completed ?? false,
+          };
 
-        const fromDb: AssessmentData = {
-          // calculo_marcius guarda os dados do Cálculo Marcius
-          ...(data.calculo_marcius as AssessmentData ?? {}),
-          // colunas dedicadas têm prioridade
-          ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
-          ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
-          ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
-          completed: data.assessment_completed ?? false,
-        };
-
-        setAssessment((prev) => {
-          const merged = { ...prev, ...fromDb };
-          localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
-          return merged;
-        });
+          setAssessment((prev) => {
+            const merged = { ...prev, ...fromDb };
+            localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
+            return merged;
+          });
+        }
       });
   };
 
@@ -96,8 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!error && data.session?.user) {
         setSession(data.session);
         setUser(data.session.user);
-        fetchProfilePhoto(data.session.user.id);
-        fetchAssessmentFromDb(data.session.user.id); // banco tem prioridade
+        fetchUserData(data.session.user.id); // Requisição consolidada
       }
       setLoading(false);
     });
@@ -108,8 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
-        fetchProfilePhoto(session.user.id);
-        fetchAssessmentFromDb(session.user.id);
+        fetchUserData(session.user.id);
       } else {
         setProfilePhoto(null);
         setAssessment({});

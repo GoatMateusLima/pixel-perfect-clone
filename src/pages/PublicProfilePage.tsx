@@ -39,6 +39,14 @@ const SOCIAL_META: Record<SocialKey, { Icon: React.ElementType; label: string; c
   website:   { Icon: Globe,     label: "Website",   color: "hsl(45 90% 55%)",  prefix: "https://" },
 };
 
+function sanitizeUrl(href: string, prefix?: string): string {
+  if (!href) return "#";
+  const trimmed = href.trim();
+  if (/^(javascript|vbscript|data):/i.test(trimmed)) return "#";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("mailto:")) return trimmed;
+  return (prefix ?? "https://") + trimmed;
+}
+
 const ALL_MEDALS = [
   { id: 1, icon: Code2,    title: "Primeira Linha de Código", rarity: "Comum",    color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.35)", date: "Jan 2025" },
   { id: 2, icon: Brain,    title: "Mente Analítica",          rarity: "Rara",     color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.35)", date: "Mar 2025" },
@@ -156,7 +164,8 @@ const PublicProfilePage = () => {
 
         {/* ══ HERO CARD ══ */}
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-          className="hologram-panel rounded-sm overflow-hidden">
+          className="relative rounded-xl overflow-hidden shadow-2xl transition-all duration-300"
+          style={{ background: "rgba(20, 25, 35, 0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255, 255, 255, 0.08)", boxShadow: `0 12px 40px 0 rgba(0, 0, 0, 0.4)` }}>
 
           {/* Banner (com avatar ancorado na borda inferior) */}
           <div className="relative" style={{ height: 160 }}>
@@ -183,12 +192,12 @@ const PublicProfilePage = () => {
                 <img src={bordaAtiva.img_url} alt={bordaAtiva.nome}
                   className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
               )}
-              <div className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center"
+              <div className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center transition-all duration-300 hover:scale-105"
                 style={{
                   width: 68, height: 68, top: "50%", left: "50%",
                   transform: "translate(-50%,-50%)", zIndex: 2,
                   border: "3px solid hsl(var(--background))",
-                  boxShadow: `0 0 0 2.5px ${ringColor}, 0 0 20px ${ringColor}55`,
+                  boxShadow: `0 0 0 3px ${ringColor}, 0 0 30px ${ringColor}75`,
                 }}>
                 {profile.perfil
                   ? <img src={profile.perfil} alt={profile.name} className="w-full h-full object-cover" />
@@ -287,7 +296,7 @@ const PublicProfilePage = () => {
               <div className="flex flex-wrap gap-2">
                 {filledSocials.map(([key, href]) => {
                   const { Icon, label, color, prefix } = SOCIAL_META[key];
-                  const fullHref = href.startsWith("http") || href.startsWith("mailto") ? href : (prefix ?? "") + href;
+                  const fullHref = sanitizeUrl(href, prefix);
                   return (
                     <motion.a key={key} href={fullHref} target="_blank" rel="noopener noreferrer"
                       whileHover={{ scale: 1.06, y: -1 }}
@@ -304,8 +313,9 @@ const PublicProfilePage = () => {
 
         {/* ══ DISC CARD ══ */}
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
-          className="hologram-panel rounded-sm p-5"
-          style={{ borderLeft: `3px solid ${ringColor}` }}>
+          className="rounded-xl p-5 shadow-lg relative overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: `4px solid ${ringColor}` }}>
+          <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[50px] opacity-10 pointer-events-none" style={{ background: ringColor }} />
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-display font-black text-base text-white"
               style={{ background: `radial-gradient(circle at 35% 35%, ${ringColor}, ${ringColor}70)`, boxShadow: `0 0 16px ${ringColor}45` }}>
@@ -340,11 +350,11 @@ const PublicProfilePage = () => {
                   <motion.div key={medal.id}
                     initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 + i * 0.07 }}
-                    whileHover={{ scale: 1.04, y: -2 }}
-                    className="rounded-sm p-4 flex flex-col items-center text-center"
-                    style={{ background: medal.bg, border: `1px solid ${medal.border}` }}>
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-                      style={{ background: medal.bg, border: `2px solid ${medal.border}`, boxShadow: `0 0 18px ${medal.glow}` }}>
+                    whileHover={{ scale: 1.05, y: -4, boxShadow: `0 10px 30px -10px ${medal.glow}` }}
+                    className="rounded-xl p-4 flex flex-col items-center text-center transition-colors cursor-pointer"
+                    style={{ background: "rgba(255,255,255,0.02)", backdropFilter: "blur(8px)", border: `1px solid ${medal.border}` }}>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3 transition-transform"
+                      style={{ background: medal.bg, border: `2px solid ${medal.border}`, boxShadow: `0 0 20px ${medal.glow}` }}>
                       <Icon size={20} style={{ color: medal.color }} />
                     </div>
                     <p className="text-[11px] font-accent font-semibold text-foreground leading-tight mb-2">{medal.title}</p>

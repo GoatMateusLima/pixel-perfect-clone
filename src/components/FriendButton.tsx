@@ -58,12 +58,19 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    const { error } = await supabase.from("friendships").insert({
-      requester_id: user.id,
-      receiver_id:  targetUserId,
-      status:       "pending",
+    const { error } = await supabase.from("amizades").insert({
+      user1: user.id,
+      user2:  targetUserId,
+      tipo:       "Pendente",
     });
     setSaving(false);
+    
+    if (error) {
+      console.error("ERRO AO INSERIR AMIZADE:", error);
+      alert(`Erro Supabase: ${error.message} (Detalhes no console)`);
+      return;
+    }
+    
     if (!error) {
       setStatus("pending_sent");
       const ch = supabase.channel("friend-requests-bell");
@@ -74,7 +81,8 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
             event: "new-request",
             payload: { receiver_id: targetUserId },
           }).then(() => {
-            supabase.removeChannel(ch);
+            // Pequeno atraso para garantir o envio antes do canal fechar
+            setTimeout(() => supabase.removeChannel(ch), 1500);
           });
         }
       });
@@ -86,8 +94,8 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase.from("friendships").delete().or(
-      `and(requester_id.eq.${user.id},receiver_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},receiver_id.eq.${user.id})`
+    await supabase.from("amizades").delete().or(
+      `and(user1.eq.${user.id},user2.eq.${targetUserId}),and(user1.eq.${targetUserId},user2.eq.${user.id})`
     );
     setSaving(false);
     setStatus("none");
@@ -99,9 +107,9 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase.from("friendships").update({ status: "accepted" }).match({
-      requester_id: targetUserId,
-      receiver_id:  user.id,
+    await supabase.from("amizades").update({ tipo: "Amigos" }).match({
+      user1: targetUserId,
+      user2:  user.id,
     });
     setSaving(false);
     setStatus("accepted");
@@ -112,9 +120,9 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase.from("friendships").delete().match({
-      requester_id: targetUserId,
-      receiver_id:  user.id,
+    await supabase.from("amizades").delete().match({
+      user1: targetUserId,
+      user2:  user.id,
     });
     setSaving(false);
     setStatus("none");

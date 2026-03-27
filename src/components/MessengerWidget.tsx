@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import supabase from "../../utils/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import escrevendoSfx from "@/assets/SFX/escrevendo.mp3";
+import notificacaoSfx from "@/assets/SFX/notificacao.mp3";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -27,9 +29,10 @@ interface Conversation {
 interface Message {
   id:         string;
   sender_id:  string;
+  receiver_id:string;
   content:    string;
   created_at: string;
-  read:       boolean; // Manual tracking via json structure if needed
+  is_read:    boolean;
 }
 
 interface Friend {
@@ -188,12 +191,62 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
 // ─── ChatWindow (JSON via Bucket) ─────────────────────────────────────────────
 
 const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; onBack: () => void; }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [input,    setInput]    = useState("");
-  const [sending,  setSending]  = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<any>(null);
+  const [messages,   setMessages]   = useState<Message[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [input,      setInput]      = useState("");
+  const [sending,    setSending]    = useState(false);
+  const [isTyping,   setIsTyping]   = useState(false); // Outro usuário digitando
+  const bottomRef     = useRef<HTMLDivElement>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingChannelRef = useRef<any>(null);
+  const escrevendoRef  = useRef<HTMLAudioElement | null>(null);
+
+  // Inicializa áudios uma única vez no mount
+  useEffect(() => {
+    const audio = new Audio(escrevendoSfx);
+    audio.volume = 0.4;
+    audio.loop = false; // Controle manual conforme pedido
+    
+    const handleEnded = () => {
+      // Se ainda estiver digitando, reinicia o som
+      if (escrevendoRef.current && !escrevendoRef.current.paused === false) { // double check state in ref if needed, but simplified here:
+         // we'll handle this in a more robust way below
+      }
+    };
+    
+    escrevendoRef.current = audio;
+    
+    return () => {
+      audio.pause();
+      escrevendoRef.current = null;
+    };
+  }, []);
+
+  // Controle de Play/Pause do som de escrita baseado no estado isTyping
+  useEffect(() => {
+    const audio = escrevendoRef.current;
+    if (!audio) return;
+
+    const playLoop = () => {
+      if (isTyping) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.warn("Audio play blocked/failed:", e));
+      }
+    };
+
+    if (isTyping) {
+      audio.addEventListener('ended', playLoop);
+      audio.play().catch(() => {});
+    } else {
+      audio.removeEventListener('ended', playLoop);
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    return () => {
+      audio.removeEventListener('ended', playLoop);
+    };
+  }, [isTyping]);
 
   const getChatFileName = useCallback(() => {
     const sortedIds = [myId, chat.userId].sort();
@@ -204,98 +257,204 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
 
-  const loadMessagesFromBucket = useCallback(async () => {
-    const fileName = getChatFileName();
-    const { data, error } = await supabase.storage.from('chats').download(fileName);
-    
-    if (error) {
-      if (error.message.includes("not found") || error.message.includes("Object not found")) setMessages([]);
-      else console.error("Erro ao baixar:", error.message);
-    } else if (data) {
-      try {
-        const parsed = JSON.parse(await data.text()) as Message[];
-        // Marca todas as recebidas como lidas
-        const hasNewlyRead = parsed.some(m => m.sender_id !== myId && !m.read);
-        const markedRead = parsed.map(m => m.sender_id !== myId ? { ...m, read: true } : m);
-        setMessages(markedRead);
+  const loadMessages = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${myId},receiver_id.eq.${chat.userId}),and(sender_id.eq.${chat.userId},receiver_id.eq.${myId})`)
+      .order('created_at', { ascending: true });
 
-        // Salva o JSON atualizado no bucket para o remetente ver a confirmação de leitura
-        if (hasNewlyRead) {
-          await supabase.storage.from('chats').upload(getChatFileName(), JSON.stringify(markedRead), {
-            contentType: 'application/json', upsert: true,
-          });
-          // Avisa o remetente que as mensagens foram lidas
-          if (channelRef.current) {
-            channelRef.current.send({
-              type: 'broadcast', event: 'messages-read', payload: { reader_id: myId },
-            });
-          }
-        }
-      } catch (e) { console.error("Erro JSON:", e); }
+    if (!error && data) {
+      setMessages(data as Message[]);
+      
+      const unreadIds = data.filter(m => m.sender_id === chat.userId && !m.is_read).map(m => m.id);
+      if (unreadIds.length > 0) {
+        setMessages(prev => prev.map(m => unreadIds.includes(m.id) ? { ...m, is_read: true } : m));
+        await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+      }
     }
     
-    // Zera contagem de não lidas no banco
     await supabase.rpc('reset_chat_unread', { p_target_id: chat.userId });
     setLoading(false);
     scrollToBottom();
-  }, [getChatFileName, myId, chat.userId, scrollToBottom]);
+  }, [myId, chat.userId, scrollToBottom]);
 
   useEffect(() => {
-    const channelName = `chat-ping-${getChatFileName()}`;
-    const channel = supabase.channel(channelName)
-      .on('broadcast', { event: 'new-message' }, (payload) => {
-        if (payload.payload.sender_id !== myId) loadMessagesFromBucket();
-      })
-      .on('broadcast', { event: 'messages-read' }, (payload) => {
-        // O receptor leu nossas mensagens → atualiza read: true no estado local
-        if (payload.payload.reader_id !== myId) {
-          setMessages(prev => prev.map(m => m.sender_id === myId ? { ...m, read: true } : m));
-        }
-      });
+    setLoading(true);
+    loadMessages();
+  }, [chat.userId, loadMessages]);
 
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        channelRef.current = channel;
-        // Carrega as mensagens apenas APÓS estar inscrito para não perder eventos
-        setLoading(true);
-        loadMessagesFromBucket();
-      }
+  // Canal de digitação via Broadcast (efêmero, sem salvar no banco)
+  useEffect(() => {
+    // Armazena a instância ANTES do subscribe para garantir que está disponível imediatamente
+    const typingChannel = supabase.channel(`typing-${[myId, chat.userId].sort().join('_')}`, {
+      config: { broadcast: { self: false } }
     });
 
-    return () => { supabase.removeChannel(channel); channelRef.current = null; };
-  }, [getChatFileName, myId, loadMessagesFromBucket]);
+    typingChannel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.user_id !== myId) {
+          setIsTyping(true);
+          // Toca o som de escrevendo se estiver pausado
+          if (escrevendoRef.current && escrevendoRef.current.paused) {
+            escrevendoRef.current.play().catch(() => {});
+          }
+          // Fallback de segurança: se não receber nada em 20s, assume que parou
+          if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+          typingTimerRef.current = setTimeout(() => {
+            setIsTyping(false);
+            if (escrevendoRef.current) {
+              escrevendoRef.current.pause();
+              escrevendoRef.current.currentTime = 0;
+            }
+          }, 20000); 
+        }
+      })
+      .on('broadcast', { event: 'stopped-typing' }, (payload) => {
+        if (payload.payload.user_id !== myId) {
+          setIsTyping(false);
+          escrevendoRef.current?.pause();
+          if (escrevendoRef.current) escrevendoRef.current.currentTime = 0;
+          if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        }
+      })
+      .subscribe();
+
+    typingChannelRef.current = typingChannel;
+    return () => {
+      supabase.removeChannel(typingChannel);
+      typingChannelRef.current = null;
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    };
+  }, [myId, chat.userId]);
+
+  useEffect(() => {
+    const channel = supabase.channel('chat-room')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const row = payload.new as Message;
+        const isFromChat = (row.sender_id === myId && row.receiver_id === chat.userId) ||
+                           (row.sender_id === chat.userId && row.receiver_id === myId);
+        
+        if (isFromChat) {
+          const isReadOptimistic = row.receiver_id === myId ? true : row.is_read;
+
+          setMessages(prev => {
+            if (prev.some(m => m.id === row.id)) return prev;
+            return [...prev, { ...row, is_read: isReadOptimistic }];
+          });
+          scrollToBottom();
+
+          if (row.receiver_id === myId) {
+            // Para o indicador de digitação e o som de escrevendo quando a mensagem chegar
+            setIsTyping(false);
+            escrevendoRef.current?.pause();
+            if (escrevendoRef.current) escrevendoRef.current.currentTime = 0;
+
+            supabase.from('messages').update({ is_read: true }).eq('id', row.id);
+            supabase.rpc('reset_chat_unread', { p_target_id: row.sender_id }).then(() => {
+              window.dispatchEvent(new Event('chat-read')); 
+            });
+          }
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+        const row = payload.new as Message;
+        setMessages(prev => prev.map(m => m.id === row.id ? row : m));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [myId, chat.userId, scrollToBottom]);
+
+  // Heartbeat de digitação: envia sinal 'typing' enquanto houver texto no campo
+  useEffect(() => {
+    if (input.trim().length === 0) return;
+    
+    const hb = setInterval(() => {
+      typingChannelRef.current?.send({ type: 'broadcast', event: 'typing', payload: { user_id: myId } });
+    }, 2500); // Manda sinal a cada 2.5s enquanto houver texto
+    
+    return () => clearInterval(hb);
+  }, [input, myId]);
+
+  // Emite typing broadcast imediato no primeiro caractere
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const wasEmpty = input.trim().length === 0;
+    setInput(value);
+
+    if (value.trim().length > 0) {
+      if (wasEmpty) {
+        typingChannelRef.current?.send({ type: 'broadcast', event: 'typing', payload: { user_id: myId } });
+      }
+    } else {
+      typingChannelRef.current?.send({ type: 'broadcast', event: 'stopped-typing', payload: { user_id: myId } });
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    }
+  };
 
   const send = async () => {
     const text = input.trim();
     if (!text || sending) return;
     setSending(true);
     setInput("");
+    // Para o indicator de digitação ao enviar
+    typingChannelRef.current?.send({ type: 'broadcast', event: 'stopped-typing', payload: { user_id: myId } });
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
 
-    const newMessage: Message = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      sender_id: myId, content: text, created_at: new Date().toISOString(), read: false,
-    };
-
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
-    scrollToBottom();
-
-    // 1. Salva o Arquivo no Bucket
-    const { error } = await supabase.storage.from('chats').upload(getChatFileName(), JSON.stringify(updatedMessages), {
-      contentType: 'application/json', upsert: true 
+    // Utiliza UUID real localmente para evitar perdas do evento de UPDATE (Race Condition no WS)
+    const newId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : ((r & 0x3) | 0x8);
+      return v.toString(16);
     });
 
-    if (error) {
-      console.error("Erro Upload:", error.message);
-      setMessages(messages); setInput(text);
-    } else {
-      // 2. Avisa o Banco (atualiza a tabela de sessões para aparecer na lista do amigo)
+    const newMessage: Message = {
+      id: newId,
+      sender_id: myId,
+      receiver_id: chat.userId,
+      content: text,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+    scrollToBottom();
+
+    const { data: dbData, error: dbError } = await supabase.from('messages').insert({
+      id: newId,
+      sender_id: myId,
+      receiver_id: chat.userId,
+      content: text
+    }).select().single();
+
+    if (dbError) {
+      console.error("Erro Insert Chat:", dbError.message);
+      setMessages(prev => prev.filter(m => m.id !== newId));
+      setInput(text);
+    } else if (dbData) {
+      const finalMsg = dbData as Message;
+      
+      // Checa se o socket realtime (UPDATE) já havia cruzado e alterado a array, preservando o valor
+      setMessages(prev => prev.map(m => {
+        if (m.id === newId) return { ...finalMsg, is_read: m.is_read || finalMsg.is_read };
+        return m;
+      }));
+      
       await supabase.rpc('update_chat_session', { p_target_id: chat.userId, p_last_message: text });
-      // 3. Avisa o canal realtime do amigo para ele baixar o novo arquivo
-      if (channelRef.current) {
-        channelRef.current.send({ type: 'broadcast', event: 'new-message', payload: { sender_id: myId } });
-      }
+
+      const currentMsgs = messages.map(m => m.id === newId ? { ...finalMsg, is_read: m.is_read || finalMsg.is_read } : m);
+      const jsonToSave = currentMsgs.filter(m => m.id !== newId).concat(finalMsg).map(m => ({
+        id: m.id,
+        sender_id: m.sender_id,
+        content: m.content,
+        created_at: m.created_at,
+        read: m.is_read
+      }));
+      await supabase.storage.from('chats').upload(getChatFileName(), JSON.stringify(jsonToSave), {
+        contentType: 'application/json', upsert: true
+      }).catch(err => console.error("Erro ao fazer backup no bucket:", err));
     }
+    
     setSending(false);
   };
 
@@ -347,7 +506,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
                     </div>
                     {isMe && i === lastMyMsgIndex && (
                       <span className="mt-0.5 flex items-center">
-                        {msg.read
+                        {msg.is_read
                           ? <CheckCheck size={11} style={{ color: "hsl(155 60% 60%)" }} />
                           : <Check size={11} className="text-muted-foreground/40" />
                         }
@@ -362,9 +521,37 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
         <div ref={bottomRef} />
       </div>
 
+      {/* Indicador de digitação */}
+      <AnimatePresence>
+        {isTyping && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            className="px-3 pb-1 flex items-center gap-2"
+          >
+            <div className="relative shrink-0">
+              <Avatar src={chat.avatar} name={chat.name} size={22} />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary animate-pulse" style={{ boxShadow: '0 0 4px hsl(155 60% 45%)' }} />
+            </div>
+            <div className="flex items-center gap-0.5 px-3 py-2 rounded-2xl rounded-bl-sm" style={{ background: 'hsl(215 25% 18%)', border: '1px solid hsl(215 20% 26%)' }}>
+              {[0, 1, 2].map(i => (
+                <motion.span
+                  key={i}
+                  className="block w-1.5 h-1.5 rounded-full"
+                  style={{ background: 'hsl(155 60% 50%)' }}
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="shrink-0 px-3 pb-3 pt-2 border-t border-border/30 flex items-end gap-2">
-        <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Aa" rows={1} disabled={sending} className="flex-1 px-3 py-2 rounded-2xl bg-secondary/50 border border-border/40 text-foreground font-body text-xs focus:outline-none focus:border-primary/40 transition-colors resize-none disabled:opacity-50" style={{ minHeight: 34, maxHeight: 80 }} />
-        <button onClick={send} disabled={!input.trim() || sending} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-40" style={{ background: "hsl(155 60% 38%)", boxShadow: input.trim() ? "0 0 8px hsl(155 60% 40% / 0.4)" : "none" }}>
+        <textarea value={input} onChange={handleInputChange} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Aa" rows={1} disabled={loading || sending} className="flex-1 px-3 py-2 rounded-2xl bg-secondary/50 border border-border/40 text-foreground font-body text-xs focus:outline-none focus:border-primary/40 transition-colors resize-none disabled:opacity-50" style={{ minHeight: 34, maxHeight: 80 }} />
+        <button onClick={send} disabled={!input.trim() || loading || sending} type="button" className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-40" style={{ background: "hsl(155 60% 38%)", boxShadow: input.trim() ? "0 0 8px hsl(155 60% 40% / 0.4)" : "none" }}>
           {sending ? <Loader2 size={13} className="animate-spin text-white" /> : <Send size={13} style={{ color: "white" }} />}
         </button>
       </div>
@@ -381,6 +568,31 @@ const MessengerWidget = () => {
   const [activeChat,  setActiveChat]  = useState<ActiveChat | null>(null);
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [listRefreshKey, setListRefreshKey] = useState(0);
+  const notificacaoRef = useRef<HTMLAudioElement | null>(null);
+
+  // Inicializa som de notificação global
+  useEffect(() => {
+    notificacaoRef.current = new Audio(notificacaoSfx);
+    notificacaoRef.current.volume = 0.6;
+    return () => { notificacaoRef.current?.pause(); };
+  }, []);
+
+  // Listener Global de Novas Mensagens (Som de Notificação)
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase.channel("global-messages")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const row = payload.new as any;
+        if (row && row.receiver_id === user.id) {
+          // Toca o som mesmo com widget fechado
+          if (notificacaoRef.current) {
+            notificacaoRef.current.currentTime = 0;
+            notificacaoRef.current.play().catch(() => {});
+          }
+        }
+      }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -449,7 +661,12 @@ const MessengerWidget = () => {
                   <><div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} /><span className="text-xs font-accent font-semibold text-foreground tracking-wide">Mensagens</span>{unreadTotal > 0 && <span className="text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(0 70% 55% / 0.2)", color: "hsl(0 70% 65%)", border: "1px solid hsl(0 70% 55% / 0.35)" }}>{unreadTotal} não {unreadTotal === 1 ? "lida" : "lidas"}</span>}</>
                 )}
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground transition"><X size={15} /></button>
+              <button onClick={() => { 
+                    setIsOpen(false); 
+                    if (view === "chat" && activeChat) {
+                      goBackToList(activeChat.userId);
+                    }
+                  }} className="text-muted-foreground hover:text-foreground transition"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-hidden">
               <AnimatePresence mode="wait">

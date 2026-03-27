@@ -41,12 +41,12 @@ const App = () => (
             <Route path="/avaliacao" element={<AssessmentPage />} />
             <Route path="/resultado" element={<ResultPage />} />
             <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/courses" element={<CoursesPage/>}/>
+            <Route path="/courses" element={<ProtectedRoute><CoursesPage/></ProtectedRoute>}/>
             <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
-            <Route path="/comunidade" element={<CommunityPage />} />
-            <Route path="/suporte" element={<SupportPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/courses/:courseId" element={<CoursesPage />} />
+            <Route path="/comunidade" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+            <Route path="/suporte" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+            <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
             <Route path="/u/:identifier" element={<PublicProfilePage />} />
             
             {/* A rota de NotFound (*) deve ser sempre a última */}

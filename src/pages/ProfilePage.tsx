@@ -19,6 +19,7 @@ import Header from "@/components/Header";
 import Progress from "@/components/progress";
 import Vagas from "@/components/Vagas";
 import CursosEmAndamento from "@/components/CursosEmAndamento";
+import FriendsListCard from "@/components/FriendsListCard";
 import supabase from "../../utils/supabase";
 
 export type Borda = { id: string; img_url: string; nome: string; ativa: boolean };
@@ -53,6 +54,13 @@ function toggleMedalAtiva(medalhas: MedalStatus[], id: number): MedalStatus[] {
     if (ativas >= 3) return m;
     return { ...m, ativa: true };
   });
+}
+function sanitizeUrl(href: string, prefix?: string): string {
+  if (!href) return "#";
+  const trimmed = href.trim();
+  if (/^(javascript|vbscript|data):/i.test(trimmed)) return "#";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("mailto:")) return trimmed;
+  return (prefix ?? "https://") + trimmed;
 }
 
 // =============================================================================
@@ -209,7 +217,7 @@ const ProfilePage = () => {
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
   const [loadingVagas,   setLoadingVagas]   = useState(false);
-  const [loading,        setLoading]        = useState(true);
+  const [loading,        setLoading]        = useState(false); // Changed to false to avoid initial loader if user is already loaded
 
   const photoInputRef  = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -405,6 +413,12 @@ const ProfilePage = () => {
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
               <Progress />
             </motion.div>
+            
+            {/* AMIGOS (CARD LATERAL) */}
+            <div className="flex-1 min-h-[300px]">
+              <FriendsListCard />
+            </div>
+
           </aside>
 
           {/* COLUNA CENTRAL */}
@@ -548,7 +562,7 @@ const ProfilePage = () => {
                       {filledSocials.map(key => {
                         const { Icon, label, prefix } = SOCIAL_META[key];
                         const href = displaySocial[key]!;
-                        const fullHref = href.startsWith("http") || href.startsWith("mailto") ? href : (prefix ?? "") + href;
+                        const fullHref = sanitizeUrl(href, prefix);
                         return isEditing
                           ? <div key={key} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-primary/30 text-muted-foreground"><Icon size={13} /><span>{label}</span><button onClick={() => removeSocialLink(key)} className="ml-1 text-red-400 hover:text-red-300"><X size={10} /></button></div>
                           : <a key={key} href={fullHref} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-transparent hover:border-primary/50 hover:text-primary text-muted-foreground transition-all"><Icon size={13} /><span>{label}</span></a>;

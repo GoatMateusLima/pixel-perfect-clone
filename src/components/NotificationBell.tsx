@@ -49,19 +49,19 @@ const NotificationBell = () => {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from("friendships")
+      .from("amizades")
       .select(`
         id,
-        requester_id,
+        user1,
         created_at,
-        profiles!friendships_requester_id_fkey (
+        profiles!amizades_user1_fkey (
           name,
           perfil,
           username
         )
       `)
-      .eq("receiver_id", user.id)
-      .eq("status", "pending")
+      .eq("user2", user.id)
+      .eq("tipo", "Pendente")
       .order("created_at", { ascending: false });
 
     setLoading(false);
@@ -69,7 +69,7 @@ const NotificationBell = () => {
       setRequests(
         data.map((row: any) => ({
           id:           row.id,
-          requester_id: row.requester_id,
+          requester_id: row.user1,
           created_at:   row.created_at,
           profile:      Array.isArray(row.profiles) ? row.profiles[0] : row.profiles,
         }))
@@ -89,8 +89,8 @@ const NotificationBell = () => {
         {
           event: "*",
           schema: "public",
-          table: "friendships",
-          filter: `receiver_id=eq.${user.id}`,
+          table: "amizades",
+          filter: `user2=eq.${user.id}`,
         },
         () => fetchRequests()
       )
@@ -112,8 +112,8 @@ const NotificationBell = () => {
   const accept = async (req: FriendRequest) => {
     setActioning(req.id);
     await supabase
-      .from("friendships")
-      .update({ status: "accepted" })
+      .from("amizades")
+      .update({ tipo: "Amigos" })
       .match({ id: req.id });
     setRequests(prev => prev.filter(r => r.id !== req.id));
     setActioning(null);
@@ -123,7 +123,7 @@ const NotificationBell = () => {
   const reject = async (req: FriendRequest) => {
     setActioning(req.id);
     await supabase
-      .from("friendships")
+      .from("amizades")
       .delete()
       .match({ id: req.id });
     setRequests(prev => prev.filter(r => r.id !== req.id));
@@ -229,58 +229,57 @@ const NotificationBell = () => {
                       <motion.div
                         key={req.id}
                         layout
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0  }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1    }}
                         exit={{ opacity: 0, x: 20, transition: { duration: 0.18 } }}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.025] transition-colors">
+                        className="mx-3 my-2 flex flex-col gap-3 p-3 rounded-md hover:bg-white/[0.04] transition-colors"
+                        style={{ border: "1px solid hsl(155 60% 45% / 0.12)", background: "hsl(215 30% 12%)" }}>
 
-                        {/* Avatar */}
-                        <div className="shrink-0 w-10 h-10 rounded-full overflow-hidden
-                          flex items-center justify-center bg-secondary"
-                          style={{ border: "2px solid hsl(155 60% 45% / 0.3)" }}>
-                          {avatar
-                            ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                            : <User size={16} className="text-muted-foreground" />}
+                        <div className="flex items-center gap-3">
+                          {/* Avatar estilo Preview */}
+                          <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-secondary relative"
+                            style={{ border: "2px solid hsl(155 60% 45% / 0.5)", boxShadow: "0 0 16px hsl(155 60% 45% / 0.15)" }}>
+                            {avatar
+                              ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                              : <User size={18} className="text-muted-foreground" />}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-accent font-semibold text-foreground truncate">
+                              {name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground/60 font-body">
+                              {username ? `@${username} · ` : ""}{fmtDate(req.created_at)}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-accent font-semibold text-foreground truncate">
-                            {name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground/60 font-body">
-                            {username ? `@${username} · ` : ""}{fmtDate(req.created_at)}
-                          </p>
-                        </div>
-
-                        {/* Ações */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Ações Integradas (Botões Largos) */}
+                        <div className="flex items-center gap-2 mt-1 shrink-0 h-8">
                           {isActioning ? (
-                            <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                            <div className="w-full flex justify-center"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
                           ) : (
                             <>
                               {/* Aceitar */}
                               <motion.button
-                                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
+                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }}
                                 onClick={() => accept(req)}
-                                title="Aceitar"
-                                className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                                className="flex-1 flex items-center justify-center gap-1.5 rounded-sm text-xs font-accent font-bold transition-all h-full"
                                 style={{
                                   background:  "hsl(155 60% 38%)",
-                                  boxShadow:   "0 0 8px hsl(155 60% 40% / 0.4)",
+                                  color:       "white",
+                                  boxShadow:   "0 0 10px hsl(155 60% 40% / 0.25)",
                                 }}>
-                                <UserCheck size={14} style={{ color: "white" }} />
+                                <UserCheck size={14} /> Aceitar
                               </motion.button>
 
                               {/* Recusar */}
                               <motion.button
-                                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
+                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }}
                                 onClick={() => reject(req)}
-                                title="Recusar"
-                                className="w-8 h-8 rounded-full flex items-center justify-center
-                                  border border-border/50 text-muted-foreground
-                                  hover:border-rose-500/50 hover:text-rose-400 transition-all">
-                                <UserX size={14} />
+                                className="flex-1 flex items-center justify-center gap-1.5 rounded-sm text-xs font-accent font-semibold border border-border/50 text-muted-foreground h-full hover:border-rose-500/50 hover:text-rose-400 transition-all">
+                                <UserX size={14} /> Recusar
                               </motion.button>
                             </>
                           )}
