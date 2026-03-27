@@ -138,6 +138,10 @@ const RoadmapSection = () => {
     });
   }, [temasProntos, search, activeType]);
 
+  const recommendedTemas = useMemo(() => {
+    return [...temasProntos].sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0)).slice(0, 5);
+  }, [temasProntos]);
+
   return (
     <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
       <Header />
@@ -169,6 +173,26 @@ const RoadmapSection = () => {
                 />
               </div>
             </div>
+
+            {!loading && recommendedTemas.length > 0 && search === "" && activeType === "Todos" && (
+              <div className="mb-12">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">Recomendações</h2>
+                  <span className="text-xs font-accent font-bold text-primary tracking-widest uppercase">Em Alta</span>
+                </div>
+                <div className="flex gap-4 md:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x" style={{ scrollbarWidth: "none" }}>
+                  {recommendedTemas.map((tema, i) => (
+                    <div key={tema.id} className="snap-start shrink-0 w-[280px] md:w-[320px]">
+                      <TemaCard 
+                        tema={tema} 
+                        index={i}
+                        onClick={() => setSelectedTema(tema)} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mb-10">
               <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">

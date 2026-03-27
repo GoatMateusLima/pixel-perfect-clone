@@ -7,44 +7,42 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageCircle, X, ArrowLeft, Send, Search,
-  User, Check, CheckCheck, Loader2,
+  User, Check, CheckCheck, Loader2, Bot
 } from "lucide-react";
 import supabase from "../../utils/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import escrevendoSfx from "@/assets/SFX/escrevendo.mp3";
-import notificacaoSfx from "@/assets/SFX/notificacao.mp3";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Conversation {
-  other_user_id:   string;
-  other_name:      string;
-  other_avatar:    string | null;
-  last_message:    string;
+  other_user_id: string;
+  other_name: string;
+  other_avatar: string | null;
+  last_message: string;
   last_message_at: string;
-  unread_count:    number;
-  i_sent_last:     boolean;
+  unread_count: number;
+  i_sent_last: boolean;
 }
 
 interface Message {
-  id:         string;
-  sender_id:  string;
-  receiver_id:string;
-  content:    string;
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
   created_at: string;
-  is_read:    boolean;
+  is_read: boolean;
 }
 
 interface Friend {
-  friend_id:  string;
-  name:       string;
-  avatar:     string | null;
-  username:   string | null;
+  friend_id: string;
+  name: string;
+  avatar: string | null;
+  username: string | null;
 }
 
 interface ActiveChat {
   userId: string;
-  name:   string;
+  name: string;
   avatar: string | null;
 }
 
@@ -56,9 +54,9 @@ const fmtTime = (iso: string) => {
   const d = new Date(iso);
   const now = new Date();
   const diff = now.getTime() - d.getTime();
-  if (diff < 60_000)       return "agora";
-  if (diff < 3_600_000)    return `${Math.floor(diff / 60_000)}m`;
-  if (diff < 86_400_000)   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (diff < 60_000) return "agora";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 };
 
@@ -74,10 +72,10 @@ const Avatar = ({ src, name, size = 36 }: { src?: string | null; name?: string; 
 // ─── ConversationList ─────────────────────────────────────────────────────────
 
 const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (chat: ActiveChat) => void; myId: string; refreshKey: number }) => {
-  const [convs,   setConvs]   = useState<Conversation[]>([]);
+  const [convs, setConvs] = useState<Conversation[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,7 +83,7 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
       supabase.rpc("get_conversations"),
       supabase.rpc("get_friends"),
     ]);
-    setConvs(convData  ?? []);
+    setConvs(convData ?? []);
     setFriends(friendData ?? []);
     setLoading(false);
   }, []);
@@ -109,9 +107,9 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
   const friendsOnly = (friends ?? []).filter(f => !convUserIds.has(f.friend_id));
   const filtered = search.trim()
     ? [
-        ...(convs ?? []).filter(c => c.other_name?.toLowerCase().includes(search.toLowerCase())),
-        ...friendsOnly.filter(f => f.name?.toLowerCase().includes(search.toLowerCase())),
-      ]
+      ...(convs ?? []).filter(c => c.other_name?.toLowerCase().includes(search.toLowerCase())),
+      ...friendsOnly.filter(f => f.name?.toLowerCase().includes(search.toLowerCase())),
+    ]
     : null;
 
   return (
@@ -191,31 +189,31 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
 // ─── ChatWindow (JSON via Bucket) ─────────────────────────────────────────────
 
 const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; onBack: () => void; }) => {
-  const [messages,   setMessages]   = useState<Message[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [input,      setInput]      = useState("");
-  const [sending,    setSending]    = useState(false);
-  const [isTyping,   setIsTyping]   = useState(false); // Outro usuário digitando
-  const bottomRef     = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false); // Outro usuário digitando
+  const bottomRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingChannelRef = useRef<any>(null);
-  const escrevendoRef  = useRef<HTMLAudioElement | null>(null);
+  const escrevendoRef = useRef<HTMLAudioElement | null>(null);
 
   // Inicializa áudios uma única vez no mount
   useEffect(() => {
     const audio = new Audio(escrevendoSfx);
     audio.volume = 0.4;
     audio.loop = false; // Controle manual conforme pedido
-    
+
     const handleEnded = () => {
       // Se ainda estiver digitando, reinicia o som
       if (escrevendoRef.current && !escrevendoRef.current.paused === false) { // double check state in ref if needed, but simplified here:
-         // we'll handle this in a more robust way below
+        // we'll handle this in a more robust way below
       }
     };
-    
+
     escrevendoRef.current = audio;
-    
+
     return () => {
       audio.pause();
       escrevendoRef.current = null;
@@ -236,7 +234,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
 
     if (isTyping) {
       audio.addEventListener('ended', playLoop);
-      audio.play().catch(() => {});
+      audio.play().catch(() => { });
     } else {
       audio.removeEventListener('ended', playLoop);
       audio.pause();
@@ -266,14 +264,14 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
 
     if (!error && data) {
       setMessages(data as Message[]);
-      
+
       const unreadIds = data.filter(m => m.sender_id === chat.userId && !m.is_read).map(m => m.id);
       if (unreadIds.length > 0) {
         setMessages(prev => prev.map(m => unreadIds.includes(m.id) ? { ...m, is_read: true } : m));
         await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
       }
     }
-    
+
     await supabase.rpc('reset_chat_unread', { p_target_id: chat.userId });
     setLoading(false);
     scrollToBottom();
@@ -297,7 +295,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
           setIsTyping(true);
           // Toca o som de escrevendo se estiver pausado
           if (escrevendoRef.current && escrevendoRef.current.paused) {
-            escrevendoRef.current.play().catch(() => {});
+            escrevendoRef.current.play().catch(() => { });
           }
           // Fallback de segurança: se não receber nada em 20s, assume que parou
           if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -307,7 +305,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
               escrevendoRef.current.pause();
               escrevendoRef.current.currentTime = 0;
             }
-          }, 20000); 
+          }, 20000);
         }
       })
       .on('broadcast', { event: 'stopped-typing' }, (payload) => {
@@ -333,8 +331,8 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const row = payload.new as Message;
         const isFromChat = (row.sender_id === myId && row.receiver_id === chat.userId) ||
-                           (row.sender_id === chat.userId && row.receiver_id === myId);
-        
+          (row.sender_id === chat.userId && row.receiver_id === myId);
+
         if (isFromChat) {
           const isReadOptimistic = row.receiver_id === myId ? true : row.is_read;
 
@@ -352,7 +350,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
 
             supabase.from('messages').update({ is_read: true }).eq('id', row.id);
             supabase.rpc('reset_chat_unread', { p_target_id: row.sender_id }).then(() => {
-              window.dispatchEvent(new Event('chat-read')); 
+              window.dispatchEvent(new Event('chat-read'));
             });
           }
         }
@@ -369,11 +367,11 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   // Heartbeat de digitação: envia sinal 'typing' enquanto houver texto no campo
   useEffect(() => {
     if (input.trim().length === 0) return;
-    
+
     const hb = setInterval(() => {
       typingChannelRef.current?.send({ type: 'broadcast', event: 'typing', payload: { user_id: myId } });
     }, 2500); // Manda sinal a cada 2.5s enquanto houver texto
-    
+
     return () => clearInterval(hb);
   }, [input, myId]);
 
@@ -403,7 +401,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
 
     // Utiliza UUID real localmente para evitar perdas do evento de UPDATE (Race Condition no WS)
-    const newId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const newId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       const r = Math.random() * 16 | 0, v = c === 'x' ? r : ((r & 0x3) | 0x8);
       return v.toString(16);
     });
@@ -433,13 +431,13 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
       setInput(text);
     } else if (dbData) {
       const finalMsg = dbData as Message;
-      
+
       // Checa se o socket realtime (UPDATE) já havia cruzado e alterado a array, preservando o valor
       setMessages(prev => prev.map(m => {
         if (m.id === newId) return { ...finalMsg, is_read: m.is_read || finalMsg.is_read };
         return m;
       }));
-      
+
       await supabase.rpc('update_chat_session', { p_target_id: chat.userId, p_last_message: text });
 
       const currentMsgs = messages.map(m => m.id === newId ? { ...finalMsg, is_read: m.is_read || finalMsg.is_read } : m);
@@ -454,7 +452,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
         contentType: 'application/json', upsert: true
       }).catch(err => console.error("Erro ao fazer backup no bucket:", err));
     }
-    
+
     setSending(false);
   };
 
@@ -559,13 +557,137 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   );
 };
 
+// ─── Orion Assistant Chat ──────────────────────────────────────────────────────
+
+const ORION_PROMPT = `
+Você é ORION, o Assistente Integrado Oficial da plataforma UpJobs!
+Sua principal função é auxiliar o usuário tirando dúvidas de programação, carreira, UI/UX ou dúvidas sobre a própria plataforma. Seja paciente, hiper-didático, amigável e encorajador.
+Sempre que possível, dê exemplos de código com sintaxe destacada em Markdown e passe instruções práticas, como um mentor sênior faria!
+Se despeça sempre com uma forma positiva e use linguagem leve.
+`;
+
+const ORION_SUGGESTIONS = [
+  "Como ir bem na entrevista?", "Qual diferença de var, let e const?",
+  "O que estudar em Front-end?", "Dicas para fazer networking?"
+];
+
+interface AIChatMessage { id: number; role: "user" | "assistant"; text: string; ts: string; }
+
+const OrionChatPanel = () => {
+  const [messages, setMessages] = useState<AIChatMessage[]>([{
+    id: 0, role: "assistant",
+    text: "Saudações! Sou o Orion 🌌 Inteligência Artificial da UpJobs. Como posso iluminar seu aprendizado hoje?",
+    ts: "agora",
+  }]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollToBottom = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+
+  const sendMessage = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    const userMsg: AIChatMessage = { id: Date.now(), role: "user", text: trimmed, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+    scrollToBottom();
+    const AI_KEY = import.meta.env.VITE_AI_KEY;
+    try {
+      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role, content: m.text }));
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{ role: "system", content: ORION_PROMPT }, ...history, { role: "user", content: trimmed }],
+        }),
+      });
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || data.error?.message || "Desculpe, a conexão com meus núcleos falhou agora.";
+      setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: reply, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }]);
+    } catch {
+      setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar. Tente novamente.", ts: "agora" }]);
+    } finally {
+      setLoading(false);
+      scrollToBottom();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background/5">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(215 60% 45% / 0.2) transparent" }}>
+        {messages.map((msg, i) => (
+          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0.2 : 0 }}
+            className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-white relative overflow-hidden"
+              style={msg.role === "assistant"
+                ? { background: "radial-gradient(circle at 35% 35%, hsl(215 60% 45%), hsl(215 60% 25%))", boxShadow: "0 0 8px hsl(215 60% 45% / 0.4)" }
+                : { background: "hsl(215 25% 22%)", border: "1px solid hsl(215 25% 32%)" }}>
+              {msg.role === "assistant" ? <Bot size={14} /> : "EU"}
+            </div>
+            <div className={`max-w-[80%] px-3 py-2 rounded-sm text-xs font-body leading-relaxed`}
+              style={msg.role === "assistant"
+                ? { background: "hsl(215 25% 12%)", border: "1px solid hsl(215 60% 45% / 0.2)", color: "hsl(215 15% 85%)" }
+                : { background: "hsl(155 60% 20% / 0.4)", border: "1px solid hsl(155 60% 45% / 0.3)", color: "hsl(155 30% 90%)" }}>
+              <pre className="whitespace-pre-wrap font-body text-xs leading-relaxed" style={{ fontFamily: "inherit" }}>{msg.text}</pre>
+              <p className="text-[10px] text-muted-foreground/50 mt-1 text-right">{msg.ts}</p>
+            </div>
+          </motion.div>
+        ))}
+        {loading && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-white"
+              style={{ background: "radial-gradient(circle at 35% 35%, hsl(215 60% 45%), hsl(215 60% 25%))" }}><Bot size={14} /></div>
+            <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5" style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(215 60% 45% / 0.2)" }}>
+              {[0, 0.15, 0.3].map((delay, i) => (
+                <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-[hsl(215,60%,55%)]" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay }} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {messages.length <= 1 && (
+        <div className="shrink-0 px-3 pb-2">
+          <p className="text-[10px] font-accent text-foreground/50 uppercase tracking-widest mb-1.5">Sugestões</p>
+          <div className="flex flex-wrap gap-1.5">
+            {ORION_SUGGESTIONS.map((s) => (
+              <button key={s} onClick={() => sendMessage(s)} className="text-[11px] font-body px-2 py-1 rounded-sm border border-border/40 text-foreground/70 hover:border-[hsl(215,60%,45%)]/40 hover:text-[hsl(215,60%,65%)] transition-all">
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="shrink-0 px-3 pb-3 pt-2 border-t border-border/20 flex items-end gap-2">
+        <textarea value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+          placeholder="Fale com Orion... (Enter/Enviar)" disabled={loading}
+          className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border/20 text-foreground font-body text-[11px] focus:outline-none focus:border-[hsl(215,60%,45%)]/40 transition-colors resize-none disabled:opacity-50"
+          style={{ minHeight: 34, maxHeight: 80 }} />
+        <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-40"
+          style={{ background: "hsl(215 60% 38%)", boxShadow: input.trim() ? "0 0 8px hsl(215 60% 40% / 0.4)" : "none" }}>
+          {loading ? <Loader2 size={13} className="animate-spin text-white" /> : <Send size={13} style={{ color: "white" }} />}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ─── MessengerWidget (componente raiz) ────────────────────────────────────────
 
 const MessengerWidget = () => {
   const { user } = useAuth();
-  const [isOpen,      setIsOpen]      = useState(false);
-  const [view,        setView]        = useState<View>("list");
-  const [activeChat,  setActiveChat]  = useState<ActiveChat | null>(null);
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [view, setView] = useState<View>("list");
+  const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [listRefreshKey, setListRefreshKey] = useState(0);
   const notificacaoRef = useRef<HTMLAudioElement | null>(null);
@@ -587,7 +709,7 @@ const MessengerWidget = () => {
           // Toca o som mesmo com widget fechado
           if (notificacaoRef.current) {
             notificacaoRef.current.currentTime = 0;
-            notificacaoRef.current.play().catch(() => {});
+            notificacaoRef.current.play().catch(() => { });
           }
         }
       }).subscribe();
@@ -620,7 +742,7 @@ const MessengerWidget = () => {
     return () => { supabase.removeChannel(ch); };
   }, [user, loadBadge]);
 
-  if (!user) return null;
+  if (!user || location.pathname.startsWith("/courses")) return null;
 
   const openChat = (chat: ActiveChat) => {
     setActiveChat(chat);
@@ -642,11 +764,16 @@ const MessengerWidget = () => {
   return (
     <>
       <AnimatePresence>
-        {!isOpen && (
-          <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsOpen(true); setView("list"); loadBadge(); }} className="fixed bottom-6 left-6 z-50 w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
-            <MessageCircle size={22} style={{ color: "hsl(155 60% 90%)" }} />
-            {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white" style={{ background: "hsl(0 70% 55%)", boxShadow: "0 0 8px hsl(0 70% 55% / 0.6)" }}>{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
-          </motion.button>
+        {!isOpen && !isAiOpen && (
+          <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3">
+            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsOpen(true); setView("list"); loadBadge(); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
+              <MessageCircle size={22} style={{ color: "hsl(155 60% 90%)" }} />
+              {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white" style={{ background: "hsl(0 70% 55%)", boxShadow: "0 0 8px hsl(0 70% 55% / 0.6)" }}>{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
+            </motion.button>
+            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsAiOpen(true); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(215 60% 38%), hsl(215 60% 22%))", border: "1.5px solid hsl(215 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(215 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
+              <Bot size={22} style={{ color: "hsl(215 60% 90%)" }} />
+            </motion.button>
+          </div>
         )}
       </AnimatePresence>
 
@@ -661,18 +788,34 @@ const MessengerWidget = () => {
                   <><div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} /><span className="text-xs font-accent font-semibold text-foreground tracking-wide">Mensagens</span>{unreadTotal > 0 && <span className="text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(0 70% 55% / 0.2)", color: "hsl(0 70% 65%)", border: "1px solid hsl(0 70% 55% / 0.35)" }}>{unreadTotal} não {unreadTotal === 1 ? "lida" : "lidas"}</span>}</>
                 )}
               </div>
-              <button onClick={() => { 
-                    setIsOpen(false); 
-                    if (view === "chat" && activeChat) {
-                      goBackToList(activeChat.userId);
-                    }
-                  }} className="text-muted-foreground hover:text-foreground transition"><X size={15} /></button>
+              <button onClick={() => {
+                setIsOpen(false);
+                if (view === "chat" && activeChat) {
+                  goBackToList(activeChat.userId);
+                }
+              }} className="text-muted-foreground hover:text-foreground transition"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-hidden">
               <AnimatePresence mode="wait">
                 {view === "list" ? <motion.div key="list" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} className="h-full"><ConversationList onSelectChat={openChat} myId={user.id} refreshKey={listRefreshKey} /></motion.div>
-                : <motion.div key="chat" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.18 }} className="h-full">{activeChat && <ChatWindow chat={activeChat} myId={user.id} onBack={() => goBackToList(activeChat.userId)} />}</motion.div>}
+                  : <motion.div key="chat" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.18 }} className="h-full">{activeChat && <ChatWindow chat={activeChat} myId={user.id} onBack={() => goBackToList(activeChat.userId)} />}</motion.div>}
               </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isAiOpen && (
+          <motion.div key="ai-panel" initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} className="fixed bottom-6 left-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(215 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(215 60% 45% / 0.1)" }}>
+            <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/25" style={{ background: "hsl(215 30% 12%)" }}>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[hsl(215,60%,55%)] animate-pulse" style={{ boxShadow: "0 0 6px hsl(215 60% 45%)" }} /><span className="text-xs font-accent font-semibold text-foreground tracking-wide">Orion AI</span>
+              </div>
+              <button onClick={() => setIsAiOpen(false)} className="text-muted-foreground hover:text-foreground transition"><X size={15} /></button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <OrionChatPanel />
             </div>
           </motion.div>
         )}

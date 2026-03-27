@@ -266,11 +266,7 @@ const ProfilePage = () => {
           if (courseName) {
             setLoadingVagas(true);
             const jobs = await fetchVagasByInterest(courseName);
-            setVagasDinamicas(jobs.slice(0, 3).map((j: any) => ({
-              title: j.job_title, company: j.employer_name,
-              salary: j.job_min_salary ? `R$ ${j.job_min_salary}` : "A combinar",
-              type: j.job_is_remote ? "Remoto" : (j.job_city || "Brasil"), url: j.job_apply_link,
-            })));
+            setVagasDinamicas(jobs.slice(0, 3));
           }
         }
       } catch (err) { console.error("Erro ao carregar dados:", err); }

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import Header from "@/components/Header";
 import supabase from "../../utils/supabase";
-import { getPlaylistVideos } from "../../utils/ApiPlaylist";
+import {getPlaylistVideos} from "../../utils/ApiPlaylist";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tema = { id: string; name: string; description: string; type: string };
