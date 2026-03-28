@@ -18,11 +18,9 @@ import ImageCropModal from "@/components/ImageCropModal";
 import Header from "@/components/Header";
 import Progress from "@/components/progress";
 import Vagas from "@/components/Vagas";
+import CursosEmAndamento from "@/components/CursosEmAndamento";
+import FriendsListCard from "@/components/FriendsListCard";
 import supabase from "../../utils/supabase";
-
-// =============================================================================
-// TIPOS
-// =============================================================================
 
 export type Borda = { id: string; img_url: string; nome: string; ativa: boolean };
 export type MedalStatus = { id: number; ativa: boolean };
@@ -56,6 +54,13 @@ function toggleMedalAtiva(medalhas: MedalStatus[], id: number): MedalStatus[] {
     if (ativas >= 3) return m;
     return { ...m, ativa: true };
   });
+}
+function sanitizeUrl(href: string, prefix?: string): string {
+  if (!href) return "#";
+  const trimmed = href.trim();
+  if (/^(javascript|vbscript|data):/i.test(trimmed)) return "#";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("mailto:")) return trimmed;
+  return (prefix ?? "https://") + trimmed;
 }
 
 // =============================================================================
@@ -204,161 +209,6 @@ const AssessmentResultModal = ({
 };
 
 // =============================================================================
-// CARD CURSOS EM ANDAMENTO
-// =============================================================================
-const CursosEmAndamento = ({ userId }: { userId: string }) => {
-  const [cursos, setCursos] = useState<CourseProgress[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        // Busca cursos que o usuário começou (tabela watch)
-        const { data: watchData } = await supabase
-          .from("watch")
-          .select("course_id, courses(id, name, difficult)")
-          .eq("user_id", userId);
-
-        if (!watchData || watchData.length === 0) { setLoading(false); return; }
-
-        const result: CourseProgress[] = [];
-
-        for (const w of watchData) {
-          const course = Array.isArray(w.courses) ? w.courses[0] : w.courses as any;
-          if (!course) continue;
-
-          // Total de aulas do curso
-          const { count: totalAulas } = await supabase
-            .from("aulas")
-            .select("id", { count: "exact", head: true })
-            .eq("course_id", course.id);
-
-          // Aulas concluídas pelo usuário
-          const { data: aulasCourse } = await supabase
-            .from("aulas")
-            .select("id")
-            .eq("course_id", course.id);
-
-          const aulaIds = (aulasCourse ?? []).map(a => Number(a.id));
-
-          const { count: completedAulas } = await supabase
-            .from("lesson_progress")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", userId)
-            .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
-            .eq("completed", true);
-
-          const total = totalAulas ?? 0;
-          const completed = completedAulas ?? 0;
-          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-          // Só mostra cursos com pelo menos 1 aula concluída e não 100% (em andamento)
-          if (completed > 0) {
-            result.push({
-              courseId: course.id,
-              courseName: course.name,
-              difficult: course.difficult ?? "Iniciante",
-              totalAulas: total,
-              completedAulas: completed,
-              pct,
-            });
-          }
-        }
-
-        // Ordena por progresso decrescente
-        result.sort((a, b) => b.pct - a.pct);
-        setCursos(result);
-      } catch (err) {
-        console.error("[ProfilePage] Erro ao carregar cursos:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [userId]);
-
-  if (loading) return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="hologram-panel rounded-sm p-6">
-      <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-        <PlayCircle size={18} className="text-primary" /> Cursos em Andamento
-      </h2>
-      <div className="space-y-3">
-        {[1, 2].map(i => <div key={i} className="h-16 rounded-sm bg-secondary/30 animate-pulse" />)}
-      </div>
-    </motion.div>
-  );
-
-  if (cursos.length === 0) return null;
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="hologram-panel rounded-sm p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-          <PlayCircle size={18} className="text-primary" /> Cursos em Andamento
-        </h2>
-        <span className="text-[11px] font-accent text-muted-foreground">{cursos.length} curso{cursos.length !== 1 ? "s" : ""}</span>
-      </div>
-
-      <div className="space-y-3">
-        {cursos.map((curso, i) => {
-          const diffColor = DIFF_COLOR[curso.difficult] ?? "hsl(155 60% 45%)";
-          const isConcluido = curso.pct === 100;
-          return (
-            <motion.div key={curso.courseId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
-              <Link to={`/courses/${curso.courseId}`}
-                className="flex items-center gap-4 p-4 rounded-sm border border-border/20 hover:border-primary/30 hover:bg-primary/5 transition-all group">
-                {/* Ícone */}
-                <div className="shrink-0 w-10 h-10 rounded-sm flex items-center justify-center"
-                  style={{ background: `${diffColor}15`, border: `1px solid ${diffColor}30` }}>
-                  <PlayCircle size={18} style={{ color: diffColor }} />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-display font-bold text-foreground truncate group-hover:text-primary transition-colors">{curso.courseName}</p>
-                    <span className="shrink-0 text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-sm"
-                      style={{ color: diffColor, background: `${diffColor}15`, border: `1px solid ${diffColor}25` }}>
-                      {curso.difficult}
-                    </span>
-                  </div>
-
-                  {/* Barra de progresso */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${curso.pct}%` }}
-                        transition={{ delay: 0.3 + i * 0.1, duration: 0.8, ease: "easeOut" }}
-                        className="h-full rounded-full"
-                        style={{
-                          background: isConcluido ? "hsl(155 60% 45%)" : diffColor,
-                          boxShadow: `0 0 6px ${isConcluido ? "hsl(155 60% 45%)" : diffColor}60`,
-                        }}
-                      />
-                    </div>
-                    <span className="shrink-0 text-[10px] font-accent font-bold" style={{ color: isConcluido ? "hsl(155 60% 50%)" : diffColor }}>
-                      {curso.pct}%
-                    </span>
-                  </div>
-
-                  <p className="text-[10px] text-muted-foreground font-body mt-0.5">
-                    {curso.completedAulas} de {curso.totalAulas} aulas concluídas
-                  </p>
-                </div>
-
-                <ChevronRight size={14} className="shrink-0 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-              </Link>
-            </motion.div>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-};
-
-// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 const ProfilePage = () => {
@@ -367,7 +217,7 @@ const ProfilePage = () => {
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
   const [loadingVagas,   setLoadingVagas]   = useState(false);
-  const [loading,        setLoading]        = useState(true);
+  const [loading,        setLoading]        = useState(false); // Changed to false to avoid initial loader if user is already loaded
 
   const photoInputRef  = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -416,11 +266,7 @@ const ProfilePage = () => {
           if (courseName) {
             setLoadingVagas(true);
             const jobs = await fetchVagasByInterest(courseName);
-            setVagasDinamicas(jobs.slice(0, 3).map((j: any) => ({
-              title: j.job_title, company: j.employer_name,
-              salary: j.job_min_salary ? `R$ ${j.job_min_salary}` : "A combinar",
-              type: j.job_is_remote ? "Remoto" : (j.job_city || "Brasil"), url: j.job_apply_link,
-            })));
+            setVagasDinamicas(jobs.slice(0, 3));
           }
         }
       } catch (err) { console.error("Erro ao carregar dados:", err); }
@@ -563,6 +409,12 @@ const ProfilePage = () => {
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
               <Progress />
             </motion.div>
+            
+            {/* AMIGOS (CARD LATERAL) */}
+            <div className="flex-1 min-h-[300px]">
+              <FriendsListCard />
+            </div>
+
           </aside>
 
           {/* COLUNA CENTRAL */}
@@ -706,7 +558,7 @@ const ProfilePage = () => {
                       {filledSocials.map(key => {
                         const { Icon, label, prefix } = SOCIAL_META[key];
                         const href = displaySocial[key]!;
-                        const fullHref = href.startsWith("http") || href.startsWith("mailto") ? href : (prefix ?? "") + href;
+                        const fullHref = sanitizeUrl(href, prefix);
                         return isEditing
                           ? <div key={key} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-primary/30 text-muted-foreground"><Icon size={13} /><span>{label}</span><button onClick={() => removeSocialLink(key)} className="ml-1 text-red-400 hover:text-red-300"><X size={10} /></button></div>
                           : <a key={key} href={fullHref} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-transparent hover:border-primary/50 hover:text-primary text-muted-foreground transition-all"><Icon size={13} /><span>{label}</span></a>;

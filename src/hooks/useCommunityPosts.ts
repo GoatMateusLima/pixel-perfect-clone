@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import supabase from "../../utils/supabase.ts";
-import type { Publication, Post } from "./PostCard";
+import type { Publication, Post } from "../components/PostCard";
 
 const PAGE_SIZE = 10;
 
@@ -98,6 +98,8 @@ export function useCommunityPosts({
 
   // ── Carrega primeira página ──────────────────────────────────────────────────
   useEffect(() => {
+    let ignore = false;
+    
     const fetchInitial = async () => {
       setLoadingPosts(true);
 
@@ -106,6 +108,8 @@ export function useCommunityPosts({
         .select("*")
         .order("date", { ascending: false })
         .range(0, PAGE_SIZE - 1);
+
+      if (ignore) return;
 
       // Erro real (ex: RLS bloqueando, sem conexão) → log + mock como fallback
       if (error) {
@@ -132,6 +136,8 @@ export function useCommunityPosts({
     };
 
     fetchInitial();
+    
+    return () => { ignore = true; };
   }, [userId]);
 
   // ── Carregar mais ────────────────────────────────────────────────────────────

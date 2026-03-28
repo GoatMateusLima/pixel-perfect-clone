@@ -18,7 +18,8 @@ import SupportPage from "./pages/SupportPage";
 import ProtectedRoute from "./contexts/ProtectedRoute";
 import AuthRoute from "./contexts/AuthRoute";
 import AdminPage from "./pages/AdminPage";
-
+import MessengerWidget from "@/components/MessengerWidget";
+import PublicProfilePage from "./pages/PublicProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -27,8 +28,12 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      
       <BrowserRouter>
         <AuthProvider>
+          {/* ✅ O MessengerWidget DEVE ficar aqui dentro do AuthProvider, mas fora do <Routes> */}
+          <MessengerWidget />
+          
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
@@ -36,12 +41,15 @@ const App = () => (
             <Route path="/avaliacao" element={<AssessmentPage />} />
             <Route path="/resultado" element={<ResultPage />} />
             <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/courses" element={<CoursesPage/>}/>
+            <Route path="/courses" element={<ProtectedRoute><CoursesPage/></ProtectedRoute>}/>
             <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
-            <Route path="/comunidade" element={<CommunityPage />} />
-            <Route path="/suporte" element={<SupportPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/courses/:courseId" element={<CoursesPage />} />
+            <Route path="/comunidade" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+            <Route path="/suporte" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+            <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
+            <Route path="/u/:identifier" element={<PublicProfilePage />} />
+            
+            {/* A rota de NotFound (*) deve ser sempre a última */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

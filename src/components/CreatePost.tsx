@@ -4,6 +4,7 @@ import { ImageIcon, X, MessageSquarePlus, Video, Loader2, Smile } from "lucide-r
 import supabase from "../../utils/supabase.ts";
 import PostMedia from "./PostMedia";
 import GifPicker from "./GifPicker";
+import { useModeration } from "../hooks/useModeration.ts";
 
 const BUCKET        = "ComunityPost";
 const ACCEPTED_IMAGE = "image/jpeg,image/png,image/webp";
@@ -28,7 +29,8 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   const [uploadPct, setUploadPct] = useState(0);
   const [error,     setError]     = useState<string | null>(null);
 
-  const fileRef  = useRef<HTMLInputElement>(null);
+  const fileRef    = useRef<HTMLInputElement>(null);
+  const { moderate } = useModeration();
 
   const hasMedia = !!(mediaFile || gifUrl);
 
@@ -71,6 +73,14 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
     setUploadPct(10);
 
     try {
+      // 0. Moderação via Groq antes de publicar
+      const modResult = await moderate(description, mediaFile, gifUrl);
+      if (!modResult.approved) {
+        setError(modResult.reason ?? "Conteúdo não permitido na comunidade UpJobs.");
+        setUploading(false);
+        return;
+      }
+
       // 1. Insere o post
       const postData = {
         description: description.trim(),
@@ -161,7 +171,7 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   ) : null);
 
   return (
-    <motion.div layout className="bg-transparent border-b border-border/20 px-4 py-3">
+    <motion.div layout className="hologram-panel rounded-sm p-5">
       <div className="flex gap-3 items-center">
 
         {/* Sua Foto de Perfil na hora de criar */}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Heart, Bookmark, Share2, Send, Loader2, ImageIcon, Video, Smile } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
+import { useNavigate } from "react-router-dom"; // <-- Adicionado
 import {
   Post,
   DISC_COLOR, DISC_LABEL,
@@ -11,6 +12,7 @@ import {
 import PostMedia       from "./PostMedia";
 import CommentItem, { DbComment, CommentNode, buildCommentTree } from "./CommentItem";
 import GifPicker       from "./GifPicker";
+import { useModeration } from "../hooks/useModeration.ts";
 
 const BUCKET = "ComunityPost";
 const ACCEPTED_IMAGE = "image/jpeg,image/png,image/webp";
@@ -33,6 +35,8 @@ const PostModal = ({
   myAvatarUrl, myName, myDisc, myDiscRingImg, myUserId,
 }: PostModalProps) => {
 
+  const navigate = useNavigate(); // <-- Adicionado
+
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
   const [loading,     setLoading]     = useState(true);
   const commentsEndRef = useRef<HTMLDivElement>(null);
@@ -51,6 +55,7 @@ const PostModal = ({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const hasMediaInput = !!(mediaFile || gifUrl);
+  const { moderate }  = useModeration();
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,6 +77,15 @@ const PostModal = ({
     setPreviewUrl(null);
     setGifUrl(null);
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  // ── Função de Navegação para o Perfil ──
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    if (post?.creator_id) {
+      onClose(); // Fecha o modal antes de navegar
+      navigate(`/u/${post.creator_id}`);
+    }
   };
 
   // ── Carrega comentários ──
@@ -152,10 +166,18 @@ const PostModal = ({
     if ((!commentText.trim() && !hasMediaInput) || !post.id || !myUserId) return;
     setSubmitting(true);
 
+    // 0. Moderação via Groq antes de qualquer coisa
+    const modResult = await moderate(commentText, mediaFile, gifUrl);
+    if (!modResult.approved) {
+      alert(`Comentário não permitido: ${modResult.reason ?? "Conteúdo inadequado para a comunidade."}`);
+      setSubmitting(false);
+      return;
+    }
+
     // 1. Fazemos o upload ANTES de inserir no banco
     const midiaUrl = await uploadCommentMedia(mediaFile, gifUrl);
 
-    // 2. Inserimos o comentário já com a mídia embutida (Ignora a necessidade de ter permissão de UPDATE)
+    // 2. Inserimos o comentário já com a mídia embutida
     const { data, error } = await supabase
       .from("comments")
       .insert({
@@ -191,6 +213,13 @@ const PostModal = ({
   // ── Responder a um Comentário (Reply) ──
   const handleReply = async (parentId: string, text: string, file: File | null, gif: string | null) => {
     if (!post.id || !myUserId) return;
+
+    // 0. Moderação via Groq
+    const modResult = await moderate(text, file, gif);
+    if (!modResult.approved) {
+      alert(`Resposta não permitida: ${modResult.reason ?? "Conteúdo inadequado para a comunidade."}`);
+      return;
+    }
 
     // 1. Faz o upload ANTES de inserir
     const midiaUrl = await uploadCommentMedia(file, gif);
@@ -285,12 +314,16 @@ const PostModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.2 }}
-          className="hologram-panel rounded-sm w-full max-w-2xl flex flex-col overflow-hidden" style={{ maxHeight: "min(90vh, calc(100dvh - 2rem))" }}
+          className="hologram-panel rounded-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}>
 
           {/* ── Header ── */}
           <div className="p-5 pb-0 flex items-start justify-between gap-3 flex-shrink-0">
-            <div className="flex items-start gap-3">
+            {/* Div alterada para ser clicável e redirecionar ao perfil */}
+            <div 
+              className="flex items-start gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleAvatarClick}
+            >
               <UserAvatar
                 avatarUrl={isMe ? myAvatarUrl : authorAvatarUrl}
                 name={isMe ? myName : authorName}
