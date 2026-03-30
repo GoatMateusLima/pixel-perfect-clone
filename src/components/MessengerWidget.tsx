@@ -12,7 +12,6 @@ import {
 import { useLocation } from "react-router-dom";
 import supabase from "../../utils/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import escrevendoSfx from "../assets/SFX/escrevendo.mp3";
 import notificacaoSfx from "../assets/SFX/notificacao.mp3";
 
 
@@ -201,54 +200,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingChannelRef = useRef<any>(null);
-  const escrevendoRef = useRef<HTMLAudioElement | null>(null);
 
-  // Inicializa áudios uma única vez no mount
-  useEffect(() => {
-    const audio = new Audio(escrevendoSfx);
-    audio.volume = 0.4;
-    audio.loop = false; // Controle manual conforme pedido
-
-    const handleEnded = () => {
-      // Se ainda estiver digitando, reinicia o som
-      if (escrevendoRef.current && !escrevendoRef.current.paused === false) { // double check state in ref if needed, but simplified here:
-        // we'll handle this in a more robust way below
-      }
-    };
-
-    escrevendoRef.current = audio;
-
-    return () => {
-      audio.pause();
-      escrevendoRef.current = null;
-    };
-  }, []);
-
-  // Controle de Play/Pause do som de escrita baseado no estado isTyping
-  useEffect(() => {
-    const audio = escrevendoRef.current;
-    if (!audio) return;
-
-    const playLoop = () => {
-      if (isTyping) {
-        audio.currentTime = 0;
-        audio.play().catch(e => console.warn("Audio play blocked/failed:", e));
-      }
-    };
-
-    if (isTyping) {
-      audio.addEventListener('ended', playLoop);
-      audio.play().catch(() => { });
-    } else {
-      audio.removeEventListener('ended', playLoop);
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
-    return () => {
-      audio.removeEventListener('ended', playLoop);
-    };
-  }, [isTyping]);
 
   const getChatFileName = useCallback(() => {
     const sortedIds = [myId, chat.userId].sort();
@@ -297,26 +249,16 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.user_id !== myId) {
           setIsTyping(true);
-          // Toca o som de escrevendo se estiver pausado
-          if (escrevendoRef.current && escrevendoRef.current.paused) {
-            escrevendoRef.current.play().catch(() => { });
-          }
           // Fallback de segurança: se não receber nada em 20s, assume que parou
           if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
           typingTimerRef.current = setTimeout(() => {
             setIsTyping(false);
-            if (escrevendoRef.current) {
-              escrevendoRef.current.pause();
-              escrevendoRef.current.currentTime = 0;
-            }
           }, 20000);
         }
       })
       .on('broadcast', { event: 'stopped-typing' }, (payload) => {
         if (payload.payload.user_id !== myId) {
           setIsTyping(false);
-          escrevendoRef.current?.pause();
-          if (escrevendoRef.current) escrevendoRef.current.currentTime = 0;
           if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
         }
       })
@@ -347,10 +289,8 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
           scrollToBottom();
 
           if (row.receiver_id === myId) {
-            // Para o indicador de digitação e o som de escrevendo quando a mensagem chegar
+            // Para o indicador de digitação quando a mensagem chegar
             setIsTyping(false);
-            escrevendoRef.current?.pause();
-            if (escrevendoRef.current) escrevendoRef.current.currentTime = 0;
 
             supabase.from('messages').update({ is_read: true }).eq('id', row.id);
             supabase.rpc('reset_chat_unread', { p_target_id: row.sender_id }).then(() => {
@@ -694,7 +634,17 @@ const MessengerWidget = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [listRefreshKey, setListRefreshKey] = useState(0);
+  const [notification, setNotification] = useState<{
+    id: string; senderId: string; name: string; avatar: string | null; content: string; count: number;
+  } | null>(null);
   const notificacaoRef = useRef<HTMLAudioElement | null>(null);
+  const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadBadge = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.rpc("get_unread_total");
+    setUnreadTotal(Number(data ?? 0));
+  }, [user]);
 
   // Inicializa som de notificação global
   useEffect(() => {
@@ -703,22 +653,49 @@ const MessengerWidget = () => {
     return () => { notificacaoRef.current?.pause(); };
   }, []);
 
-  // Listener Global de Novas Mensagens (Som de Notificação)
+  // Listener Global de Novas Mensagens (Som de Notificação + Popup)
   useEffect(() => {
     if (!user) return;
     const ch = supabase.channel("global-messages")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-        const row = payload.new as any;
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
+        const row = payload.new as Message;
         if (row && row.receiver_id === user.id) {
-          // Toca o som mesmo com widget fechado
+          // Toca o som
           if (notificacaoRef.current) {
             notificacaoRef.current.currentTime = 0;
             notificacaoRef.current.play().catch(() => { });
           }
+
+          // Se a conversa não está aberta, mostra o popup
+          const chatAbertoComEle = isOpen && view === "chat" && activeChat?.userId === row.sender_id;
+          if (!chatAbertoComEle) {
+            // Busca perfil do remetente
+            const { data: prof } = await supabase.from("profiles").select("name, perfil").eq("user_id", row.sender_id).maybeSingle();
+            // Busca qnt não lidas DESTE remetente
+            const { count } = await supabase.from("messages").select("id", { count: "exact", head: true })
+              .eq("sender_id", row.sender_id).eq("receiver_id", user.id).eq("is_read", false);
+
+            setNotification({
+              id: row.id,
+              senderId: row.sender_id,
+              name: prof?.name || "Usuário",
+              avatar: prof?.perfil || null,
+              content: row.content,
+              count: count || 1
+            });
+
+            if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+            notificationTimeoutRef.current = setTimeout(() => setNotification(null), 6000);
+          }
+          
+          loadBadge();
         }
       }).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [user]);
+    return () => { 
+      supabase.removeChannel(ch); 
+      if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+    };
+  }, [user, isOpen, view, activeChat, loadBadge]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -730,18 +707,27 @@ const MessengerWidget = () => {
     return () => window.removeEventListener("open-chat", handler);
   }, []);
 
-  const loadBadge = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase.rpc("get_unread_total");
-    setUnreadTotal(Number(data ?? 0));
-  }, [user]);
+  useEffect(() => {
+    const refresh = () => setListRefreshKey(k => k + 1);
+    window.addEventListener("friendship-changed", refresh);
+    return () => window.removeEventListener("friendship-changed", refresh);
+  }, []);
+
 
   useEffect(() => {
     loadBadge();
-    const ch = supabase.channel("messenger-unread-badge")
+    const ch = supabase.channel("messenger-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_sessions" }, (payload) => {
         const row = payload.new as any;
         if (row && (row.user1_id === user?.id || row.user2_id === user?.id)) loadBadge();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "amizades" }, (payload) => {
+        const row = payload.new as any;
+        const old = payload.old as any;
+        // Se mudou pra 'Amigos' ou foi removido, recarrega a lista
+        if ((row && (row.user1 === user?.id || row.user2 === user?.id)) || (old && (old.user1 === user?.id || old.user2 === user?.id))) {
+          setListRefreshKey(k => k + 1);
+        }
       }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user, loadBadge]);
@@ -770,7 +756,18 @@ const MessengerWidget = () => {
       <AnimatePresence>
         {!isOpen && !isAiOpen && (
           <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3">
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsOpen(true); setView("list"); loadBadge(); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
+            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} 
+              onClick={() => { 
+                // Unlock audio
+                if (notificacaoRef.current) {
+                  notificacaoRef.current.play().then(() => {
+                    notificacaoRef.current?.pause();
+                    notificacaoRef.current!.currentTime = 0;
+                  }).catch(() => {});
+                }
+                setIsOpen(true); setView("list"); loadBadge(); 
+              }} 
+              className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
               <MessageCircle size={22} style={{ color: "hsl(155 60% 90%)" }} />
               {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white" style={{ background: "hsl(0 70% 55%)", boxShadow: "0 0 8px hsl(0 70% 55% / 0.6)" }}>{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
             </motion.button>
@@ -821,6 +818,48 @@ const MessengerWidget = () => {
             <div className="flex-1 overflow-hidden">
               <OrionChatPanel />
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Popup de Notificação Flutuante */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, x: -40, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -40, scale: 0.9 }}
+            onClick={() => {
+              openChat({ userId: notification.senderId, name: notification.name, avatar: notification.avatar });
+              setIsOpen(true);
+              setNotification(null);
+            }}
+            className="fixed bottom-24 left-6 z-[60] flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:brightness-110 transition-all border border-primary/30"
+            style={{ 
+              width: 280, 
+              background: "hsl(215 30% 12%)", 
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 16px hsl(155 60% 45% / 0.15)" 
+            }}
+          >
+            <div className="relative shrink-0">
+              <Avatar src={notification.avatar} name={notification.name} size={42} />
+              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-lg"
+                   style={{ background: "hsl(155 60% 40%)" }}>
+                {notification.count}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-accent font-bold text-primary mb-0.5 truncate">{notification.name}</p>
+              <p className="text-xs font-body text-foreground/80 truncate leading-tight">
+                {notification.content}
+              </p>
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setNotification(null); }}
+              className="shrink-0 p-1 text-muted-foreground/40 hover:text-foreground transition"
+            >
+              <X size={14} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

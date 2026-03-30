@@ -73,6 +73,7 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     
     if (!error) {
       setStatus("pending_sent");
+      window.dispatchEvent(new CustomEvent("friendship-changed"));
       const ch = supabase.channel("friend-requests-bell");
       ch.subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -100,6 +101,7 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     setSaving(false);
     setStatus("none");
     setMenuOpen(false);
+    window.dispatchEvent(new CustomEvent("friendship-changed"));
   };
 
   const accept = async () => {
@@ -107,12 +109,18 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase.from("amizades").update({ tipo: "Amigos" }).match({
+    const { error } = await supabase.from("amizades").update({ tipo: "Amigos" }).match({
       user1: targetUserId,
       user2:  user.id,
     });
+    
+    if (error) {
+      console.error("Erro ao aceitar amizade:", error);
+    } else {
+      setStatus("accepted");
+      window.dispatchEvent(new CustomEvent("friendship-changed"));
+    }
     setSaving(false);
-    setStatus("accepted");
   };
 
   const reject = async () => {
@@ -126,6 +134,7 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     });
     setSaving(false);
     setStatus("none");
+    window.dispatchEvent(new CustomEvent("friendship-changed"));
   };
 
   // ── Render configs ──

@@ -32,21 +32,82 @@ import supabase from "../../utils/supabase.ts";
 // ─── CommunityPage ────────────────────────────────────────────────────────────
 
 const CommunityPage = () => {
-  const { user, profilePhoto } = useAuth();
+  const { user, profilePhoto, assessment } = useAuth();
 
   const [filter,      setFilter]      = useState<"recentes" | "populares">("recentes");
   const [openPost,    setOpenPost]    = useState<Post | null>(null);
 
-  // Dados derivados do usuário logado
-  const myName           = user?.name ?? "Você";
-  const myDisc           = user?.assessment?.discProfile ?? "S";
+  const [myName, setMyName] = useState("Você");
+  const [myRole, setMyRole] = useState("Membro · UpJobs");
+  const [myCourseTitle, setMyCourseTitle] = useState("Carregando trilha...");
+  const [myCourseProgress, setMyCourseProgress] = useState(0);
+
+  const myDisc           = assessment?.discProfile ?? "S";
   const myCreatorId      = user?.id;
-  const myHourValue      = user?.assessment?.valorHoraLiquida
-    ? `R$ ${user.assessment.valorHoraLiquida.toFixed(0)}/h` : "—";
-  const myRole           = "Membro · UpJobs";
-  const myCourseProgress = 65;
-  const myCourseTitle    = "Machine Learning Avançado";
-  const myDiscRingImg    = DISC_IMGS[myDisc];
+  const myHourValue      = assessment?.valorHoraLiquida
+    ? `R$ ${assessment.valorHoraLiquida.toFixed(0)}/h` : "—";
+  const myDiscRingImg    = DISC_IMGS[myDisc] || DISC_IMGS.S;
+
+  // Busca perfil e progresso do curso
+  useEffect(() => {
+    if (!user?.id) return;
+
+    async function loadProfileAndProgress() {
+      // 1. Busca Dados do perfil (Nome e Role)
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("name, descricao")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      if (prof?.name) setMyName(prof.name);
+      if (prof?.descricao) setMyRole(prof.descricao);
+
+      // 2. Busca curso mais recente na tabela watch
+      const { data: watchData } = await supabase
+        .from("watch")
+        .select("course_id, courses(id, name)")
+        .eq("user_id", user?.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!watchData || !watchData.courses) {
+        setMyCourseTitle("Nenhuma trilha iniciada");
+        setMyCourseProgress(0);
+        return;
+      }
+
+      const course = Array.isArray(watchData.courses) ? watchData.courses[0] : watchData.courses as any;
+      setMyCourseTitle(course.name);
+
+      // 3. Calcula progresso desse curso (similar ao CursosEmAndamento.tsx)
+      const { count: totalAulas } = await supabase
+        .from("aulas")
+        .select("id", { count: "exact", head: true })
+        .eq("course_id", course.id);
+
+      const { data: aulasData } = await supabase
+        .from("aulas")
+        .select("id")
+        .eq("course_id", course.id);
+
+      const aulaIds = (aulasData ?? []).map(a => Number(a.id));
+
+      const { count: completedAulas } = await supabase
+        .from("lesson_progress")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user?.id)
+        .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
+        .eq("completed", true);
+
+      const total = totalAulas ?? 0;
+      const completed = completedAulas ?? 0;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      setMyCourseProgress(pct);
+    }
+
+    loadProfileAndProgress();
+  }, [user?.id]);
 
   // ── Estado dos posts ─────────────────────────────────────────────────────────
   const [posts,        setPosts]       = useState<Post[]>([]);
@@ -401,8 +462,8 @@ const CommunityPage = () => {
                         post={post}
                         onLike={handleLike}   onSave={handleSave}
                         onOpenModal={openModal}
-                        profilePhoto={profilePhoto} myName={myName}
-                        myDisc={myDisc}           myDiscRingImg={myDiscRingImg}
+                        myName={myName}
+                        myDisc={myDisc as any}           myDiscRingImg={myDiscRingImg}
                       />
                     </motion.div>
                   ))}
