@@ -9,8 +9,12 @@ import {
   MessageCircle, X, ArrowLeft, Send, Search,
   User, Check, CheckCheck, Loader2, Bot
 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import supabase from "../../utils/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import escrevendoSfx from "../assets/SFX/escrevendo.mp3";
+import notificacaoSfx from "../assets/SFX/notificacao.mp3";
+
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
