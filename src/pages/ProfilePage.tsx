@@ -80,23 +80,23 @@ const DIFF_COLOR: Record<string, string> = { Iniciante: "hsl(155 60% 45%)", Inte
 
 type SocialKey = "linkedin" | "github" | "twitter" | "instagram" | "facebook" | "email" | "website";
 const SOCIAL_META: Record<SocialKey, { label: string; Icon: React.ElementType; placeholder: string; prefix?: string }> = {
-  linkedin:  { label: "LinkedIn",  Icon: Linkedin,  placeholder: "https://linkedin.com/in/usuario", prefix: "https://" },
-  github:    { label: "GitHub",    Icon: Github,    placeholder: "https://github.com/usuario",      prefix: "https://" },
-  twitter:   { label: "Twitter/X", Icon: Twitter,   placeholder: "https://x.com/usuario",           prefix: "https://" },
-  instagram: { label: "Instagram", Icon: Instagram, placeholder: "https://instagram.com/usuario",   prefix: "https://" },
-  facebook:  { label: "Facebook",  Icon: Facebook,  placeholder: "https://facebook.com/usuario",    prefix: "https://" },
-  email:     { label: "E-mail",    Icon: Mail,      placeholder: "seu@email.com",                   prefix: "mailto:"  },
-  website:   { label: "Website",   Icon: Globe,     placeholder: "https://seusite.com",             prefix: "https://" },
+  linkedin: { label: "LinkedIn", Icon: Linkedin, placeholder: "https://linkedin.com/in/usuario", prefix: "https://" },
+  github: { label: "GitHub", Icon: Github, placeholder: "https://github.com/usuario", prefix: "https://" },
+  twitter: { label: "Twitter/X", Icon: Twitter, placeholder: "https://x.com/usuario", prefix: "https://" },
+  instagram: { label: "Instagram", Icon: Instagram, placeholder: "https://instagram.com/usuario", prefix: "https://" },
+  facebook: { label: "Facebook", Icon: Facebook, placeholder: "https://facebook.com/usuario", prefix: "https://" },
+  email: { label: "E-mail", Icon: Mail, placeholder: "seu@email.com", prefix: "mailto:" },
+  website: { label: "Website", Icon: Globe, placeholder: "https://seusite.com", prefix: "https://" },
 };
 const ALL_SOCIAL_KEYS = Object.keys(SOCIAL_META) as SocialKey[];
 
 const ALL_MEDALS = [
-  { id: 1, icon: Code2,    title: "Primeira Linha de Código", desc: "Concluiu Fundamentos de Programação",             color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.3)", date: "Jan 2025", rarity: "Comum"    },
-  { id: 2, icon: Brain,    title: "Mente Analítica",          desc: "Concluiu Python para Data Science",               color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.3)", date: "Mar 2025", rarity: "Rara"     },
-  { id: 3, icon: Shield,   title: "Guardião Digital",         desc: "Concluiu Introdução a Cibersegurança",            color: "hsl(0 70% 60%)",   bg: "hsl(0 70% 60% / 0.12)",   border: "hsl(0 70% 60% / 0.35)",   glow: "hsl(0 70% 60% / 0.3)",   date: "Mai 2025", rarity: "Épica"    },
-  { id: 4, icon: Cloud,    title: "Arquiteto de Nuvens",      desc: "Concluiu Cloud Computing Basics",                 color: "hsl(45 90% 55%)",  bg: "hsl(45 90% 55% / 0.12)",  border: "hsl(45 90% 55% / 0.35)",  glow: "hsl(45 90% 55% / 0.3)",  date: "Jul 2025", rarity: "Rara"     },
-  { id: 5, icon: Database, title: "Mestre dos Dados",         desc: "Concluiu Fundamentos de SQL",                     color: "hsl(270 60% 65%)", bg: "hsl(270 60% 65% / 0.12)", border: "hsl(270 60% 65% / 0.35)", glow: "hsl(270 60% 65% / 0.3)", date: "Ago 2025", rarity: "Comum"    },
-  { id: 6, icon: Cpu,      title: "Pioneiro em IA",           desc: "Concluiu Fundamentos de Inteligência Artificial", color: "hsl(25 90% 55%)",  bg: "hsl(25 90% 55% / 0.12)",  border: "hsl(25 90% 55% / 0.35)",  glow: "hsl(25 90% 55% / 0.3)",  date: "Out 2025", rarity: "Lendária" },
+  { id: 1, icon: Code2, title: "Primeira Linha de Código", desc: "Concluiu Fundamentos de Programação", color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.3)", date: "Jan 2025", rarity: "Comum" },
+  { id: 2, icon: Brain, title: "Mente Analítica", desc: "Concluiu Python para Data Science", color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.3)", date: "Mar 2025", rarity: "Rara" },
+  { id: 3, icon: Shield, title: "Guardião Digital", desc: "Concluiu Introdução a Cibersegurança", color: "hsl(0 70% 60%)", bg: "hsl(0 70% 60% / 0.12)", border: "hsl(0 70% 60% / 0.35)", glow: "hsl(0 70% 60% / 0.3)", date: "Mai 2025", rarity: "Épica" },
+  { id: 4, icon: Cloud, title: "Arquiteto de Nuvens", desc: "Concluiu Cloud Computing Basics", color: "hsl(45 90% 55%)", bg: "hsl(45 90% 55% / 0.12)", border: "hsl(45 90% 55% / 0.35)", glow: "hsl(45 90% 55% / 0.3)", date: "Jul 2025", rarity: "Rara" },
+  { id: 5, icon: Database, title: "Mestre dos Dados", desc: "Concluiu Fundamentos de SQL", color: "hsl(270 60% 65%)", bg: "hsl(270 60% 65% / 0.12)", border: "hsl(270 60% 65% / 0.35)", glow: "hsl(270 60% 65% / 0.3)", date: "Ago 2025", rarity: "Comum" },
+  { id: 6, icon: Cpu, title: "Pioneiro em IA", desc: "Concluiu Fundamentos de Inteligência Artificial", color: "hsl(25 90% 55%)", bg: "hsl(25 90% 55% / 0.12)", border: "hsl(25 90% 55% / 0.35)", glow: "hsl(25 90% 55% / 0.3)", date: "Out 2025", rarity: "Lendária" },
 ];
 const RARITY_COLOR: Record<string, string> = { Comum: "hsl(215 20% 60%)", Rara: "hsl(210 70% 60%)", Épica: "hsl(270 60% 65%)", Lendária: "hsl(45 90% 55%)" };
 const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salary: string; type: string }>> = {
@@ -134,11 +134,11 @@ const AssessmentResultModal = ({
   assessment: { discProfile?: string; discScores?: Record<string, number>; valorHoraBruta?: number; valorHoraLiquida?: number; salarioBruto?: number };
   onClose: () => void;
 }) => {
-  const disc  = assessment.discProfile ?? "S";
+  const disc = assessment.discProfile ?? "S";
   const color = DISC_COLORS[disc] ?? "hsl(155 60% 45%)";
   const label = DISC_LABELS[disc] ?? "Estabilidade";
-  const desc  = DISC_DESC[disc]   ?? "";
-  const img   = DISC_IMGS[disc];
+  const desc = DISC_DESC[disc] ?? "";
+  const img = DISC_IMGS[disc];
   const scoreEntries = Object.entries(assessment.discScores ?? {}).sort(([, a], [, b]) => (b as number) - (a as number));
 
   return (
@@ -216,33 +216,33 @@ const ProfilePage = () => {
   const navigate = useNavigate();
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
-  const [loadingVagas,   setLoadingVagas]   = useState(false);
-  const [loading,        setLoading]        = useState(false); // Changed to false to avoid initial loader if user is already loaded
+  const [loadingVagas, setLoadingVagas] = useState(false);
+  const [loading, setLoading] = useState(false); // Changed to false to avoid initial loader if user is already loaded
 
-  const photoInputRef  = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const [profile,        setProfile]        = useState<Profile>({});
+  const [profile, setProfile] = useState<Profile>({});
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [saving,         setSaving]         = useState(false);
-  const [saveError,      setSaveError]      = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [isEditing,        setIsEditing]        = useState(false);
-  const [draftName,        setDraftName]        = useState("");
-  const [draftDescricao,   setDraftDescricao]   = useState("");
-  const [draftPhoto,       setDraftPhoto]       = useState<string | null>(null);
-  const [draftBanner,      setDraftBanner]      = useState<string | null>(null);
-  const [draftSocial,      setDraftSocial]      = useState<Partial<Record<SocialKey, string>>>({});
-  const [draftMedalhas,    setDraftMedalhas]    = useState<MedalStatus[] | null>(null);
-  const [draftBordas,      setDraftBordas]      = useState<Borda[] | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftDescricao, setDraftDescricao] = useState("");
+  const [draftPhoto, setDraftPhoto] = useState<string | null>(null);
+  const [draftBanner, setDraftBanner] = useState<string | null>(null);
+  const [draftSocial, setDraftSocial] = useState<Partial<Record<SocialKey, string>>>({});
+  const [draftMedalhas, setDraftMedalhas] = useState<MedalStatus[] | null>(null);
+  const [draftBordas, setDraftBordas] = useState<Borda[] | null>(null);
   const [borderPickerOpen, setBorderPickerOpen] = useState(false);
-  const [cropSrc,          setCropSrc]          = useState<string | null>(null);
-  const [cropType,         setCropType]         = useState<"photo" | "banner" | null>(null);
-  const [socialModal,      setSocialModal]      = useState<SocialKey | null>(null);
-  const [socialInput,      setSocialInput]      = useState("");
-  const [medalPickerOpen,  setMedalPickerOpen]  = useState(false);
-  const [hoverPhoto,       setHoverPhoto]       = useState(false);
-  const [hoveredMedal,     setHoveredMedal]     = useState<number | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropType, setCropType] = useState<"photo" | "banner" | null>(null);
+  const [socialModal, setSocialModal] = useState<SocialKey | null>(null);
+  const [socialInput, setSocialInput] = useState("");
+  const [medalPickerOpen, setMedalPickerOpen] = useState(false);
+  const [hoverPhoto, setHoverPhoto] = useState(false);
+  const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
 
   // Modal resultado avaliação — abre 1 vez após concluir
   const [showResultModal, setShowResultModal] = useState(() => sessionStorage.getItem("show_assessment_result") === "1");
@@ -293,29 +293,29 @@ const ProfilePage = () => {
 
   // Derivados
   const discProfile = assessment?.discProfile ?? "S";
-  const ringColor   = DISC_COLORS[discProfile] ?? "hsl(155 60% 45%)";
+  const ringColor = DISC_COLORS[discProfile] ?? "hsl(155 60% 45%)";
 
-  const displayPhoto  = isEditing ? (draftPhoto  !== null ? (draftPhoto  || null) : (profile.perfil ?? null)) : (profile.perfil ?? null);
+  const displayPhoto = isEditing ? (draftPhoto !== null ? (draftPhoto || null) : (profile.perfil ?? null)) : (profile.perfil ?? null);
   const displayBanner = isEditing ? (draftBanner !== null ? (draftBanner || null) : (profile.banner ?? null)) : (profile.banner ?? null);
   const displaySocial: Partial<Record<SocialKey, string>> = isEditing
     ? Object.fromEntries(ALL_SOCIAL_KEYS.map(k => [k, k in draftSocial ? draftSocial[k] : (profile.redes ?? {})[k]]))
     : (profile.redes ?? {});
 
-  const bordas: Borda[]          = (isEditing ? (draftBordas   ?? profile.bordas)   : profile.bordas)   ?? [];
-  const bordaAtiva: Borda | null  = getBordaAtiva(bordas);
-  const medalhas: MedalStatus[]   = (isEditing ? (draftMedalhas ?? profile.medalhas) : profile.medalhas) ?? [];
-  const ativasCount               = medalhas.filter(m => m.ativa).length;
-  const featuredMedals            = medalhas.filter(m => m.ativa).map(m => ALL_MEDALS.find(a => a.id === m.id)).filter(Boolean) as typeof ALL_MEDALS[number][];
-  const filledSocials             = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
-  const emptySocials              = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
+  const bordas: Borda[] = (isEditing ? (draftBordas ?? profile.bordas) : profile.bordas) ?? [];
+  const bordaAtiva: Borda | null = getBordaAtiva(bordas);
+  const medalhas: MedalStatus[] = (isEditing ? (draftMedalhas ?? profile.medalhas) : profile.medalhas) ?? [];
+  const ativasCount = medalhas.filter(m => m.ativa).length;
+  const featuredMedals = medalhas.filter(m => m.ativa).map(m => ALL_MEDALS.find(a => a.id === m.id)).filter(Boolean) as typeof ALL_MEDALS[number][];
+  const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
+  const emptySocials = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
 
   // XP e nível vêm do banco diretamente
-  const currentLevel  = profile.nivel    || 1;
-  const currentXP     = Number(profile.total_xp || 0);
-  const xpNextLevel   = currentLevel * 1000;
-  const xpProgress    = Math.min((currentXP / xpNextLevel) * 100, 100);
+  const currentLevel = profile.nivel || 1;
+  const currentXP = Number(profile.total_xp || 0);
+  const xpNextLevel = currentLevel * 1000;
+  const xpProgress = Math.min((currentXP / xpNextLevel) * 100, 100);
   const currentStreak = 12;
-  const currentRank   = 48;
+  const currentRank = 48;
 
   // Handlers edição
   const handleStartEdit = () => {
@@ -333,7 +333,7 @@ const ProfilePage = () => {
     try {
       let perfil = profile.perfil ?? null;
       let banner = profile.banner ?? null;
-      if (draftPhoto  !== null) perfil = draftPhoto  === "" ? null : await uploadCroppedImage(draftPhoto,  user.id, "photo");
+      if (draftPhoto !== null) perfil = draftPhoto === "" ? null : await uploadCroppedImage(draftPhoto, user.id, "photo");
       if (draftBanner !== null) banner = draftBanner === "" ? null : await uploadCroppedImage(draftBanner, user.id, "banner");
       const redes: Partial<Record<SocialKey, string>> = {};
       ALL_SOCIAL_KEYS.forEach(k => { const val = k in draftSocial ? draftSocial[k] : (profile.redes ?? {})[k]; if (val?.trim()) redes[k] = val.trim(); });
@@ -346,15 +346,15 @@ const ProfilePage = () => {
     finally { setSaving(false); }
   };
 
-  const handleEscolherBorda  = (id: string | null) => { const base = draftBordas ?? profile.bordas ?? []; setDraftBordas(setBordaAtiva(base, id)); };
-  const readAndOpenCrop      = (file: File, type: "photo" | "banner") => { const r = new FileReader(); r.onload = e => { setCropSrc(e.target?.result as string); setCropType(type); }; r.readAsDataURL(file); };
-  const handlePhotoFile      = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo");  e.target.value = ""; };
-  const handleBannerFile     = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "banner"); e.target.value = ""; };
-  const handleCropConfirm    = (dataUrl: string) => { if (cropType === "photo") setDraftPhoto(dataUrl); if (cropType === "banner") setDraftBanner(dataUrl); setCropSrc(null); setCropType(null); };
-  const openSocialModal      = (key: SocialKey) => { setSocialInput(displaySocial[key] ?? ""); setSocialModal(key); };
-  const saveSocialModal      = () => { if (!socialModal) return; setDraftSocial(prev => ({ ...prev, [socialModal]: socialInput.trim() })); setSocialModal(null); setSocialInput(""); };
-  const removeSocialLink     = (key: SocialKey) => setDraftSocial(prev => ({ ...prev, [key]: "" }));
-  const handleToggleMedal    = (id: number) => { const base = draftMedalhas ?? profile.medalhas ?? []; setDraftMedalhas(toggleMedalAtiva(base, id)); };
+  const handleEscolherBorda = (id: string | null) => { const base = draftBordas ?? profile.bordas ?? []; setDraftBordas(setBordaAtiva(base, id)); };
+  const readAndOpenCrop = (file: File, type: "photo" | "banner") => { const r = new FileReader(); r.onload = e => { setCropSrc(e.target?.result as string); setCropType(type); }; r.readAsDataURL(file); };
+  const handlePhotoFile = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "photo"); e.target.value = ""; };
+  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) readAndOpenCrop(f, "banner"); e.target.value = ""; };
+  const handleCropConfirm = (dataUrl: string) => { if (cropType === "photo") setDraftPhoto(dataUrl); if (cropType === "banner") setDraftBanner(dataUrl); setCropSrc(null); setCropType(null); };
+  const openSocialModal = (key: SocialKey) => { setSocialInput(displaySocial[key] ?? ""); setSocialModal(key); };
+  const saveSocialModal = () => { if (!socialModal) return; setDraftSocial(prev => ({ ...prev, [socialModal]: socialInput.trim() })); setSocialModal(null); setSocialInput(""); };
+  const removeSocialLink = (key: SocialKey) => setDraftSocial(prev => ({ ...prev, [key]: "" }));
+  const handleToggleMedal = (id: number) => { const base = draftMedalhas ?? profile.medalhas ?? []; setDraftMedalhas(toggleMedalAtiva(base, id)); };
 
   if (loadingProfile) return <div className="min-h-screen gradient-hero scanline flex items-center justify-center"><Loader2 size={32} className="text-primary animate-spin" /></div>;
 
@@ -390,9 +390,9 @@ const ProfilePage = () => {
               </p>
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {[
-                  { icon: Flame,  label: "Streak",  value: `${currentStreak}d`, color: "hsl(25 90% 55%)"  },
-                  { icon: Trophy, label: "Ranking",  value: `#${currentRank}`,  color: "hsl(45 90% 55%)"  },
-                  { icon: Zap,    label: "Medalhas", value: `${profile.medalhas?.length || 0}`, color: "hsl(155 60% 45%)" },
+                  { icon: Flame, label: "Streak", value: `${currentStreak}d`, color: "hsl(25 90% 55%)" },
+                  { icon: Trophy, label: "Ranking", value: `#${currentRank}`, color: "hsl(45 90% 55%)" },
+                  { icon: Zap, label: "Medalhas", value: `${profile.medalhas?.length || 0}`, color: "hsl(155 60% 45%)" },
                 ].map(({ icon: Icon, label, value, color }) => (
                   <div key={label} className="rounded-sm p-2 text-center" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
                     <Icon size={12} style={{ color, margin: "0 auto 2px" }} />
@@ -409,7 +409,7 @@ const ProfilePage = () => {
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
               <Progress />
             </motion.div>
-            
+
             {/* AMIGOS (CARD LATERAL) */}
             <div className="flex-1 min-h-[300px]">
               <FriendsListCard />
@@ -426,8 +426,8 @@ const ProfilePage = () => {
                 {displayBanner
                   ? <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
                   : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${ringColor}44 0%, ${ringColor}11 60%, hsl(210 40% 10% / 0.2) 100%)` }}>
-                      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 24px,hsl(155 60% 45%)1px),repeating-linear-gradient(90deg,transparent,transparent 24px,hsl(155 60% 45%)1px)" }} />
-                    </div>}
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 24px,hsl(155 60% 45%)1px),repeating-linear-gradient(90deg,transparent,transparent 24px,hsl(155 60% 45%)1px)" }} />
+                  </div>}
                 {isEditing && (
                   <button type="button" onClick={() => bannerInputRef.current?.click()}
                     className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-white"
@@ -478,7 +478,7 @@ const ProfilePage = () => {
                     <div className="flex-1 min-w-0 z-50">
                       {isEditing
                         ? <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Seu nome"
-                            className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
+                          className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
                         : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.name}</h1>}
                       <p className="text-sm text-muted-foreground font-body">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -495,16 +495,16 @@ const ProfilePage = () => {
                         {!isEditing
                           ? <button onClick={handleStartEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-foreground border border-border hover:border-primary hover:text-primary transition-colors"><Pencil size={12} /> Editar Perfil</button>
                           : <>
-                              <button onClick={handleConfirmEdit} disabled={saving}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-primary-foreground disabled:opacity-60"
-                                style={{ background: "hsl(155 60% 40%)" }}>
-                                {saving ? <><Loader2 size={12} className="animate-spin" /> Salvando…</> : <><Check size={12} /> Confirmar</>}
-                              </button>
-                              <button onClick={handleCancelEdit} disabled={saving}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors disabled:opacity-60">
-                                <X size={12} /> Cancelar
-                              </button>
-                            </>}
+                            <button onClick={handleConfirmEdit} disabled={saving}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-primary-foreground disabled:opacity-60"
+                              style={{ background: "hsl(155 60% 40%)" }}>
+                              {saving ? <><Loader2 size={12} className="animate-spin" /> Salvando…</> : <><Check size={12} /> Confirmar</>}
+                            </button>
+                            <button onClick={handleCancelEdit} disabled={saving}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors disabled:opacity-60">
+                              <X size={12} /> Cancelar
+                            </button>
+                          </>}
                       </div>
                       {saveError && <p className="text-[10px] text-red-400 font-accent text-right max-w-[200px]">{saveError}</p>}
                     </div>
@@ -547,7 +547,7 @@ const ProfilePage = () => {
                 <div className="mt-4">
                   {isEditing
                     ? <textarea value={draftDescricao} onChange={e => setDraftDescricao(e.target.value)} placeholder="Escreva uma bio curta sobre você…" rows={3}
-                        className="w-full bg-secondary border border-border rounded-sm px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none" />
+                      className="w-full bg-secondary border border-border rounded-sm px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none" />
                     : profile.descricao ? <p className="text-sm font-body text-muted-foreground leading-relaxed">{profile.descricao}</p> : null}
                 </div>
 
@@ -568,11 +568,13 @@ const ProfilePage = () => {
                   {isEditing && emptySocials.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-sm p-3 flex flex-wrap gap-2" style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
                       <span className="w-full text-[10px] text-muted-foreground font-accent mb-1">Adicionar redes sociais</span>
-                      {emptySocials.map(key => { const { Icon, label } = SOCIAL_META[key]; return (
-                        <button key={key} onClick={() => openSocialModal(key)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-dashed border-border hover:border-primary hover:text-primary text-muted-foreground transition-all">
-                          <Plus size={10} /><Icon size={12} /><span>{label}</span>
-                        </button>
-                      ); })}
+                      {emptySocials.map(key => {
+                        const { Icon, label } = SOCIAL_META[key]; return (
+                          <button key={key} onClick={() => openSocialModal(key)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-dashed border-border hover:border-primary hover:text-primary text-muted-foreground transition-all">
+                            <Plus size={10} /><Icon size={12} /><span>{label}</span>
+                          </button>
+                        );
+                      })}
                     </motion.div>
                   )}
                   {!isEditing && filledSocials.length === 0 && <p className="text-xs text-muted-foreground font-accent italic">Nenhuma rede social adicionada.</p>}
@@ -654,10 +656,10 @@ const ProfilePage = () => {
               <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Shield size={18} className="text-primary" /> Certificados</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { title: "Fundamentos de IA",           date: "Jan 2025", provider: "UpJobs Academy" },
-                  { title: "Python para Data Science",     date: "Mar 2025", provider: "UpJobs Academy" },
-                  { title: "Introdução a Cibersegurança",  date: "Mai 2025", provider: "UpJobs Academy" },
-                  { title: "Fundamentos de SQL",           date: "Ago 2025", provider: "UpJobs Academy" },
+                  { title: "Fundamentos de IA", date: "Jan 2025", provider: "UpJobs Academy" },
+                  { title: "Python para Data Science", date: "Mar 2025", provider: "UpJobs Academy" },
+                  { title: "Introdução a Cibersegurança", date: "Mai 2025", provider: "UpJobs Academy" },
+                  { title: "Fundamentos de SQL", date: "Ago 2025", provider: "UpJobs Academy" },
                 ].map((cert, i) => (
                   <motion.div key={i} whileHover={{ scale: 1.02 }}
                     className="flex items-start gap-3 p-4 rounded-sm border border-primary/15 hover:border-primary/35 transition-colors"
