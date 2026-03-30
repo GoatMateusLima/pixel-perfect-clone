@@ -4,6 +4,7 @@ import {
   UserPlus, UserCheck, UserX, Clock, Loader2, ChevronDown, Ban,
 } from "lucide-react";
 import supabase from "../../utils/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -31,25 +32,58 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
   const [saving,  setSaving]  = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Carrega o status atual
+  const { user: me } = useAuth();
+
+  // Carrega o status atual + Realtime
   useEffect(() => {
+    if (!me?.id || !targetUserId) return;
     let cancelled = false;
+
     async function load() {
-      setStatus("loading");
       const { data, error } = await supabase.rpc("get_friendship_status", {
         target_id: targetUserId,
       });
       if (cancelled) return;
-      if (!error && data) setStatus(data as FriendStatus);
-      else setStatus("none");
+
+      if (!error && data) {
+        let finalStatus = data as FriendStatus;
+        // Se o banco retornar "Amigos", mapeamos para "accepted" do UI
+        if ((data as string) === "Amigos") {
+          finalStatus = "accepted";
+        }
+        setStatus(finalStatus);
+      } else {
+        setStatus("none");
+      }
     }
+
     load();
-    return () => { cancelled = true; };
-  }, [targetUserId]);
+
+    const handleChanged = () => load();
+    window.addEventListener("friendship-changed", handleChanged);
+
+    // Realtime: Escuta mudanças na tabela amizades entre eu e o target
+    const channel = supabase.channel(`friend-sync-${targetUserId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'amizades' }, (payload) => {
+        const row = payload.new as any;
+        const old = payload.old as any;
+        const isRelated = 
+          (row && ((row.user1 === me.id && row.user2 === targetUserId) || (row.user1 === targetUserId && row.user2 === me.id))) ||
+          (old && ((old.user1 === me.id && old.user2 === targetUserId) || (old.user1 === targetUserId && old.user2 === me.id)));
+        
+        if (isRelated) load();
+      }).subscribe();
+
+    return () => { 
+      cancelled = true; 
+      window.removeEventListener("friendship-changed", handleChanged);
+      supabase.removeChannel(channel);
+    };
+  }, [targetUserId, me?.id]);
 
   useEffect(() => {
     if (status !== "loading") onStatusChange?.(status);
-  }, [status]);
+  }, [status, onStatusChange]);
 
   // ── Ações ──
 
