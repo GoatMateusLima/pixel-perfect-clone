@@ -755,32 +755,36 @@ const MessengerWidget = () => {
     <>
       <AnimatePresence>
         {!isOpen && !isAiOpen && (
-          <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3">
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} 
-              onClick={() => { 
-                // Unlock audio
-                if (notificacaoRef.current) {
-                  notificacaoRef.current.play().then(() => {
-                    notificacaoRef.current?.pause();
-                    notificacaoRef.current!.currentTime = 0;
-                  }).catch(() => {});
-                }
-                setIsOpen(true); setView("list"); loadBadge(); 
-              }} 
-              className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
-              <MessageCircle size={22} style={{ color: "hsl(155 60% 90%)" }} />
-              {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white" style={{ background: "hsl(0 70% 55%)", boxShadow: "0 0 8px hsl(0 70% 55% / 0.6)" }}>{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
-            </motion.button>
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsAiOpen(true); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(215 60% 38%), hsl(215 60% 22%))", border: "1.5px solid hsl(215 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(215 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
-              <Bot size={22} style={{ color: "hsl(215 60% 90%)" }} />
-            </motion.button>
-          </div>
+          <>
+            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+              <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} 
+                onClick={() => { 
+                  // Unlock audio
+                  if (notificacaoRef.current) {
+                    notificacaoRef.current.play().then(() => {
+                      notificacaoRef.current?.pause();
+                      notificacaoRef.current!.currentTime = 0;
+                    }).catch(() => {});
+                  }
+                  setIsOpen(true); setView("list"); loadBadge(); 
+                }} 
+                className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
+                <MessageCircle size={22} style={{ color: "hsl(155 60% 90%)" }} />
+                {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white" style={{ background: "hsl(0 70% 55%)", boxShadow: "0 0 8px hsl(0 70% 55% / 0.6)" }}>{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
+              </motion.button>
+            </div>
+            <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3">
+              <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsAiOpen(true); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(215 60% 38%), hsl(215 60% 22%))", border: "1.5px solid hsl(215 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(215 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
+                <Bot size={22} style={{ color: "hsl(215 60% 90%)" }} />
+              </motion.button>
+            </div>
+          </>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div key="messenger-panel" initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} className="fixed bottom-6 left-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(155 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(155 60% 45% / 0.1)" }}>
+          <motion.div key="messenger-panel" initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} className="fixed bottom-6 right-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(155 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(155 60% 45% / 0.1)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/25" style={{ background: "hsl(215 30% 12%)" }}>
               <div className="flex items-center gap-2">
                 {view === "chat" && activeChat ? (
@@ -826,15 +830,15 @@ const MessengerWidget = () => {
       <AnimatePresence>
         {notification && (
           <motion.div
-            initial={{ opacity: 0, x: -40, scale: 0.9 }}
+            initial={{ opacity: 0, x: 40, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -40, scale: 0.9 }}
+            exit={{ opacity: 0, x: 40, scale: 0.9 }}
             onClick={() => {
               openChat({ userId: notification.senderId, name: notification.name, avatar: notification.avatar });
               setIsOpen(true);
               setNotification(null);
             }}
-            className="fixed bottom-24 left-6 z-[60] flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:brightness-110 transition-all border border-primary/30"
+            className="fixed bottom-24 right-6 z-[60] flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:brightness-110 transition-all border border-primary/30"
             style={{ 
               width: 280, 
               background: "hsl(215 30% 12%)", 
