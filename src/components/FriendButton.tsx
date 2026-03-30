@@ -40,18 +40,32 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     let cancelled = false;
 
     async function load() {
-      const { data, error } = await supabase.rpc("get_friendship_status", {
-        target_id: targetUserId,
-      });
+      // Consulta direta para máxima precisão, sem depender do RPC
+      const { data, error } = await supabase
+        .from("amizades")
+        .select("*")
+        .or(`and(user1.eq.${me.id},user2.eq.${targetUserId}),and(user1.eq.${targetUserId},user2.eq.${me.id})`)
+        .maybeSingle();
+
       if (cancelled) return;
 
-      if (!error && data) {
-        let finalStatus = data as FriendStatus;
-        // Se o banco retornar "Amigos", mapeamos para "accepted" do UI
-        if ((data as string) === "Amigos") {
-          finalStatus = "accepted";
+      if (error) {
+        console.error("Erro ao carregar status de amizade:", error);
+        setStatus("none");
+        return;
+      }
+
+      if (!data) {
+        setStatus("none");
+      } else if (data.tipo === "Amigos") {
+        setStatus("accepted");
+      } else if (data.tipo === "Pendente") {
+        // Identifica se a solicitação foi enviada ou recebida
+        if (data.user1 === me.id) {
+          setStatus("pending_sent");
+        } else {
+          setStatus("pending_received");
         }
-        setStatus(finalStatus);
       } else {
         setStatus("none");
       }
