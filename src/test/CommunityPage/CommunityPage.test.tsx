@@ -59,9 +59,8 @@ vi.mock("../../../utils/supabase.ts", () => {
     limit: vi.fn().mockImplementation(mocker),
     in: vi.fn().mockImplementation(mocker),
     insert: vi.fn().mockImplementation((data: any) => {
-      if (data?.description) {
-        // @ts-ignore - compartilhado via vi.hoisted
-        mockState.lastInsertedDescription = data.description;
+      if (data && typeof data === "object" && "description" in data) {
+        mockState.lastInsertedDescription = String(data.description);
       }
       return mockChain;
     }),
@@ -71,7 +70,6 @@ vi.mock("../../../utils/supabase.ts", () => {
       return Promise.resolve({
         data: {
           id: "new-post-123",
-          // @ts-ignore - compartilhado via vi.hoisted
           description: mockState.lastInsertedDescription || "Postagem de teste com texto!",
           date: new Date().toISOString(),
           creator_id: "user-test-123",
