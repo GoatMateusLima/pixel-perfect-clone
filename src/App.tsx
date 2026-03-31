@@ -45,7 +45,7 @@ const App = () => (
             <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
             <Route path="/comunidade" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
             <Route path="/suporte" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
             <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
             <Route path="/u/:identifier" element={<PublicProfilePage />} />
             
