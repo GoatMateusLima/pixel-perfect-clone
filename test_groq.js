@@ -1,4 +1,4 @@
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = oio;
 
 (async () => {
     try {
