@@ -21,6 +21,7 @@ type AuthContextType = {
   loading:            boolean;
   assessment:         AssessmentData;
   profilePhoto:       string | null;
+  role:               "user" | "admin" | null; // Added role support
   updateAssessment:   (partial: Partial<AssessmentData>) => void;
   saveAssessmentToDb: (data: AssessmentData) => Promise<void>;
   refreshPhoto:       () => void;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,         setUser]         = useState<User | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [role,         setRole]         = useState<"user" | "admin" | null>(null);
 
   const [assessment, setAssessment] = useState<AssessmentData>(() => {
     try { return JSON.parse(localStorage.getItem(ASSESSMENT_KEY) ?? "{}"); }
@@ -58,14 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserData = (userId: string) => {
     supabase
       .from("profiles")
-      .select("perfil, calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed")
+      .select("perfil, calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed, role")
       .eq("user_id", userId)
       .maybeSingle()
       .then(({ data, error }) => {
         if (error || !data) return;
 
-        // Foto de perfil
+        // Foto de perfil e Role
         if (data.perfil) setProfilePhoto(data.perfil);
+        if (data.role)   setRole(data.role as "user" | "admin");
 
         // Assessment
         const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
@@ -110,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchUserData(session.user.id);
       } else {
         setProfilePhoto(null);
+        setRole(null);
         setAssessment({});
         localStorage.removeItem(ASSESSMENT_KEY);
       }
@@ -227,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      session, user, loading,
+      session, user, loading, role,
       assessment, updateAssessment, saveAssessmentToDb,
       profilePhoto, refreshPhoto,
       signOutUser,

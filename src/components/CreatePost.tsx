@@ -5,6 +5,7 @@ import supabase from "../../utils/supabase.ts";
 import PostMedia from "./PostMedia";
 import GifPicker from "./GifPicker";
 import { useModeration } from "../hooks/useModeration.ts";
+import { useAuth } from "../contexts/AuthContext";
 
 const BUCKET        = "ComunityPost";
 const ACCEPTED_IMAGE = "image/jpeg,image/png,image/webp";
@@ -31,6 +32,10 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
   const fileRef    = useRef<HTMLInputElement>(null);
   const { moderate } = useModeration();
+  const { user } = useAuth();
+  
+  // O creator_id REAL vem sempre do AuthContext, nunca de props para evitar IDOR no frontend
+  const activeCreatorId = user?.id;
 
   const hasMedia = !!(mediaFile || gifUrl);
 
@@ -67,7 +72,7 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
   const handleSubmit = async () => {
     if (!description.trim()) return;
-    if (!myCreatorId) { setError("Você precisa estar logado para publicar."); return; }
+    if (!activeCreatorId) { setError("Você precisa estar logado para publicar."); return; }
     setUploading(true);
     setError(null);
     setUploadPct(10);
@@ -86,7 +91,7 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
         description: description.trim(),
         midia:       "EMPTY",
         date:        new Date().toLocaleString("sv-SE", { timeZone: "America/Sao_Paulo" }).replace(" ", "T") + "-03:00",
-        creator_id:  myCreatorId,
+        creator_id:  activeCreatorId,
         like_qnt:    0,
       };
 
@@ -112,7 +117,7 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
         setUploadPct(30);
         const ext      = mediaFile.name.split(".").pop()?.toLowerCase() ?? "bin";
         const fileName = `${Date.now()}.${ext}`;
-        const path     = `${myCreatorId}/${postId}/${fileName}`;
+        const path     = `${activeCreatorId}/${postId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET)

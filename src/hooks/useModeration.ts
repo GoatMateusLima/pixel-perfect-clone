@@ -1,15 +1,14 @@
+import { useAuth } from "../contexts/AuthContext";
+
 /**
  * useModeration.ts
  *
  * Hook de moderação via Groq API.
  * Analisa texto, imagens (base64) e GIFs antes de salvar no banco.
  *
- * Setup no .env:
- *   VITE_GROQ_API_KEY=sua_chave_aqui
- *
- * Modelos usados:
- *   - Texto:  llama-3.1-8b-instant  (rápido, barato)
- *   - Imagem: llama-4-scout-17b-16e-instruct (visão, analisa imagem/gif)
+ * ⚠️ SECURITY WARNING: Use of VITE_AI_KEY in the frontend is insecure.
+ * These keys are exposed to the browser. For a production-ready application,
+ * move these calls to a backend or Supabase Edge Functions.
  */
 
 const GROQ_KEY = import.meta.env.VITE_AI_KEY ?? "";
@@ -165,6 +164,7 @@ async function moderateImage(
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
 export function useModeration() {
+  const { role } = useAuth();
 
   /**
    * moderate — analisa texto + mídia opcional antes de salvar
@@ -179,8 +179,17 @@ export function useModeration() {
     gifUrl?:    string | null,
   ): Promise<ModerationResult> => {
 
-    // Se não tem chave configurada, aprova sem chamar a API
-    if (!GROQ_KEY) return { approved: true };
+    // 1. Check if user is an admin - skip moderation for admins
+    if (role === "admin") {
+      console.log("[Moderation] Admin bypass active.");
+      return { approved: true };
+    }
+
+    // Se não tem chave configurada, aprova sem chamar a API e avisa no log
+    if (!GROQ_KEY) {
+      console.warn("[Security] GROQ_KEY not found. Content moderation is DISABLED.");
+      return { approved: true };
+    }
 
     const checks: Promise<ModerationResult>[] = [];
 
