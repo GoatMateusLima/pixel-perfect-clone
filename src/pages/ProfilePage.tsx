@@ -221,7 +221,7 @@ const AssessmentResultModal = ({
 // COMPONENTE PRINCIPAL
 // =============================================================================
 const ProfilePage = () => {
-  const { user, logout, assessment } = useAuth();
+  const { user, logout, assessment, refreshPhoto } = useAuth();
   const navigate = useNavigate();
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
@@ -373,7 +373,7 @@ const ProfilePage = () => {
     async function syncProfile() {
       setLoadingProfile(true);
       const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
-      if (error) setProfile({ user_id: user.id, name: user.name, redes: {}, bordas: [] });
+      if (error) setProfile({ user_id: user.id, name: user.user_metadata?.name, redes: {}, bordas: [] });
       else setProfile(data as Profile);
       setLoadingProfile(false);
     }
@@ -410,7 +410,7 @@ const ProfilePage = () => {
 
   // Handlers edição
   const handleStartEdit = () => {
-    setDraftName(profile.name ?? user.name ?? ""); setDraftDescricao(profile.descricao ?? "");
+    setDraftName(profile.name ?? user.user_metadata?.name ?? ""); setDraftDescricao(profile.descricao ?? "");
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setDraftBordas(null);
     setBorderPickerOpen(false); setDraftMedalhas(null); setSaveError(null); setIsEditing(true);
   };
@@ -432,6 +432,7 @@ const ProfilePage = () => {
       const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
       setProfile(payload);
+      refreshPhoto(); // Sincroniza foto globalmente (Header, Sidebars, etc)
       setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
     } catch (err: any) { setSaveError(err?.message ?? "Erro ao salvar perfil."); }
     finally { setSaving(false); }
@@ -577,7 +578,7 @@ const ProfilePage = () => {
                       {isEditing
                         ? <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Seu nome"
                           className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
-                        : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.name}</h1>}
+                        : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.user_metadata?.name}</h1>}
                       <p className="text-sm text-muted-foreground font-body">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground" style={{ backgroundColor: ringColor }}>{DISC_LABELS[discProfile]}</span>

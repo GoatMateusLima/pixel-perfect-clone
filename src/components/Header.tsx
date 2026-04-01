@@ -96,11 +96,26 @@ const Header = () => {
                   className="flex-shrink-0 w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] bg-primary/5"
                   title="Meu Perfil">
                   {profilePhoto ? (
-                    <img src={profilePhoto} alt="Foto" className="w-full h-full object-cover" />
+                    <img 
+                      src={profilePhoto} 
+                      alt="Foto de Perfil" 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.avatar-fallback')) {
+                          const fallback = document.createElement('div');
+                          fallback.className = "avatar-fallback w-full h-full bg-primary/20 flex items-center justify-center font-display font-black text-xs text-primary uppercase";
+                          fallback.innerText = user?.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU";
+                          parent.appendChild(fallback);
+                        }
+                      }}
+                    />
                   ) : (
-                    <span className="font-display font-black text-xs text-primary">
-                      {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
-                    </span>
+                    <div className="w-full h-full bg-primary/20 flex items-center justify-center font-display font-black text-xs text-primary uppercase">
+                      {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? user.email?.slice(0, 2).toUpperCase() ?? "EU"}
+                    </div>
                   )}
                 </Link>
                 <button onClick={handleLogout}
@@ -147,9 +162,15 @@ const Header = () => {
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                   active ? "bg-primary/10" : "group-hover:bg-white/5"
                 }`}>
-                  {isProfile && user && profilePhoto ? (
-                    <div className={`w-8 h-8 rounded-lg overflow-hidden border-2 transition-all ${active ? "border-primary shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "border-white/10 opacity-60"}`}>
-                      <img src={profilePhoto} alt="Perfil" className="w-full h-full object-cover" />
+                  {isProfile && user ? (
+                    <div className={`w-8 h-8 rounded-lg overflow-hidden border-2 transition-all flex items-center justify-center ${active ? "border-primary shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "border-white/10 opacity-60"}`}>
+                      {profilePhoto ? (
+                        <img src={profilePhoto} alt="Perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-display font-black text-[10px] text-primary">
+                           {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
+                        </span>
+                      )}
                     </div>
                   ) : isCustom ? (
                     <NotificationBell />
