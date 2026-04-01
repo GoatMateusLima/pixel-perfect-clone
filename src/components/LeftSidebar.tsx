@@ -2,16 +2,16 @@
  * LeftSidebar.tsx
  *
  * Sidebar esquerda da CommunityPage.
- * Busca o banner do usuário da tabela profiles (coluna `banner`) —
- * mesmo dado exibido no ProfilePage, ficam sempre sincronizados.
+ * Ranking Semanal agora é dinâmico — baseado em XP das aulas concluídas.
  */
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Flame, Trophy, Zap, BookOpen } from "lucide-react";
+import { Flame, Trophy, Zap, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar, DISC_IMGS, DISC_COLOR, DISC_LABEL, toInitials } from "./PostCard";
+import { useRanking } from "@/hooks/useRanking";
 
 // ─── Constantes estáticas ─────────────────────────────────────────────────────
 
@@ -23,11 +23,7 @@ const TRENDING = [
   { tag: "#CarreiraTech",           posts: 501  },
 ];
 
-const TOP_MEMBERS = [
-  { name: "Larissa Mendes", avatar_url: "https://i.pravatar.cc/150?u=larissa", disc: "I", posts: 48, badge: "🥇" },
-  { name: "Diego Almeida",  avatar_url: "https://i.pravatar.cc/150?u=diego",   disc: "D", posts: 37, badge: "🥈" },
-  { name: "Fernanda Lima",  avatar_url: "https://i.pravatar.cc/150?u=fernanda",disc: "S", posts: 29, badge: "🥉" },
-];
+const BADGES = ["🥇", "🥈", "🥉", "4º", "5º"];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +46,10 @@ const LeftSidebar = ({
   const { profilePhoto: myAvatarUrl } = useAuth(); // foto do contexto global
   const discImg   = DISC_IMGS[myDisc];
   const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
+
+  // Ranking dinâmico com XP
+  const { ranking, loading: rankingLoading } = useRanking(myUserId);
+  const top5 = ranking.slice(0, 5);
 
   // Banner buscado da tabela profiles — coluna `banner`, PK = user_id
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
@@ -162,28 +162,38 @@ const LeftSidebar = ({
         </div>
       </motion.div>
 
-      {/* ── Membros em Destaque ── */}
+      {/* ── Ranking por XP (dinâmico) ── */}
       <motion.div
         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
         className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
         <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
-          <Trophy size={16} className="text-primary/60" /> Ranking Semanal
+          <Trophy size={16} className="text-primary/60" /> Ranking por XP
         </h3>
         <div className="space-y-6">
-          {TOP_MEMBERS.map((m) => (
-            <div key={m.name} className="flex items-center gap-4 group cursor-pointer">
-              <div className="relative">
-                <UserAvatar avatarUrl={m.avatar_url} name={m.name} disc={m.disc} size="sm" />
-                <span className="absolute -top-1 -right-1 text-sm filter grayscale group-hover:grayscale-0 transition-all duration-300">{m.badge}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-body font-bold text-white group-hover:text-primary transition-colors duration-300 truncate tracking-tight">{m.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">{m.posts} INSIGHTS</span>
+          {rankingLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 size={18} className="animate-spin text-primary/40" />
+            </div>
+          ) : top5.length === 0 ? (
+            <p className="text-[11px] text-white/30 font-body text-center py-4">Nenhum progresso registrado ainda.</p>
+          ) : (
+            top5.map((member, i) => (
+              <div key={member.user_id} className="flex items-center gap-4 group cursor-pointer">
+                <div className="relative">
+                  <UserAvatar avatarUrl={member.avatar_url} name={member.name} disc={member.disc} size="sm" />
+                  <span className="absolute -top-1 -right-1 text-sm filter grayscale group-hover:grayscale-0 transition-all duration-300">
+                    {BADGES[i] ?? `${i + 1}º`}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-body font-bold text-white group-hover:text-primary transition-colors duration-300 truncate tracking-tight">{member.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[9px] text-primary/60 font-black uppercase tracking-widest">{member.total_xp} XP</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </motion.div>
 
