@@ -82,8 +82,9 @@ const NotificationBell = () => {
     fetchRequests();
 
     // Realtime — atualiza badge e lista ao vivo
+    const channelSuffix = Math.random().toString(36).substring(7);
     const channel = supabase
-      .channel("friend-requests-bell")
+      .channel(`friend-requests-bell-${channelSuffix}`)
       .on(
         "postgres_changes",
         {
@@ -105,7 +106,9 @@ const NotificationBell = () => {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // ── Aceitar ──
