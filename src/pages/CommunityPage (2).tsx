@@ -42,6 +42,7 @@ const CommunityPage = () => {
   const [myRole, setMyRole] = useState("Membro · UpJobs");
   const [myCourseTitle, setMyCourseTitle] = useState("Carregando trilha...");
   const [myCourseProgress, setMyCourseProgress] = useState(0);
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
 
   const myDisc           = assessment?.discProfile ?? "S";
   const myCreatorId      = user?.id;
@@ -54,14 +55,18 @@ const CommunityPage = () => {
     if (!user?.id) return;
 
     async function loadProfileAndProgress() {
-      // 1. Busca Dados do perfil (Nome e Role)
+      // 1. Busca Dados do perfil (Nome, Role e Foto)
       const { data: prof } = await supabase
         .from("profiles")
-        .select("name, descricao")
+        .select("name, descricao, perfil")
         .eq("user_id", user?.id)
         .maybeSingle();
-      if (prof?.name) setMyName(prof.name);
+
+      const finalName = prof?.name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Usuário";
+      setMyName(finalName);
       if (prof?.descricao) setMyRole(prof.descricao);
+      if (prof?.perfil) setLocalAvatar(prof.perfil);
+      if (prof?.perfil) setLocalAvatar(prof.perfil);
 
       // 2. Busca curso mais recente na tabela watch
       const { data: watchData } = await supabase
@@ -352,6 +357,7 @@ const CommunityPage = () => {
                   myCourseProgress={myCourseProgress}
                   myCourseTitle={myCourseTitle}
                   myUserId={myCreatorId}
+                  myAvatarUrl={localAvatar}
                 />
               </div>
             </aside>
@@ -399,6 +405,7 @@ const CommunityPage = () => {
               <CreatePost
                 onPost={handlePost}
                 myCreatorId={myCreatorId}
+                myAvatarUrl={localAvatar}
               />
 
               {/* Feed de posts */}

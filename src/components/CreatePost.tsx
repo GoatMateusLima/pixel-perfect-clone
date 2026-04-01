@@ -32,7 +32,7 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
   const fileRef    = useRef<HTMLInputElement>(null);
   const { moderate } = useModeration();
-  const { user } = useAuth();
+  const { user, profilePhoto } = useAuth();
   
   // O creator_id REAL vem sempre do AuthContext, nunca de props para evitar IDOR no frontend
   const activeCreatorId = user?.id;
@@ -181,9 +181,9 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
         {/* Sua Foto de Perfil na hora de criar */}
         <div className="flex-shrink-0 pt-1">
-          {myAvatarUrl ? (
+          {profilePhoto ? (
             <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-white/10 shadow-lg transition-transform duration-300 hover:scale-105">
-              <img src={myAvatarUrl} alt="Você" className="w-full h-full object-cover" />
+              <img src={profilePhoto} alt="Você" className="w-full h-full object-cover" />
             </div>
           ) : (
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/[0.02] border border-white/5 shadow-inner">

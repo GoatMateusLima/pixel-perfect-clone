@@ -222,7 +222,7 @@ const AssessmentResultModal = ({
 // COMPONENTE PRINCIPAL
 // =============================================================================
 const ProfilePage = () => {
-  const { user, logout, assessment } = useAuth();
+  const { user, logout, assessment, refreshPhoto } = useAuth();
   const navigate = useNavigate();
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
@@ -373,8 +373,13 @@ const ProfilePage = () => {
     if (!user) return;
     async function syncProfile() {
       setLoadingProfile(true);
+<<<<<<< HEAD
       const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
       if (error || !data) setProfile({ user_id: user.id, name: user.email?.split("@")[0] ?? "Usuário", redes: {}, bordas: [] });
+=======
+      const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
+      if (error) setProfile({ user_id: user.id, name: user.user_metadata?.name, redes: {}, bordas: [] });
+>>>>>>> 4b30800c224cd6a8cb89bef8cbc331c1c0940672
       else setProfile(data as Profile);
       setLoadingProfile(false);
     }
@@ -415,8 +420,12 @@ const ProfilePage = () => {
 
   // Handlers edição
   const handleStartEdit = () => {
+<<<<<<< HEAD
     setDraftName(profile.name ?? user.email?.split("@")[0] ?? "Usuário"); 
     setDraftDescricao(profile.descricao ?? "");
+=======
+    setDraftName(profile.name ?? user.user_metadata?.name ?? ""); setDraftDescricao(profile.descricao ?? "");
+>>>>>>> 4b30800c224cd6a8cb89bef8cbc331c1c0940672
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setDraftBordas(null);
     setBorderPickerOpen(false); setDraftMedalhas(null); setSaveError(null); setIsEditing(true);
   };
@@ -438,6 +447,7 @@ const ProfilePage = () => {
       const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
       setProfile(payload);
+      refreshPhoto(); // Sincroniza foto globalmente (Header, Sidebars, etc)
       setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
     } catch (err: unknown) { 
       const errorMessage = err instanceof Error ? err.message : "Erro ao salvar perfil.";
@@ -586,7 +596,11 @@ const ProfilePage = () => {
                       {isEditing
                         ? <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Seu nome"
                           className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
+<<<<<<< HEAD
                         : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.email?.split("@")[0] ?? "Usuário"}</h1>}
+=======
+                        : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.user_metadata?.name}</h1>}
+>>>>>>> 4b30800c224cd6a8cb89bef8cbc331c1c0940672
                       <p className="text-sm text-muted-foreground font-body">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground" style={{ backgroundColor: ringColor }}>{DISC_LABELS[discProfile]}</span>

@@ -35,6 +35,7 @@ interface LeftSidebarProps {
   myCourseProgress: number;
   myCourseTitle:    string;
   myUserId?:        string;
+  myAvatarUrl?:      string | null;
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -42,8 +43,10 @@ interface LeftSidebarProps {
 const LeftSidebar = ({
   myName, myDisc, myRole, myHourValue,
   myCourseProgress, myCourseTitle, myUserId,
+  myAvatarUrl: localAvatarProp,
 }: LeftSidebarProps) => {
-  const { profilePhoto: myAvatarUrl } = useAuth(); // foto do contexto global
+  const { profilePhoto: globalAvatar } = useAuth(); // foto do contexto global
+  const myAvatarUrl = localAvatarProp || globalAvatar;
   const discImg   = DISC_IMGS[myDisc];
   const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
 
@@ -97,9 +100,26 @@ const LeftSidebar = ({
                 style={{ width: 72, height: 72, 
                   border: `1px solid rgba(16, 185, 129, 0.4)`, color: "hsl(142 72% 50%)" }}>
                 {myAvatarUrl ? (
-                  <img src={myAvatarUrl} alt={myName} className="w-full h-full object-cover" />
+                  <img 
+                    src={myAvatarUrl} 
+                    alt={myName} 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.avatar-fallback')) {
+                        const fallback = document.createElement('div');
+                        fallback.className = "avatar-fallback w-full h-full bg-primary/20 flex items-center justify-center font-display font-black text-xl text-primary uppercase";
+                        fallback.innerText = toInitials(myName);
+                        parent.appendChild(fallback);
+                      }
+                    }}
+                  />
                 ) : (
-                  <span className="opacity-40">{toInitials(myName)}</span>
+                  <div className="w-full h-full bg-primary/20 flex items-center justify-center font-display font-black text-xl text-primary uppercase">
+                    {toInitials(myName)}
+                  </div>
                 )}
               </div>
             </div>
