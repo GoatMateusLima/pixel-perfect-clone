@@ -24,6 +24,7 @@ import PostModal       from "../components/PostModal";
 import CreatePost      from "../components/CreatePost";
 import LeftSidebar     from "../components/LeftSidebar";
 import RightSidebar    from "../components/RightSidebar";
+import TechBackground  from "../components/TechBackground";
 
 import { DISC_IMGS }  from "../components/PostCard";
 import type { Post, Publication } from "../components/PostCard";
@@ -331,44 +332,20 @@ const CommunityPage = () => {
     : [...posts].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime());
 
   return (
-    <div className="min-h-screen gradient-hero scanline">
+    <div className="min-h-screen relative overflow-clip">
+      <TechBackground />
       <Header />
 
       <div className="px-3 sm:px-4 pt-20 sm:pt-24 pb-16">
         <div className="max-w-7xl mx-auto ">
 
-          {/* ── Cabeçalho Atualizado ── */}
-          <motion.div
-            initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center text-center gap-4 mb-8">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-glow">Comunidade</h1>
-              <p className="text-sm text-muted-foreground font-body mt-1">
-                Compartilhe conquistas, dicas e insights com a rede UpJobs
-              </p>
-            </div>
-            
-            <div className="flex flex-wrap justify-center gap-3">
-              {[
-                { icon: Users,      label: "2.4k membros", color: "hsl(155 60% 45%)" },
-                { icon: TrendingUp, label: "↑ 18% hoje",   color: "hsl(25 90% 55%)"  },
-                { icon: Zap,        label: "94 online",    color: "hsl(45 90% 55%)"  },
-              ].map(({ icon: Icon, label, color }) => (
-                <div key={label}
-                  className="flex items-center gap-1.5 text-xs font-accent font-semibold px-3 py-1.5 rounded-sm shadow-sm"
-                  style={{ color, background: `${color}12`, border: `1px solid ${color}30` }}>
-                  <Icon size={14} /><span>{label}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
 
           {/* ── Layout 3 colunas — estilo Twitter ── */}
           <div className="flex gap-6 justify-center">
 
             {/* Sidebar esquerda — fixa, aparece em lg+ */}
             <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
-              <div className="sticky top-24">
+              <div className="sticky top-24 h-fit max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
                 <LeftSidebar
                   myName={myName}            myDisc={myDisc}
                   myRole={myRole}            myHourValue={myHourValue}
@@ -380,22 +357,21 @@ const CommunityPage = () => {
             </aside>
 
             {/* Feed central — largura máxima fixa como Twitter (~600px) */}
-            <main className="w-full max-w-[600px] flex-shrink-0 space-y-0 min-w-0 relative border-x border-border/20">
+            <main className="w-full max-w-[620px] flex-shrink-0 space-y-4 min-w-0 relative">
 
-              {/* Filtro */}
-              <div className="flex gap-2 flex items-center justify-center">
-                {(["recentes", "populares"] as const).map((f) => (
-                  <button key={f} onClick={() => setFilter(f)}
-                    className={`px-4 py-1.5 rounded-sm text-xs font-accent font-semibold transition
-                      ${f === filter
-                        ? "text-primary-foreground"
-                        : "text-muted-foreground border border-border hover:text-foreground"}`}
-                    style={f === filter
-                      ? { background: "hsl(155 60% 35%)", boxShadow: "0 0 12px hsl(155 60% 45% / 0.3)" }
-                      : undefined}>
-                    {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
-                  </button>
-                ))}
+              {/* Filtro Estilo Pill Flutuante */}
+              <div className="sticky top-20 z-40 py-4 flex justify-center pointer-events-none">
+                <div className="glass-card p-1.5 flex gap-1 pointer-events-auto border-white/10 shadow-2xl backdrop-blur-2xl">
+                  {(["recentes", "populares"] as const).map((f) => (
+                    <button key={f} onClick={() => setFilter(f)}
+                      className={`px-6 py-2 rounded-full text-xs font-accent font-bold transition-all duration-300
+                        ${f === filter
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
+                          : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}>
+                      {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Botão Flutuante de Novas Postagens */}
@@ -489,7 +465,7 @@ const CommunityPage = () => {
 
             {/* Sidebar direita — fixa, aparece em xl+ */}
             <aside className="hidden xl:block w-72 xl:w-80 flex-shrink-0">
-              <div className="sticky top-24">
+              <div className="sticky top-24 h-fit max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
                 <RightSidebar />
               </div>
             </aside>
