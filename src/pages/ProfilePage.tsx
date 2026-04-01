@@ -40,6 +40,15 @@ interface CourseProgress {
   thumb?: string;
 }
 
+interface OverallProgress {
+  totalCursos: number;
+  cursosConcluidos: number;
+  cursosEmAndamento: number;
+  progressoMedio: number;
+  totalAulasAssistidas: number;
+  courseProgressList: CourseProgress[];
+}
+
 // =============================================================================
 // HELPERS
 // =============================================================================
@@ -244,6 +253,12 @@ const ProfilePage = () => {
   const [hoverPhoto, setHoverPhoto] = useState(false);
   const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
 
+  // Progresso geral real do usuário
+  const [overallProgress, setOverallProgress] = useState<OverallProgress>({
+    totalCursos: 0, cursosConcluidos: 0, cursosEmAndamento: 0,
+    progressoMedio: 0, totalAulasAssistidas: 0, courseProgressList: [],
+  });
+
   // Modal resultado avaliação — abre 1 vez após concluir
   const [showResultModal, setShowResultModal] = useState(() => sessionStorage.getItem("show_assessment_result") === "1");
   const handleCloseResultModal = () => { setShowResultModal(false); sessionStorage.removeItem("show_assessment_result"); };
@@ -273,6 +288,82 @@ const ProfilePage = () => {
       finally { setLoadingVagas(false); setLoading(false); }
     }
     loadData();
+  }, [user]);
+
+  // Busca dados reais para o Progresso Geral
+  useEffect(() => {
+    if (!user) return;
+    async function loadOverallProgress() {
+      try {
+        const { data: watchData } = await supabase
+          .from("watch")
+          .select("course_id, courses(id, name, difficult)")
+          .eq("user_id", user.id);
+
+        if (!watchData || watchData.length === 0) return;
+
+        const progressList: CourseProgress[] = [];
+        let totalAssistidas = 0;
+
+        for (const w of watchData) {
+          const course = Array.isArray(w.courses) ? w.courses[0] : w.courses as any;
+          if (!course) continue;
+
+          const { count: totalAulas } = await supabase
+            .from("aulas")
+            .select("id", { count: "exact", head: true })
+            .eq("course_id", course.id);
+
+          const { data: aulasCourse } = await supabase
+            .from("aulas")
+            .select("id")
+            .eq("course_id", course.id);
+
+          const aulaIds = (aulasCourse ?? []).map(a => Number(a.id));
+
+          const { count: completedAulas } = await supabase
+            .from("lesson_progress")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
+            .eq("completed", true);
+
+          const total = totalAulas ?? 0;
+          const completed = completedAulas ?? 0;
+          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+          totalAssistidas += completed;
+
+          progressList.push({
+            courseId: course.id,
+            courseName: course.name,
+            difficult: course.difficult ?? "Iniciante",
+            totalAulas: total,
+            completedAulas: completed,
+            pct,
+          });
+        }
+
+        const totalCursos = progressList.length;
+        const concluidos = progressList.filter(c => c.pct === 100).length;
+        const emAndamento = progressList.filter(c => c.pct > 0 && c.pct < 100).length;
+        const media = totalCursos > 0
+          ? Math.round(progressList.reduce((acc, c) => acc + c.pct, 0) / totalCursos)
+          : 0;
+
+        setOverallProgress({
+          totalCursos,
+          cursosConcluidos: concluidos,
+          cursosEmAndamento: emAndamento,
+          progressoMedio: media,
+          totalAulasAssistidas: totalAssistidas,
+          courseProgressList: progressList,
+        });
+      } catch (err) {
+        console.error("Erro ao carregar progresso geral:", err);
+      }
+    }
+    loadOverallProgress();
   }, [user]);
 
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
@@ -407,7 +498,14 @@ const ProfilePage = () => {
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
-              <Progress />
+              <Progress
+                totalCursos={overallProgress.totalCursos}
+                cursosConcluidos={overallProgress.cursosConcluidos}
+                cursosEmAndamento={overallProgress.cursosEmAndamento}
+                progressoMedio={overallProgress.progressoMedio}
+                totalAulasAssistidas={overallProgress.totalAulasAssistidas}
+                courseProgressList={overallProgress.courseProgressList}
+              />
             </motion.div>
 
             {/* AMIGOS (CARD LATERAL) */}
