@@ -176,34 +176,37 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   ) : null);
 
   return (
-    <motion.div layout className="hologram-panel rounded-sm p-5">
-      <div className="flex gap-3 items-center">
+    <motion.div layout className="glass-card p-8 border-white/5 mb-8 shadow-2xl relative overflow-hidden rounded-3xl">
+      <div className="flex gap-5 items-start">
 
         {/* Sua Foto de Perfil na hora de criar */}
-        {myAvatarUrl ? (
-          <img src={myAvatarUrl} alt="Você" className="flex-shrink-0 w-10 h-10 rounded-full object-cover border-[1.5px] border-border/50" />
-        ) : (
-          <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "hsl(155 60% 45% / 0.12)", border: "1.5px solid hsl(155 60% 45% / 0.3)" }}>
-            <MessageSquarePlus size={18} style={{ color: "hsl(155 60% 45%)" }} />
-          </div>
-        )}
+        <div className="flex-shrink-0 pt-1">
+          {myAvatarUrl ? (
+            <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-white/10 shadow-lg transition-transform duration-300 hover:scale-105">
+              <img src={myAvatarUrl} alt="Você" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/[0.02] border border-white/5 shadow-inner">
+              <MessageSquarePlus size={22} className="text-white/20" />
+            </div>
+          )}
+        </div>
 
         <div className="flex-1">
           {!expanded ? (
             <button onClick={() => setExpanded(true)}
-              className="w-full text-left px-4 py-2.5 rounded-sm bg-secondary/40 border border-border/40 text-sm font-body text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 transition">
-              No que você está pensando?
+              className="w-full text-left px-7 py-4 rounded-2xl bg-white/[0.02] border border-white/[0.03] text-[15px] font-body text-white/30 hover:border-white/10 hover:bg-white/[0.04] transition-all duration-300">
+              Compartilhe algo com a comunidade...
             </button>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
 
               <textarea autoFocus value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && e.ctrlKey && handleSubmit()}
-                placeholder="Compartilhe um insight, conquista ou dúvida com a comunidade..."
+                placeholder="No que você está pensando? Compartilhe um insight, conquista ou dúvida..."
                 rows={4} disabled={uploading}
-                className="w-full px-4 py-3 rounded-sm bg-secondary/30 border border-border/50 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition resize-none disabled:opacity-50"
+                className="w-full px-6 py-5 rounded-2xl bg-white/[0.01] border border-white/[0.05] text-[16px] font-body text-white placeholder:text-white/10 focus:outline-none focus:border-primary/30 focus:bg-white/[0.03] transition-all resize-none disabled:opacity-50"
               />
 
               {/* Preview da mídia selecionada */}
@@ -213,28 +216,28 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                     className="relative">
                     {gifUrl && (
-                      <div className="rounded-sm overflow-hidden border border-border/40">
-                        <img src={gifUrl.slice(4)} alt="GIF" className="w-full max-h-48 object-contain bg-black/20" />
-                        <span className="absolute top-2 left-2 text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-sm"
-                          style={{ background: "hsl(45 90% 55% / 0.9)", color: "#000" }}>GIF</span>
+                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                        <img src={gifUrl.slice(4)} alt="GIF" className="w-full max-h-64 object-contain bg-black/20" />
+                        <span className="absolute top-3 left-3 text-[10px] font-accent font-bold px-2 py-1 rounded-full"
+                          style={{ background: "hsl(45 90% 55%)", color: "#000" }}>GIF</span>
                       </div>
                     )}
                     {previewUrl && !gifUrl && (
-                      <div className="rounded-sm overflow-hidden border border-border/40">
+                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl">
                         {mediaFile?.type.startsWith("video/") ? (
-                          <video src={previewUrl} controls className="w-full max-h-48 object-contain bg-black/40" />
+                          <video src={previewUrl} controls className="w-full max-h-64 object-contain bg-black/40" />
                         ) : (
-                          <img src={previewUrl} alt="Preview" className="w-full max-h-48 object-cover" />
+                          <img src={previewUrl} alt="Preview" className="w-full max-h-64 object-cover" />
                         )}
-                        <span className="absolute top-2 left-2 text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-sm"
-                          style={{ background: mediaFile?.type.startsWith("video/") ? "hsl(210 70% 55% / 0.9)" : "hsl(155 60% 45% / 0.9)", color: "#fff" }}>
+                        <span className="absolute top-3 left-3 text-[10px] font-accent font-bold px-2 py-1 rounded-full"
+                          style={{ background: mediaFile?.type.startsWith("video/") ? "hsl(210 70% 55%)" : "hsl(155 60% 45%)", color: "#fff" }}>
                           {mediaFile?.type.startsWith("video/") ? "VÍDEO" : "IMAGEM"}
                         </span>
                       </div>
                     )}
                     {!uploading && (
                       <button onClick={clearMedia}
-                        className="absolute top-2 right-2 p-1 rounded-full bg-background/80 text-foreground hover:bg-background transition">
+                        className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-rose-500 transition-colors shadow-lg backdrop-blur-md">
                         <X size={14} />
                       </button>
                     )}
@@ -276,8 +279,8 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
                     onClick={() => { if (fileRef.current) { fileRef.current.accept = ACCEPTED_IMAGE; fileRef.current.click(); } }}
                     disabled={uploading || hasMedia}
                     title="Adicionar imagem"
-                    className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed">
-                    <ImageIcon size={14} />
+                    className="flex items-center gap-2 text-xs font-accent font-bold text-muted-foreground hover:text-primary transition-all px-3 py-2 rounded-full hover:bg-white/[0.05] disabled:opacity-30 disabled:cursor-not-allowed">
+                    <ImageIcon size={16} />
                     <span className="hidden sm:inline">Imagem</span>
                   </button>
 
@@ -285,8 +288,8 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
                     onClick={() => { if (fileRef.current) { fileRef.current.accept = ACCEPTED_VIDEO; fileRef.current.click(); } }}
                     disabled={uploading || hasMedia}
                     title="Adicionar vídeo"
-                    className="flex items-center gap-1.5 text-xs font-accent text-muted-foreground hover:text-primary transition px-2 py-1.5 rounded-sm hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed">
-                    <Video size={14} />
+                    className="flex items-center gap-2 text-xs font-accent font-bold text-muted-foreground hover:text-primary transition-all px-3 py-2 rounded-full hover:bg-white/[0.05] disabled:opacity-30 disabled:cursor-not-allowed">
+                    <Video size={16} />
                     <span className="hidden sm:inline">Vídeo</span>
                   </button>
 
@@ -294,8 +297,8 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
                     onClick={() => setShowGif(true)}
                     disabled={uploading || hasMedia}
                     title="Adicionar GIF"
-                    className={`flex items-center gap-1.5 text-xs font-accent transition px-2 py-1.5 rounded-sm hover:bg-secondary/40 disabled:opacity-40 disabled:cursor-not-allowed ${showGif ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-                    <Smile size={14} />
+                    className={`flex items-center gap-2 text-xs font-accent font-bold transition-all px-3 py-2 rounded-full hover:bg-white/[0.05] disabled:opacity-30 disabled:cursor-not-allowed ${showGif ? "text-primary bg-white/[0.05]" : "text-muted-foreground hover:text-primary"}`}>
+                    <Smile size={16} />
                     <span className="hidden sm:inline">GIF</span>
                   </button>
 
@@ -317,15 +320,14 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
                 <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
 
-                <div className="flex gap-2">
+                <div className="flex gap-5">
                   <button onClick={handleCancel} disabled={uploading}
-                    className="px-3 py-1.5 text-xs font-accent text-muted-foreground border border-border rounded-sm hover:text-foreground transition disabled:opacity-40">
+                    className="px-6 py-3 text-[12px] font-accent font-black uppercase tracking-[0.2em] text-white/20 hover:text-white transition-all disabled:opacity-40">
                     Cancelar
                   </button>
                   <button onClick={handleSubmit} disabled={!description.trim() || uploading}
-                    className="px-4 py-1.5 text-xs font-accent font-bold text-primary-foreground rounded-sm transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed box-glow-accent"
-                    style={{ background: "hsl(25 90% 55%)" }}>
-                    {uploading ? <Loader2 size={13} className="animate-spin" /> : "Publicar"}
+                    className="px-8 py-3 text-[13px] font-accent font-black uppercase tracking-[0.2em] text-black bg-primary rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                    {uploading ? <Loader2 size={18} className="animate-spin" /> : "Publicar"}
                   </button>
                 </div>
               </div>

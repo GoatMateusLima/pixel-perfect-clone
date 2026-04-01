@@ -103,9 +103,9 @@ export const UserAvatar = ({
   const discColor = DISC_COLOR[disc ?? "S"] ?? DISC_COLOR.S;
   const initials  = toInitials(name);
   const cfg = {
-    sm: { outer: 28, inner: 20, textSize: "text-[8px]",  wh: "w-7 h-7"  },
-    md: { outer: 36, inner: 26, textSize: "text-[9px]",  wh: "w-9 h-9"  },
-    lg: { outer: 48, inner: 34, textSize: "text-xs",     wh: "w-12 h-12" },
+    sm: { outer: 32, inner: 22, textSize: "text-[9px]",  wh: "w-8 h-8"  },
+    md: { outer: 40, inner: 28, textSize: "text-[10px]", wh: "w-10 h-10" },
+    lg: { outer: 52, inner: 38, textSize: "text-[11px]", wh: "w-[52px] h-[52px]" },
   }[size];
 
   const inner = avatarUrl
@@ -115,15 +115,15 @@ export const UserAvatar = ({
 
   if (isMe && discRingImg) {
     return (
-      <div className="relative flex-shrink-0 flex items-center justify-center"
+      <div className="relative flex-shrink-0 flex items-center justify-center group/avatar"
         style={{ width: cfg.outer, height: cfg.outer }}>
         <img src={discRingImg} alt="DISC"
-          className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
+          className="absolute inset-0 w-full h-full rounded-full object-cover shadow-lg transition-transform duration-300 group-hover/avatar:scale-110" style={{ zIndex: 1 }} />
         <div className={`absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize} z-10`}
           style={{ width: cfg.inner, height: cfg.inner, top: "50%", left: "50%",
             transform: "translate(-50%, -50%)",
             background: avatarUrl ? undefined : "hsl(var(--secondary))",
-            border: "2px solid hsl(var(--background))", color: discColor }}>
+            border: "1.5px solid hsl(var(--background))", color: discColor }}>
           {inner}
         </div>
       </div>
@@ -131,11 +131,16 @@ export const UserAvatar = ({
   }
 
   return (
-    <div className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
-      style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`,
-        background: avatarUrl ? undefined : `linear-gradient(135deg, ${discColor}33, ${discColor}15)`,
-        color: discColor }}>
-      {inner}
+    <div className={`${cfg.wh} rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-black ${cfg.textSize} group/avatar transition-all duration-500`}
+      style={{ 
+        border: `1px solid rgba(16, 185, 129, 0.4)`, 
+        boxShadow: `0 0 20px rgba(16, 185, 129, 0.1)`,
+        background: avatarUrl ? "rgba(0,0,0,0.4)" : `linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))`,
+        color: "hsl(142 72% 50%)" 
+      }}>
+      <div className="w-full h-full transition-transform duration-700 group-hover/avatar:scale-110 flex items-center justify-center">
+        {inner}
+      </div>
     </div>
   );
 };
@@ -246,11 +251,11 @@ const PostCard = ({
     <motion.div layout
       initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
-      className="bg-transparent border-b border-border/20 overflow-hidden">
+      className="glass-card relative mb-6 last:mb-0 group/card rounded-3xl border-white/5 shadow-2xl overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="px-4 pt-4 pb-0 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
+      <div className="px-7 pt-7 pb-0 flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 cursor-pointer group/avatar" onClick={() => post && onOpenModal?.(post)}>
           <UserAvatar
             avatarUrl={authorAvatarUrl}
             name={authorName}
@@ -259,18 +264,21 @@ const PostCard = ({
             isMe={isMe}
             discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
           />
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-accent font-semibold text-sm text-foreground">
+          <div className="pt-0.5">
+            <div className="flex items-center gap-2.5">
+              <p className="font-display font-black text-lg text-white group-hover/avatar:text-primary transition-colors duration-300 tracking-tight">
                 {authorName}
               </p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
-                {authorDisc} · {DISC_LABEL[authorDisc]}
-              </span>
+              <div className="px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 border"
+                style={{ background: `${DISC_COLOR[authorDisc]}08`, color: DISC_COLOR[authorDisc], borderColor: `${DISC_COLOR[authorDisc]}15` }}>
+                <span className="text-[10px] font-accent font-black uppercase tracking-widest leading-none">{authorDisc}</span>
+              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-            <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
+            <div className="flex items-center gap-2 mt-0.5 text-white/30">
+               <p className="text-[12px] font-body font-bold uppercase tracking-tighter">{authorRole}</p>
+               <span className="w-1 h-1 rounded-full bg-white/20" />
+               <p className="text-[11px] font-body tracking-tight">{formatRelativeTime(post.date)}</p>
+            </div>
           </div>
         </div>
 
@@ -296,40 +304,42 @@ const PostCard = ({
       </div>
 
       {/* ── Descrição ── */}
-      <div className="px-4 pt-3 pb-2 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
-        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">
+      <div className="px-7 pt-5 pb-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
+        <p className="text-[15px] font-body text-foreground/90 leading-[1.7] whitespace-pre-line line-clamp-6">
           {post.description}
         </p>
       </div>
 
-      {/* ── Mídia — borda-a-borda, max-height controlado como Twitter ── */}
+      {/* ── Mídia ── */}
       {post.midia && post.midia !== "EMPTY" && (
-        <div className="mt-2 cursor-pointer overflow-hidden w-full rounded-xl mx-4"
-          style={{ width: "calc(100% - 2rem)" }}
+        <div className="mt-3 px-7 cursor-pointer"
           onClick={() => post && onOpenModal?.(post)}>
-          <PostMedia midia={post.midia} maxHeight={400} />
+          <div className="rounded-2xl overflow-hidden border border-white/5 shadow-2xl transition-transform duration-700 group-hover/card:scale-[1.005]">
+            <PostMedia midia={post.midia} maxHeight={520} />
+          </div>
         </div>
       )}
 
       {/* ── Contadores ── */}
-      <div className="px-4 py-1.5 flex items-center justify-between text-[11px] text-muted-foreground font-body">
-        <span>{post.like_qnt ?? 0} curtidas</span>
-        <button onClick={() => post && onOpenModal?.(post)} className="hover:text-foreground transition">
+      <div className="px-7 py-3 flex items-center justify-between text-[12px] text-white/40 font-body">
+        <span className="font-medium">{post.like_qnt ?? 0} curtidas</span>
+        <button onClick={() => post && onOpenModal?.(post)} className="hover:text-primary transition-colors duration-300 flex items-center gap-1">
+          <span className="w-1 h-1 rounded-full bg-white/20 mr-1" />
           {commentCount} {commentCount === 1 ? "comentário" : "comentários"} · Ver todos
         </button>
       </div>
 
       {/* ── Ações ── */}
-      <div className="px-2 py-1 flex items-center gap-1 border-t border-border/10">
+      <div className="px-7 pb-6 flex items-center gap-3">
         {[
-          { label: "Curtir",      el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike?.(post.id) },
-          { label: "Comentar",    el: <MessageCircle size={14} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
-          { label: "Salvar",      el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => post.id && onSave?.(post.id) },
-          { label: "Copiar link", el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
+          { label: "Curtir",      el: <Heart size={18} className={post.liked ? "fill-primary text-primary" : ""} />,    active: post.liked,  color: "text-primary", fn: () => post.id && onLike?.(post.id) },
+          { label: "Comentar",    el: <MessageCircle size={18} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
+          { label: "Salvar",      el: <Bookmark size={18} className={post.saved ? "fill-primary text-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => post.id && onSave?.(post.id) },
+          { label: "Link",        el: <Share2 size={18} />,                                                 active: false,       color: "",             fn: copyLink },
         ].map(({ label, el, active, color, fn }) => (
           <button key={label} onClick={fn}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
-            {el} {label}
+            className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-2xl text-[10px] font-accent font-black uppercase tracking-[0.2em] transition-all duration-300 bg-white/[0.02] border border-white/[0.03] hover:bg-primary/5 hover:border-primary/20 active:scale-95 ${active ? "text-primary shadow-[0_0_15px_rgba(16,185,129,0.1)] border-primary/30" : "text-white/20 hover:text-white"}`}>
+            {el} <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
