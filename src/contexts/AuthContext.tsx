@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import supabase from "../../utils/supabase";
@@ -58,13 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                       currentUser.user_metadata?.photoURL || 
                       currentUser.user_metadata?.photo || 
                       null;
-        if (!error) setProfilePhoto(photo);
+        setProfilePhoto(photo);
       });
   };
 
   // ── Busca todos os dados iniciais do usuário numa única requisição ─────────
-  const fetchUserData = (currentUser: User) => {
-    supabase
+  const fetchUserData = useCallback((currentUser: User): Promise<void> => {
+    return supabase
       .from("profiles")
       .select("perfil, calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed, role")
       .eq("user_id", currentUser.id)
@@ -101,26 +101,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         }
       });
-  };
+  }, []);
 
   const refreshPhoto = () => {
     if (user) fetchProfilePhoto(user);
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!error && data.session?.user) {
-        setSession(data.session);
-        setUser(data.session.user);
-        fetchUserData(data.session.user); // Chama com o objeto direto da sessão
+    let mounted = true;
+
+    const bootstrap = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (error) {
+          console.error("[AuthContext] getSession:", error.message);
+          return;
+        }
+        if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+          await fetchUserData(session.user);
+        } else {
+          setSession(null);
+          setUser(null);
+        }
+      } catch (e) {
+        console.error("[AuthContext] bootstrap:", e);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    bootstrap();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session ?? null);
       setUser(session?.user ?? null);
-      setLoading(false);
 
       if (session?.user) {
         fetchUserData(session.user);
@@ -132,8 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserData]);
 
   // ── updateAssessment — apenas estado + localStorage (durante o fluxo) ────────
   function updateAssessment(partial: Partial<AssessmentData>) {

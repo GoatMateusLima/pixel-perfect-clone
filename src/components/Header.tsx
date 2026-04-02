@@ -20,6 +20,23 @@ const Header = () => {
 
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  /** Mesma fonte que LeftSidebar/Community: `profiles.perfil` quando o contexto ainda não sincronizou */
+  const [perfilFromDb, setPerfilFromDb] = useState<string | null>(null);
+
+  const avatarUrl = profilePhoto || perfilFromDb;
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPerfilFromDb(null);
+      return;
+    }
+    supabase
+      .from("profiles")
+      .select("perfil")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setPerfilFromDb(data?.perfil ?? null));
+  }, [user?.id]);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 10);
@@ -95,9 +112,9 @@ const Header = () => {
                 <Link to="/perfil"
                   className="flex-shrink-0 w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] bg-primary/5"
                   title="Meu Perfil">
-                  {profilePhoto ? (
+                  {avatarUrl ? (
                     <img 
-                      src={profilePhoto} 
+                      src={avatarUrl} 
                       alt="Foto de Perfil" 
                       className="w-full h-full object-cover" 
                       onError={(e) => {
@@ -164,8 +181,8 @@ const Header = () => {
                 }`}>
                   {isProfile && user ? (
                     <div className={`w-8 h-8 rounded-lg overflow-hidden border-2 transition-all flex items-center justify-center ${active ? "border-primary shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "border-white/10 opacity-60"}`}>
-                      {profilePhoto ? (
-                        <img src={profilePhoto} alt="Perfil" className="w-full h-full object-cover" />
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Perfil" className="w-full h-full object-cover" />
                       ) : (
                         <span className="font-display font-black text-[10px] text-primary">
                            {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
