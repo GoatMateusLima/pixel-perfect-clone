@@ -5,6 +5,8 @@ import Header from "@/components/Header";
 import supabase from "../../utils/supabase.ts";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { getRecommendedTemasIA } from "../../utils/APIrecomendacao";
 
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -88,12 +90,39 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
 // ─── Componente Principal ───────────────────────────────────────────────────
 const RoadmapSection = () => {
+  const { assessment } = useAuth();
   const [temasBrutos, setTemasBrutos] = useState<Tema[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("Todos");
   const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
+  
+  const [aiRecommendedIds, setAiRecommendedIds] = useState<string[]>([]);
+  const [isAILoading, setIsAILoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchAiRecommendations() {
+      const interests = assessment?.areasInteresse;
+      if (!interests || interests.length === 0 || temasBrutos.length === 0) return;
+
+      setIsAILoading(true);
+      try {
+        const ids = await getRecommendedTemasIA(interests, temasBrutos);
+        if (ids.length > 0) {
+          setAiRecommendedIds(ids);
+        }
+      } catch(e) {
+        console.error(e);
+      } finally {
+        setIsAILoading(false);
+      }
+    }
+
+    if (aiRecommendedIds.length === 0 && !isAILoading && !loading) {
+      fetchAiRecommendations();
+    }
+  }, [temasBrutos, assessment?.areasInteresse, aiRecommendedIds, isAILoading, loading]);
 
   useEffect(() => {
     async function loadData() {
@@ -139,8 +168,20 @@ const RoadmapSection = () => {
   }, [temasProntos, search, activeType]);
 
   const recommendedTemas = useMemo(() => {
+    if (aiRecommendedIds.length > 0) {
+      const validTemas = aiRecommendedIds
+        .map(id => temasProntos.find(t => t.id === id))
+        .filter(Boolean) as Tema[];
+      
+      if (validTemas.length > 0) {
+        const remaining = [...temasProntos]
+          .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
+          .filter(t => !aiRecommendedIds.includes(t.id));
+        return [...validTemas, ...remaining].slice(0, 5);
+      }
+    }
     return [...temasProntos].sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0)).slice(0, 5);
-  }, [temasProntos]);
+  }, [temasProntos, aiRecommendedIds]);
 
   return (
     <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
@@ -178,7 +219,9 @@ const RoadmapSection = () => {
               <div className="mb-12">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">Recomendações</h2>
-                  <span className="text-xs font-accent font-bold text-primary tracking-widest uppercase">Em Alta</span>
+                  <span className="text-xs font-accent font-bold text-primary tracking-widest uppercase">
+                    {isAILoading ? 'Analisando perfil (IA)...' : (aiRecommendedIds.length > 0 ? 'Para você (IA)' : 'Em Alta')}
+                  </span>
                 </div>
                 <div className="flex gap-4 md:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x" style={{ scrollbarWidth: "none" }}>
                   {recommendedTemas.map((tema, i) => (

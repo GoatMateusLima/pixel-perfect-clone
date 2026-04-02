@@ -96,7 +96,7 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
 
   // Escuta Realtime na tabela de sessões para atualizar a lista instantaneamente
   useEffect(() => {
-    const channel = supabase.channel('sessions-list')
+    const channel = supabase.channel(`sessions-list-${Math.random().toString(36).substring(7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_sessions' }, (payload) => {
         const row = payload.new as any;
         if (row && (row.user1_id === myId || row.user2_id === myId)) {
@@ -273,7 +273,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   }, [myId, chat.userId]);
 
   useEffect(() => {
-    const channel = supabase.channel('chat-room')
+    const channel = supabase.channel(`chat-room-${Math.random().toString(36).substring(7)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const row = payload.new as Message;
         const isFromChat = (row.sender_id === myId && row.receiver_id === chat.userId) ||
@@ -659,7 +659,7 @@ const MessengerWidget = () => {
   // Listener Global de Novas Mensagens (Som de Notificação + Popup)
   useEffect(() => {
     if (!user) return;
-    const ch = supabase.channel("global-messages")
+    const ch = supabase.channel(`global-messages-${Math.random().toString(36).substring(7)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
         const row = payload.new as Message;
         if (row && row.receiver_id === user.id) {
@@ -724,7 +724,7 @@ const MessengerWidget = () => {
 
   useEffect(() => {
     loadBadge();
-    const ch = supabase.channel("messenger-sync")
+    const ch = supabase.channel(`messenger-sync-${Math.random().toString(36).substring(7)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_sessions" }, (payload) => {
         const row = payload.new as any;
         if (row && (row.user1_id === user?.id || row.user2_id === user?.id)) loadBadge();

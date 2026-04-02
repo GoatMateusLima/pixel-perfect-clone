@@ -202,10 +202,10 @@ const AulaTab = ({
 // ─── DuvidasTab ───────────────────────────────────────────────────────────────
 
 const DuvidasTab = () => {
-  const { user, profilePhoto } = useAuth();
+  const { user, assessment, profilePhoto } = useAuth();
   const myCreatorId = user?.id;
-  const myName = user?.name ?? "Você";
-  const myDisc = user?.assessment?.discProfile ?? "S";
+  const myName = (assessment as any)?.name ?? user?.email?.split("@")[0] ?? "Você";
+  const myDisc = assessment?.discProfile ?? "S";
   const [doubts, setDoubts] = useState<Doubt[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -405,13 +405,13 @@ const DuvidasTab = () => {
         <PostModal
           post={openDoubt as any}
           onClose={() => setOpenDoubt(null)}
-          onLike={(id: string) => handleLike(id)}
+          onLike={handleLike}
           onSave={() => {}}
-          profilePhoto={profilePhoto}
+          myAvatarUrl={profilePhoto ?? ""}
           myName={myName}
           myDisc={myDisc}
           myDiscRingImg={undefined}
-          myUserId={myCreatorId}
+          myUserId={user?.id ?? ""}
         />
       )}
     </div>
@@ -842,6 +842,13 @@ const CoursesPage = () => {
   const [loadingAulas,   setLoadingAulas]   = useState(true);
   const [aulas, setAulas] = useState<Aula[]>([]);
 
+  const [courseInfo, setCourseInfo] = useState<CourseInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [passedIndexes, setPassedIndexes] = useState<Set<number>>(new Set());
+
   // --- LÓGICA DE PROGRESSO AUTOMÁTICO ---
   useEffect(() => {
     const saveProgress = async () => {
@@ -858,6 +865,15 @@ const CoursesPage = () => {
             last_aula_id: aulaAtual.id,
           }, { onConflict: 'user_id,course_id' });
 
+        // Verifica se essa aula já foi concluída antes (para não duplicar XP)
+        const { data: existing } = await supabase
+          .from('lesson_progress')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('aula_id', aulaAtual.id)
+          .eq('completed', true)
+          .maybeSingle();
+
         await supabase
           .from('lesson_progress')
           .upsert({
@@ -867,20 +883,39 @@ const CoursesPage = () => {
             completed_at: new Date().toISOString()
           }, { onConflict: 'user_id,aula_id' });
 
+        // Se é a primeira vez completando essa aula, incrementa o XP no perfil
+        if (!existing) {
+          const XP_MAP: Record<string, number> = {
+            "Iniciante": 1,
+            "Intermediário": 2.5,
+            "Avançado": 5,
+          };
+          const xpGanho = XP_MAP[courseInfo?.difficult ?? "Iniciante"] ?? 1;
+
+          // Busca XP atual e incrementa
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('total_xp')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          const novoXP = (Number(prof?.total_xp) || 0) + xpGanho;
+
+          await supabase
+            .from('profiles')
+            .upsert({
+              user_id: user.id,
+              total_xp: novoXP,
+            }, { onConflict: 'user_id' });
+        }
+
       } catch (err) {
         console.error("Erro ao processar progresso:", err);
       }
     };
 
     saveProgress();
-  }, [activeIndex, aulas, courseId, user]);
-
-  const [courseInfo, setCourseInfo] = useState<CourseInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [quizLoading, setQuizLoading] = useState(false);
-  const [passedIndexes, setPassedIndexes] = useState<Set<number>>(new Set());
+  }, [activeIndex, aulas, courseId, user, courseInfo]);
 
   useEffect(() => {
     if (!courseId) return;

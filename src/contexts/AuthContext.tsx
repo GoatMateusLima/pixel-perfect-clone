@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserData = useCallback((currentUser: User): Promise<void> => {
     return supabase
       .from("profiles")
-      .select("perfil, calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed, role")
+      .select("*")
       .eq("user_id", currentUser.id)
       .maybeSingle()
       .then(({ data, error }) => {
