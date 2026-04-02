@@ -159,8 +159,9 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   if (isLoading) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-12 max-w-lg mx-auto flex flex-col items-center gap-4"
       >
         <div className="relative">
@@ -183,8 +184,9 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   if (genError) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-4 text-center"
       >
         <ClipboardList size={40} className="text-destructive" style={{ filter: "drop-shadow(0 0 12px hsl(0 80% 55% / 0.5))" }} />
@@ -203,8 +205,9 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   if (!topic && (!questions || questions.length === 0)) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-3 text-center"
       >
         <ClipboardList size={40} className="text-muted-foreground/40" />
@@ -227,14 +230,15 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
 
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 1, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center"
       >
         <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
+          initial={{ scale: 0.92, opacity: 1 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 18 }}
+          transition={{ type: "spring", stiffness: 320, damping: 22 }}
           className="mb-5"
         >
           {didPass ? (
@@ -372,9 +376,10 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 1, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="hologram-panel rounded-sm p-6 space-y-5"
         >
           <h3 className="font-display text-base font-bold text-foreground leading-snug">{q.text}</h3>

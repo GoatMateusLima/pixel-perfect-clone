@@ -89,7 +89,8 @@ const ToastStack = ({ notifications, onRemove }: { notifications: Notification[]
   <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 items-end">
     <AnimatePresence>
       {notifications.map(n => (
-        <motion.div key={n.id} initial={{ opacity: 0, x: 40, scale: 0.9 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 40, scale: 0.9 }}
+        <motion.div key={n.id} initial={{ opacity: 1, x: 20, scale: 0.98 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 28, scale: 0.96 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className={`flex items-center gap-3 px-4 py-3 rounded-sm border text-sm font-accent font-semibold shadow-xl backdrop-blur-sm
             ${n.type === "success" ? "bg-background/90 border-primary/40 text-primary" : "bg-background/90 border-rose-500/40 text-rose-400"}`}>
           {n.type === "success" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
@@ -103,7 +104,7 @@ const ToastStack = ({ notifications, onRemove }: { notifications: Notification[]
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
 const Panel = ({ title, icon: Icon, accent, children }: { title: string; icon: React.ElementType; accent: string; children: React.ReactNode }) => (
-  <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="hologram-panel rounded-sm overflow-hidden">
+  <motion.div initial={{ opacity: 1, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm overflow-hidden">
     <div className="h-[2px]" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}30)` }} />
     <div className="p-6 sm:p-8">
       <div className="flex items-center gap-3 mb-8">
@@ -132,7 +133,7 @@ const TemaRow = ({ tema, onSave, onDelete }: { tema: Tema; onSave: (t: Tema) => 
   return (
     <AnimatePresence mode="wait">
       {editing ? (
-        <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border border-primary/30 bg-primary/5 rounded-sm p-4 flex flex-col gap-3">
+        <motion.div key="edit" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="border border-primary/30 bg-primary/5 rounded-sm p-4 flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input value={draft.name} onChange={e => setDraft(p => ({ ...p, name: e.target.value }))} placeholder="Nome" className={inlineInputClass} />
             <InlineSelect value={draft.type} onChange={v => setDraft(p => ({ ...p, type: v }))} options={TEMA_TYPES} />
@@ -146,7 +147,7 @@ const TemaRow = ({ tema, onSave, onDelete }: { tema: Tema; onSave: (t: Tema) => 
           </div>
         </motion.div>
       ) : (
-        <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
+        <motion.div key="view" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full border border-primary/20 bg-primary/10 text-primary whitespace-nowrap">{tema.type}</span>
             <span className="text-sm font-display font-bold text-foreground truncate">{tema.name}</span>
@@ -190,7 +191,7 @@ const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas:
   return (
     <AnimatePresence mode="wait">
       {editing ? (
-        <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border border-blue-500/30 bg-blue-500/5 rounded-sm p-4 flex flex-col gap-3">
+        <motion.div key="edit" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="border border-blue-500/30 bg-blue-500/5 rounded-sm p-4 flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input value={draft.name} onChange={e => setDraft(p => ({ ...p, name: e.target.value }))} placeholder="Nome do curso" className={inlineInputClass} />
             <InlineSelect value={draft.difficult} onChange={v => setDraft(p => ({ ...p, difficult: v }))} options={DIFFICULTIES} />
@@ -209,7 +210,7 @@ const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas:
           </div>
         </motion.div>
       ) : (
-        <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
+        <motion.div key="view" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-sm border whitespace-nowrap" style={{ color: diffColor, background: `${diffColor}15`, borderColor: `${diffColor}30` }}>{course.difficult}</span>
             <span className="text-sm font-display font-bold text-foreground truncate">{course.name}</span>
@@ -407,7 +408,7 @@ const AdminPage = () => {
       <div className="relative z-10 pt-32 pb-24 px-4 sm:px-6 max-w-5xl mx-auto">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-14">
+        <motion.div initial={{ opacity: 1, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="mb-14">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-sm flex items-center justify-center bg-primary/10 border border-primary/20">
               <LayoutDashboard size={15} className="text-primary" />
@@ -437,7 +438,7 @@ const AdminPage = () => {
               </Field>
               <AnimatePresence>
                 {temaForm.type && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                     <div className="p-3 rounded-sm border border-border/30 bg-secondary/10 flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-accent font-bold text-muted-foreground uppercase tracking-widest">Preview:</span>
                       <span className="text-xs font-accent font-bold px-2 py-0.5 rounded-full border border-primary/20 bg-primary/10 text-primary">{temaForm.type}</span>
@@ -506,7 +507,7 @@ const AdminPage = () => {
               </Field>
               <AnimatePresence>
                 {selectedTema && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                     <div className="p-3 rounded-sm border border-border/30 bg-secondary/10">
                       <p className="text-[10px] font-accent font-bold text-muted-foreground uppercase tracking-widest mb-1">Tema vinculado</p>
                       <p className="text-sm font-display font-bold text-foreground">{selectedTema.name}</p>
@@ -535,7 +536,7 @@ const AdminPage = () => {
         </div>
 
         {/* Gerenciamento */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-12">
+        <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="mt-12">
           <h2 className="text-xl font-display font-bold text-foreground mb-6">Gerenciar existentes</h2>
 
           <div className="flex gap-1 p-1 rounded-sm bg-secondary/20 border border-border/30 w-fit mb-6">
@@ -553,7 +554,7 @@ const AdminPage = () => {
 
           <AnimatePresence mode="wait">
             {activeTab === "temas" && (
-              <motion.div key="temas-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <motion.div key="temas-tab" initial={{ opacity: 1, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                 {loadingTemas ? (
                   <div className="flex items-center gap-2 py-10 justify-center"><Loader2 size={16} className="animate-spin text-muted-foreground" /><span className="text-sm font-accent text-muted-foreground">Carregando...</span></div>
                 ) : temas.length === 0 ? (
@@ -566,7 +567,7 @@ const AdminPage = () => {
               </motion.div>
             )}
             {activeTab === "courses" && (
-              <motion.div key="courses-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <motion.div key="courses-tab" initial={{ opacity: 1, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                 {loadingCourses ? (
                   <div className="flex items-center gap-2 py-10 justify-center"><Loader2 size={16} className="animate-spin text-muted-foreground" /><span className="text-sm font-accent text-muted-foreground">Carregando...</span></div>
                 ) : courses.length === 0 ? (

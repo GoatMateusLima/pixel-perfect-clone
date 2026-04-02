@@ -37,9 +37,10 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: 20 }} 
+      initial={{ opacity: 1, x: 12 }} 
       animate={{ opacity: 1, x: 0 }} 
-      exit={{ opacity: 0, x: -20 }} 
+      exit={{ opacity: 0, x: -12 }} 
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-5xl mx-auto min-h-[70vh]"
     >
       <button onClick={onBack} className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-8">
@@ -216,9 +217,10 @@ const RoadmapSection = () => {
         {!selectedTema ? (
           <motion.div 
             key="grid-view"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 1, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-7xl mx-auto"
           >
             <div className="max-w-3xl mx-auto text-center mb-16">

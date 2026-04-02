@@ -218,7 +218,8 @@ const AssessmentResultModal = ({
   const scoreEntries = Object.entries(assessment.discScores ?? {}).sort(([, a], [, b]) => (b as number) - (a as number));
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}>
       <motion.div initial={{ scale: 0.92, y: 24 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 24 }}
@@ -576,7 +577,7 @@ const ProfilePage = () => {
 
           {/* COLUNA ESQUERDA */}
           <aside className="hidden lg:flex flex-col gap-4">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="hologram-panel rounded-sm p-4">
+            <motion.div initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2"><Star size={14} className="text-accent" /><span className="font-display text-sm font-bold text-foreground">Nível {currentLevel}</span></div>
                 <span className="text-[10px] font-accent text-muted-foreground">{currentXP} / {xpNextLevel} XP</span>
@@ -605,7 +606,7 @@ const ProfilePage = () => {
 
             <Vagas ringColor={ringColor} discProfile={assessment?.discProfile || "S"} recommendedJobs={vagasDinamicas} />
 
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="hologram-panel rounded-sm p-4">
+            <motion.div initial={{ opacity: 1, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
               <Progress
                 totalCursos={overallProgress.totalCursos}
@@ -626,7 +627,7 @@ const ProfilePage = () => {
           <main className="space-y-6 min-w-0">
 
             {/* Card perfil */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="hologram-panel rounded-sm overflow-hidden">
+            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm overflow-hidden">
               <div className="relative w-full" style={{ height: 130 }}>
                 {displayBanner
                   ? <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
@@ -681,7 +682,8 @@ const ProfilePage = () => {
                       {displayPhoto ? <img src={displayPhoto} alt="Foto" className="w-full h-full object-cover" /> : <User size={28} className="text-muted-foreground" />}
                       <AnimatePresence>
                         {isEditing && hoverPhoto && (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
                             className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full"
                             style={{ background: "rgba(0,0,0,0.6)" }}>
                             <Camera size={16} className="text-white" />
@@ -756,7 +758,7 @@ const ProfilePage = () => {
                 {/* Border picker */}
                 <AnimatePresence>
                   {isEditing && borderPickerOpen && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
+                    <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
                       <div className="rounded-sm p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)" }}>
                         <div className="flex items-center justify-between mb-3">
                           <p className="text-[10px] font-accent text-muted-foreground flex items-center gap-1.5"><Sparkles size={10} /> Escolha sua borda</p>
@@ -808,7 +810,7 @@ const ProfilePage = () => {
                     </div>
                   )}
                   {isEditing && emptySocials.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-sm p-3 flex flex-wrap gap-2" style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
+                    <motion.div initial={{ opacity: 1, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="rounded-sm p-3 flex flex-wrap gap-2" style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
                       <span className="w-full text-[10px] text-muted-foreground font-accent mb-1">Adicionar redes sociais</span>
                       {emptySocials.map(key => {
                         const { Icon, label } = SOCIAL_META[key]; return (
@@ -828,7 +830,7 @@ const ProfilePage = () => {
             <CursosEmAndamento userId={user.id} />
 
             {/* ── MEDALHAS ── */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="hologram-panel rounded-sm p-6">
+            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Trophy size={18} className="text-accent" /> Conquistas</h2>
                 <div className="flex items-center gap-3">
@@ -844,7 +846,7 @@ const ProfilePage = () => {
               </div>
               <AnimatePresence>
                 {isEditing && medalPickerOpen && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-5">
+                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-5">
                     <div className="rounded-sm p-3 space-y-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}>
                       <p className="text-[9px] font-accent text-muted-foreground mb-2">Escolha até 3 medalhas para exibir ({ativasCount}/3)</p>
                       {medalhas.map(ms => {
@@ -874,7 +876,7 @@ const ProfilePage = () => {
                   const Icon = medal.icon;
                   const isHovered = hoveredMedal === medal.id;
                   return (
-                    <motion.div key={medal.id} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + i * 0.07 }}
+                    <motion.div key={medal.id} initial={{ opacity: 1, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.06 + i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                       onMouseEnter={() => setHoveredMedal(medal.id)} onMouseLeave={() => setHoveredMedal(null)}
                       className="relative rounded-sm p-4 flex flex-col items-center text-center transition-all duration-200"
                       style={{ background: isHovered ? medal.bg : `${medal.color}08`, border: `1px solid ${isHovered ? medal.border : medal.color + "20"}`, boxShadow: isHovered ? `0 0 18px ${medal.glow}` : "none" }}>
@@ -894,7 +896,7 @@ const ProfilePage = () => {
             </motion.div>
 
             {/* CERTIFICADOS */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="hologram-panel rounded-sm p-6">
+            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6">
               <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Shield size={18} className="text-primary" /> Certificados</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
@@ -934,7 +936,8 @@ const ProfilePage = () => {
       {/* Social Modal */}
       <AnimatePresence>
         {socialModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 flex items-center justify-center px-4"
             style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
             onClick={() => setSocialModal(null)}>

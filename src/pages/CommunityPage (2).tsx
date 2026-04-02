@@ -384,9 +384,10 @@ const CommunityPage = () => {
               <AnimatePresence>
                 {newPostsCount > 0 && filter === "recentes" && (
                   <motion.div
-                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                    initial={{ opacity: 1, y: -8, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.96 }}
+                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                     className="sticky top-20 z-40 flex justify-center w-full pointer-events-none"
                   >
                     <button
@@ -408,50 +409,71 @@ const CommunityPage = () => {
                 myAvatarUrl={localAvatar}
               />
 
-              {/* Feed de posts */}
-              {loadingPosts ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="hologram-panel rounded-sm p-5 animate-pulse">
-                      <div className="flex gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-secondary/60" />
-                        <div className="flex-1 space-y-2 pt-1">
-                          <div className="h-3 bg-secondary/60 rounded w-1/3" />
-                          <div className="h-2 bg-secondary/40 rounded w-1/4" />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-3 bg-secondary/50 rounded w-full" />
-                        <div className="h-3 bg-secondary/50 rounded w-5/6" />
-                        <div className="h-3 bg-secondary/40 rounded w-3/4" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : sortedPosts.length === 0 ? (
-                <div className="hologram-panel rounded-sm p-10 text-center">
-                  <p className="text-sm text-muted-foreground font-body">
-                    Nenhuma publicação ainda. Seja o primeiro!
-                  </p>
-                </div>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {sortedPosts.map((post, i) => (
+              <div className="relative">
+                <AnimatePresence initial={false}>
+                  {loadingPosts ? (
                     <motion.div
-                      key={post.id}
-                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04 }}>
-                      <PostCard
-                        post={post}
-                        onLike={handleLike}   onSave={handleSave}
-                        onOpenModal={openModal}
-                        myName={myName}
-                        myDisc={myDisc as any}           myDiscRingImg={myDiscRingImg}
-                      />
+                      key="skeletons"
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute inset-0 z-10 space-y-4 pointer-events-none"
+                    >
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="glass-card rounded-3xl border-white/5 shadow-2xl p-7 animate-pulse">
+                          <div className="flex gap-4 mb-6">
+                            <div className="w-[52px] h-[52px] rounded-2xl bg-white/5" />
+                            <div className="flex-1 space-y-3 pt-1">
+                              <div className="h-4 bg-white/10 rounded-lg w-1/3" />
+                              <div className="h-3 bg-white/5 rounded-lg w-1/4" />
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="h-3.5 bg-white/5 rounded-lg w-full" />
+                            <div className="h-3.5 bg-white/5 rounded-lg w-5/6" />
+                            <div className="h-3.5 bg-white/5 rounded-lg w-3/4" />
+                          </div>
+                        </div>
+                      ))}
                     </motion.div>
-                  ))}
+                  ) : sortedPosts.length === 0 ? (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="glass-card rounded-3xl border-white/5 p-10 text-center"
+                    >
+                      <p className="text-sm text-muted-foreground font-body">
+                        Nenhuma publicação ainda. Seja o primeiro!
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="feed"
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-6"
+                    >
+                      {sortedPosts.map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onLike={handleLike}
+                          onSave={handleSave}
+                          onOpenModal={openModal}
+                          myName={myName}
+                          myDisc={myDisc as any}
+                          myDiscRingImg={myDiscRingImg}
+                        />
+                      ))}
+                    </motion.div>
+                  )}
                 </AnimatePresence>
-              )}
+              </div>
 
               {/* A bolinha invisível de carregamento contínuo */}
               {hasMore && filter === "recentes" && (

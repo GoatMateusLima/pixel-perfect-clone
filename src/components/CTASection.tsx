@@ -11,10 +11,11 @@ const CTASection = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
           {/* Left - Plan */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 1, x: -12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="hologram-panel rounded-sm p-8 animate-hologram-flicker"
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="hologram-panel rounded-sm p-8"
           >
             <div className="inline-flex items-center gap-2 text-primary font-accent text-sm font-bold mb-4">
               <Sparkles size={16} />
@@ -43,9 +44,10 @@ const CTASection = () => {
 
           {/* Right - CTA */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 1, x: 12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="text-center md:text-left"
           >
             <h2 className="text-3xl sm:text-4xl font-display font-bold text-glow mb-4">

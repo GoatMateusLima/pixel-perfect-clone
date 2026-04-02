@@ -87,7 +87,7 @@ const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96, y: 8 }}
+      initial={{ opacity: 1, scale: 0.99, y: 6 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, y: 8 }}
       transition={{ duration: 0.15 }}

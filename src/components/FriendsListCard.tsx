@@ -107,9 +107,9 @@ const FriendsListCard = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 20 }}
+      initial={{ opacity: 1, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="rounded-xl overflow-hidden shadow-2xl relative flex flex-col h-full group/main"
       style={{
         background: "rgba(10, 15, 25, 0.6)",
@@ -168,9 +168,9 @@ const FriendsListCard = () => {
             {friends.map((friend, i) => (
               <motion.div
                 key={friend.friend_id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 1, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
+                transition={{ delay: i * 0.03, duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
               >
                 <Link
                   to={friend.username ? `/u/${friend.username}` : `/user/${friend.friend_id}`}

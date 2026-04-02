@@ -40,10 +40,10 @@ export const TemaCard = ({ tema, index, onClick }: TemaCardProps) => {
   return (
     <motion.div
       layout="position"
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 1, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
       className="group relative hologram-panel rounded-sm cursor-pointer overflow-hidden transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
     >

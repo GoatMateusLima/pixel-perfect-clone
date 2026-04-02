@@ -106,6 +106,9 @@
     backdrop-filter: blur(14px);
     border-radius: 1.25rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    isolation: isolate;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   .hologram-panel:hover {
@@ -212,15 +215,6 @@
     position: relative;
     overflow: hidden;
   }
-}
-
-@keyframes hologram-flicker {
-  0%, 100% { opacity: 1; }
-  92% { opacity: 1; }
-  93% { opacity: 0.8; }
-  94% { opacity: 1; }
-  96% { opacity: 0.9; }
-  97% { opacity: 1; }
 }
 
 @keyframes float {

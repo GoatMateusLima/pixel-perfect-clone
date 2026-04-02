@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { PlayCircle, ChevronRight } from "lucide-react";
+import { PlayCircle, ChevronRight, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase";
 
 export interface CourseProgress {
@@ -93,20 +93,30 @@ export const CursosEmAndamento = ({ userId }: { userId: string }) => {
   }, [userId]);
 
   if (loading) return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="hologram-panel rounded-sm p-6">
-      <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-        <PlayCircle size={18} className="text-primary" /> Cursos em Andamento
-      </h2>
-      <div className="space-y-3">
-        {[1, 2].map(i => <div key={i} className="h-16 rounded-sm bg-secondary/30 animate-pulse" />)}
+    <div className="hologram-panel rounded-sm p-6 mb-6">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+          <Loader2 size={18} className="text-primary animate-spin" /> Cursos em Andamento
+        </h2>
       </div>
-    </motion.div>
+      <div className="space-y-3">
+        {[1, 2].map(i => (
+          <div key={i} className="flex items-center gap-4 p-4 rounded-sm border border-border/10 bg-secondary/10 animate-pulse">
+            <div className="shrink-0 w-10 h-10 rounded-sm bg-secondary/20" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 bg-secondary/30 rounded w-1/3" />
+              <div className="h-1.5 bg-secondary/20 rounded w-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 
   if (cursos.length === 0) return null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="hologram-panel rounded-sm p-6 mb-6">
+    <motion.div initial={{ opacity: 1, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6 mb-6">
       <div className="flex items-center justify-between mb-5">
         <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
           <PlayCircle size={18} className="text-primary" /> Cursos em Andamento
@@ -119,7 +129,7 @@ export const CursosEmAndamento = ({ userId }: { userId: string }) => {
           const diffColor = DIFF_COLOR[curso.difficult] ?? "hsl(155 60% 45%)";
           const isConcluido = curso.pct === 100;
           return (
-            <motion.div key={curso.courseId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
+            <div key={curso.courseId}>
               <Link to={`/courses/${curso.courseId}`}
                 className="flex items-center gap-4 p-4 rounded-sm border border-border/20 hover:border-primary/30 hover:bg-primary/5 transition-all group">
                 <div className="shrink-0 w-10 h-10 rounded-sm flex items-center justify-center"
@@ -161,7 +171,7 @@ export const CursosEmAndamento = ({ userId }: { userId: string }) => {
 
                 <ChevronRight size={14} className="shrink-0 text-muted-foreground/40 group-hover:text-primary transition-colors" />
               </Link>
-            </motion.div>
+            </div>
           );
         })}
       </div>

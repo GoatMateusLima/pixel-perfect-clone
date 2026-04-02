@@ -441,7 +441,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
                     <div className="flex-1 h-px bg-border/20" />
                   </div>
                 )}
-                <motion.div initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className={`flex items-end gap-1.5 w-full ${isMe ? "justify-end" : "justify-start"} ${isLastOfGroup ? "mb-2" : "mb-0.5"}`}>
+                <motion.div initial={{ opacity: 1, y: 4, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }} className={`flex items-end gap-1.5 w-full ${isMe ? "justify-end" : "justify-start"} ${isLastOfGroup ? "mb-2" : "mb-0.5"}`}>
                   {!isMe && <div className="w-5 shrink-0">{isLastOfGroup && <Avatar src={chat.avatar} name={chat.name} size={20} />}</div>}
                   <div className={`max-w-[75%] flex flex-col min-w-0 ${isMe ? "items-end" : "items-start"}`}>
                     <div className={`px-3 py-2 text-xs font-body leading-relaxed whitespace-pre-wrap break-words ${isMe ? "rounded-t-2xl rounded-bl-2xl rounded-br-sm text-white" : "rounded-t-2xl rounded-br-2xl rounded-bl-sm text-foreground"}`}
@@ -469,9 +469,10 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
       <AnimatePresence>
         {isTyping && (
           <motion.div
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 1, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="px-3 pb-1 flex items-center gap-2"
           >
             <div className="relative shrink-0">
@@ -560,7 +561,7 @@ const OrionChatPanel = () => {
     <div className="flex flex-col h-full bg-background/5">
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(215 60% 45% / 0.2) transparent" }}>
         {messages.map((msg, i) => (
-          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0.2 : 0 }}
+          <motion.div key={msg.id} initial={{ opacity: 1, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0 : 0, duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-white relative overflow-hidden"
               style={msg.role === "assistant"
@@ -578,7 +579,7 @@ const OrionChatPanel = () => {
           </motion.div>
         ))}
         {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="flex gap-2">
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-white"
               style={{ background: "radial-gradient(circle at 35% 35%, hsl(215 60% 45%), hsl(215 60% 25%))" }}><Bot size={14} /></div>
             <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5" style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(215 60% 45% / 0.2)" }}>
@@ -789,7 +790,7 @@ const MessengerWidget = () => {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div key="messenger-panel" initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} className="fixed bottom-6 right-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(155 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(155 60% 45% / 0.1)" }}>
+          <motion.div key="messenger-panel" initial={{ opacity: 1, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.97 }} transition={{ type: "spring", stiffness: 420, damping: 32 }} className="fixed bottom-6 right-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(155 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(155 60% 45% / 0.1)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/25" style={{ background: "hsl(215 30% 12%)" }}>
               <div className="flex items-center gap-2">
                 {view === "chat" && activeChat ? (
@@ -807,8 +808,8 @@ const MessengerWidget = () => {
             </div>
             <div className="flex-1 overflow-hidden">
               <AnimatePresence mode="wait">
-                {view === "list" ? <motion.div key="list" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} className="h-full"><ConversationList onSelectChat={openChat} myId={user.id} refreshKey={listRefreshKey} /></motion.div>
-                  : <motion.div key="chat" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.18 }} className="h-full">{activeChat && <ChatWindow chat={activeChat} myId={user.id} onBack={() => goBackToList(activeChat.userId)} />}</motion.div>}
+                {view === "list" ? <motion.div key="list" initial={{ opacity: 1, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="h-full"><ConversationList onSelectChat={openChat} myId={user.id} refreshKey={listRefreshKey} /></motion.div>
+                  : <motion.div key="chat" initial={{ opacity: 1, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="h-full">{activeChat && <ChatWindow chat={activeChat} myId={user.id} onBack={() => goBackToList(activeChat.userId)} />}</motion.div>}
               </AnimatePresence>
             </div>
           </motion.div>
@@ -817,7 +818,7 @@ const MessengerWidget = () => {
 
       <AnimatePresence>
         {isAiOpen && (
-          <motion.div key="ai-panel" initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ type: "spring", stiffness: 380, damping: 30 }} className="fixed bottom-6 left-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(215 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(215 60% 45% / 0.1)" }}>
+          <motion.div key="ai-panel" initial={{ opacity: 1, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.97 }} transition={{ type: "spring", stiffness: 420, damping: 32 }} className="fixed bottom-6 left-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(215 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(215 60% 45% / 0.1)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/25" style={{ background: "hsl(215 30% 12%)" }}>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[hsl(215,60%,55%)] animate-pulse" style={{ boxShadow: "0 0 6px hsl(215 60% 45%)" }} /><span className="text-xs font-accent font-semibold text-foreground tracking-wide">Orion AI</span>
@@ -835,9 +836,10 @@ const MessengerWidget = () => {
       <AnimatePresence>
         {notification && (
           <motion.div
-            initial={{ opacity: 0, x: 40, scale: 0.9 }}
+            initial={{ opacity: 1, x: 20, scale: 0.98 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 40, scale: 0.9 }}
+            exit={{ opacity: 0, x: 28, scale: 0.96 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             onClick={() => {
               openChat({ userId: notification.senderId, name: notification.name, avatar: notification.avatar });
               setIsOpen(true);

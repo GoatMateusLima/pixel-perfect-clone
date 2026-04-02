@@ -34,8 +34,6 @@ export const CourseCard = ({ course, onClick }: CourseCardProps) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.01 }}
       transition={{ duration: 0.2 }}
       onClick={handleClick}

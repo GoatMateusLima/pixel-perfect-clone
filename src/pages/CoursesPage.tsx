@@ -110,8 +110,9 @@ const AulaTab = ({
     <div className="space-y-4 max-w-3xl">
       <motion.div
         key={aula.id}
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 1, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm overflow-hidden"
       >
         {/* Video */}
@@ -166,9 +167,9 @@ const AulaTab = ({
 
       {/* Mini lista de aulas — mobile */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 1, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
+        transition={{ delay: 0.06, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-4 lg:hidden"
       >
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -296,7 +297,7 @@ const DuvidasTab = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="hologram-panel rounded-sm p-5">
+      <motion.div initial={{ opacity: 1, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-5">
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <MessageCircleQuestion size={14} className="text-primary" /> Enviar uma Dúvida
         </h3>
@@ -335,72 +336,93 @@ const DuvidasTab = () => {
         <span className="ml-auto text-xs text-muted-foreground/50 font-body">{doubts.length} {doubts.length === 1 ? "dúvida" : "dúvidas"}</span>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="hologram-panel rounded-sm p-4 animate-pulse">
-              <div className="flex gap-3">
-                <div className="w-9 h-9 rounded-full bg-secondary/60 shrink-0" />
-                <div className="flex-1 space-y-2 pt-1">
-                  <div className="h-3 bg-secondary/60 rounded w-1/4" />
-                  <div className="h-3 bg-secondary/50 rounded w-full" />
-                  <div className="h-3 bg-secondary/40 rounded w-4/5" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : sorted.length === 0 ? (
-        <div className="hologram-panel rounded-sm p-10 text-center">
-          <p className="text-sm text-muted-foreground font-body">Nenhuma dúvida ainda. Seja o primeiro!</p>
-        </div>
-      ) : (
-        <AnimatePresence mode="popLayout">
-          {sorted.map((doubt, i) => (
+      <div className="relative min-h-[400px]">
+        <AnimatePresence initial={false}>
+          {loading ? (
             <motion.div
-              key={doubt.id} layout
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ delay: i * 0.04 }}
-              className="hologram-panel rounded-sm p-4 cursor-pointer hover:border-primary/30 transition-all"
-              onClick={() => setOpenDoubt(doubt)}
+              key="loading-doubts"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 z-10 space-y-4 pointer-events-none"
             >
-              <div className="flex gap-3">
-                <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
-                  style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
-                  {doubt.profile?.avatar_url
-                    ? <img src={doubt.profile.avatar_url} alt={doubt.profile.name} className="w-full h-full object-cover" />
-                    : getInitialLetter(doubt.profile?.name)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-xs font-accent font-semibold text-foreground">{doubt.profile?.name ?? "Usuário"}</span>
-                    {doubt.profile?.role && <span className="text-[10px] text-muted-foreground font-body">{doubt.profile.role}</span>}
-                    <span className="text-[10px] text-muted-foreground/50 font-body ml-auto">
-                      {doubt.date ? new Date(doubt.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : ""}
-                    </span>
-                  </div>
-                  <p className="text-sm text-foreground/85 font-body leading-relaxed line-clamp-3 mb-3">{doubt.description}</p>
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleLike(doubt.id)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
-                      style={doubt.liked ? { color: "hsl(5 80% 60%)" } : { color: "hsl(215 15% 50%)" }}>
-                      <motion.span animate={doubt.liked ? { scale: [1, 1.5, 1] } : { scale: 1 }} transition={{ duration: 0.35 }} style={{ display: "flex" }}>
-                        <Heart size={13} style={doubt.liked ? { fill: "hsl(5 80% 60%)", color: "hsl(5 80% 60%)" } : {}} />
-                      </motion.span>
-                      <span>{doubt.like_qnt}</span>
-                    </button>
-                    <button onClick={() => setOpenDoubt(doubt)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
-                      style={{ color: "hsl(215 15% 50%)" }}>
-                      <MessageCircle size={13} /><span>Responder</span>
-                    </button>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="hologram-panel rounded-sm p-5 animate-pulse">
+                  <div className="flex gap-4">
+                    <div className="w-9 h-9 rounded-full bg-white/5 shrink-0" />
+                    <div className="flex-1 space-y-3 pt-1">
+                      <div className="h-3.5 bg-white/10 rounded w-1/4" />
+                      <div className="h-3 bg-white/5 rounded w-full" />
+                      <div className="h-3 bg-white/5 rounded w-4/5" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </motion.div>
-          ))}
+          ) : sorted.length === 0 ? (
+            <motion.div
+              key="empty-doubts"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="hologram-panel rounded-sm p-12 text-center"
+            >
+              <p className="text-sm text-muted-foreground font-body">Nenhuma dúvida ainda. Seja o primeiro!</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="doubts-list"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              {sorted.map((doubt) => (
+                <div
+                  key={doubt.id}
+                  className="hologram-panel rounded-sm p-5 cursor-pointer hover:border-primary/30 transition-all border-white/5"
+                  onClick={() => setOpenDoubt(doubt)}
+                >
+                  <div className="flex gap-4">
+                    <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
+                      style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
+                      {doubt.profile?.avatar_url
+                        ? <img src={doubt.profile.avatar_url} alt={doubt.profile.name} className="w-full h-full object-cover" />
+                        : getInitialLetter(doubt.profile?.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span className="text-xs font-accent font-bold text-foreground">{doubt.profile?.name ?? "Usuário"}</span>
+                        {doubt.profile?.role && <span className="text-[10px] text-muted-foreground font-body">{doubt.profile.role}</span>}
+                        <span className="text-[10px] text-muted-foreground/50 font-body ml-auto">
+                          {doubt.date ? new Date(doubt.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : ""}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-foreground/85 font-body leading-relaxed line-clamp-3 mb-4">{doubt.description}</p>
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => handleLike(doubt.id)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-accent font-bold transition-all bg-white/[0.03] hover:bg-white/10"
+                          style={doubt.liked ? { color: "hsl(5 80% 60%)", background: "hsl(5 80% 60% / 0.1)" } : { color: "hsl(215 15% 60%)" }}>
+                          <motion.span animate={doubt.liked ? { scale: [1, 1.4, 1] } : { scale: 1 }} transition={{ duration: 0.3 }}>
+                            <Heart size={14} style={doubt.liked ? { fill: "hsl(5 80% 60%)" } : {}} />
+                          </motion.span>
+                          <span>{doubt.like_qnt}</span>
+                        </button>
+                        <button onClick={() => setOpenDoubt(doubt)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-accent font-bold transition-all bg-white/[0.03] hover:bg-white/10 text-muted-foreground hover:text-foreground">
+                          <MessageCircle size={14} /><span>Responder</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
         </AnimatePresence>
-      )}
+      </div>
 
       {openDoubt && (
         <PostModal
@@ -764,7 +786,7 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}>
         {messages.map((msg, i) => (
-          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0.2 : 0 }}
+          <motion.div key={msg.id} initial={{ opacity: 1, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0 : 0, duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={msg.role === "assistant"
@@ -782,7 +804,7 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
           </motion.div>
         ))}
         {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="flex gap-2">
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={{ background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)" }}>IA</div>
             <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5" style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(155 60% 45% / 0.2)" }}>
@@ -1066,8 +1088,8 @@ const CoursesPage = () => {
             </div>
 
             <AnimatePresence mode="wait">
-              <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }} style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
+              <motion.div key={activeTab} initial={{ opacity: 1, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
                 {activeTab === "aula" && (
                   loadingAulas ? (
                     <div className="flex items-center gap-2 py-12">
@@ -1117,7 +1139,7 @@ const CoursesPage = () => {
         <AnimatePresence initial={false}>
           {showRoadmap && (
             <motion.div key="roadmap-col"
-              initial={{ width: 0, opacity: 0 }} animate={{ width: "50%", opacity: 1 }} exit={{ width: 0, opacity: 0 }}
+              initial={{ width: 0, opacity: 1 }} animate={{ width: "50%", opacity: 1 }} exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
               className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden shrink-0"
               style={{ minWidth: 0 }}>
@@ -1180,8 +1202,8 @@ const CoursesPage = () => {
       <AnimatePresence>
         {showChat && (
           <motion.div key="chat-drawer"
-            initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+            initial={{ opacity: 1, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
             className="fixed z-40 flex flex-col overflow-hidden"
             style={{ bottom: 92, right: 28, width: 360, height: 480, background: "hsl(215 28% 9%)", border: "1px solid hsl(155 60% 45% / 0.3)", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 30px hsl(155 60% 45% / 0.12)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/40" style={{ background: "hsl(215 28% 11%)" }}>

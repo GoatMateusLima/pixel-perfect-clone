@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import logoUrl from "@/assets/logo/logo.png";
 
@@ -28,10 +28,12 @@ const fadeItem = {
 function InitialLoadingScreen() {
   return (
     <motion.div
+      key="initial-loader"
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
     >
       {/* Vinhetas suaves nas cores do logo */}
       <div
@@ -115,9 +117,15 @@ function InitialLoadingScreen() {
 export default function AppBootstrapShell({ children }: { children: ReactNode }) {
   const { loading } = useAuth();
 
-  if (loading) {
-    return <InitialLoadingScreen />;
-  }
-
-  return <>{children}</>;
+  return (
+    <AnimatePresence mode="wait">
+      {loading ? (
+        <InitialLoadingScreen key="loader" />
+      ) : (
+        <motion.div key="app-content" initial={{ opacity: 1 }} animate={{ opacity: 1 }}>
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
