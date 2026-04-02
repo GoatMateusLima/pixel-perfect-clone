@@ -66,124 +66,56 @@ export function useRanking(currentUserId?: string): UseRankingReturn {
       setLoading(true);
 
       try {
-        // 1. Busca todas as aulas concluídas
-        const { data: progressData, error: progressErr } = await supabase
-          .from("lesson_progress")
-          .select("user_id, aula_id")
-          .eq("completed", true);
-
-        if (progressErr || !progressData || progressData.length === 0) {
-          if (!cancelled) {
-            setRanking([]);
-            setMyRank(null);
-            setMyXP(0);
-            setLoading(false);
-          }
-          return;
-        }
-
-        // 2. IDs únicos de aulas concluídas
-        const aulaIds = [...new Set(progressData.map((p) => p.aula_id))];
-
-        // 3. Busca info de cada aula → course_id
-        const { data: aulasData, error: aulasErr } = await supabase
-          .from("aulas")
-          .select("id, course_id")
-          .in("id", aulaIds);
-
-        if (aulasErr || !aulasData) {
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
-        // Mapa: aula_id → course_id
-        const aulaToCourse = new Map<number, string>();
-        for (const a of aulasData) {
-          aulaToCourse.set(Number(a.id), a.course_id);
-        }
-
-        // 4. IDs únicos de cursos
-        const courseIds = [...new Set(aulasData.map((a) => a.course_id))];
-
-        // 5. Busca dificuldade de cada curso
-        const { data: coursesData, error: coursesErr } = await supabase
-          .from("courses")
-          .select("id, difficult")
-          .in("id", courseIds);
-
-        if (coursesErr || !coursesData) {
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
-        // Mapa: course_id → difficult
-        const courseDifficult = new Map<string, string>();
-        for (const c of coursesData) {
-          courseDifficult.set(c.id, c.difficult ?? "Iniciante");
-        }
-
-        // 6. Calcula XP por usuário
-        const userXPMap = new Map<string, number>();
-
-        for (const progress of progressData) {
-          const courseId = aulaToCourse.get(Number(progress.aula_id));
-          if (!courseId) continue;
-
-          const difficult = courseDifficult.get(courseId) ?? "Iniciante";
-          const xp = XP_MAP[difficult] ?? 1;
-
-          const currentXP = userXPMap.get(progress.user_id) ?? 0;
-          userXPMap.set(progress.user_id, currentXP + xp);
-        }
-
-        // 7. Busca perfis dos usuários
-        const userIds = [...userXPMap.keys()];
-
-        const { data: profilesData } = await supabase
+        // 1. Busca perfis ordenados por XP (muito mais eficiente)
+        const { data: profilesData, error: profErr } = await supabase
           .from("profiles")
-          .select("user_id, name, perfil, disc_profile, bordas")
-          .in("user_id", userIds);
+          .select("user_id, name, perfil, disc_profile, bordas, total_xp")
+          .order("total_xp", { ascending: false })
+          .limit(50); // Limitamos aos top 50 para performance
 
-        const profileMap = new Map<string, ProfileData>();
-        if (profilesData) {
-          for (const p of profilesData as unknown as ProfileData[]) {
-            profileMap.set(p.user_id, p);
-          }
+        if (profErr || !profilesData) {
+          if (!cancelled) setLoading(false);
+          return;
         }
 
-        // 8. Monta lista rankeada
-        const rankedList: RankedUser[] = userIds
-          .map((userId) => {
-            const profile = profileMap.get(userId);
-            const bordaAtiva = (profile?.bordas ?? []).find(
-              (b) => b.ativa
-            );
+        // 2. Monta lista rankeada
+        const rankedList: RankedUser[] = profilesData.map((p: any, i: number) => {
+          const bordaAtiva = (p.bordas ?? []).find((b: any) => b.ativa);
 
-            return {
-              user_id: userId,
-              name: profile?.name ?? "Usuário",
-              avatar_url: profile?.perfil ?? undefined,
-              disc_ring_img: bordaAtiva?.img_url ?? undefined,
-              disc: profile?.disc_profile ?? undefined,
-              total_xp: userXPMap.get(userId) ?? 0,
-              rank: 0,
-            };
-          })
-          .sort((a, b) => b.total_xp - a.total_xp);
-
-        // Atribui posição no ranking
-        rankedList.forEach((u, i) => {
-          u.rank = i + 1;
+          return {
+            user_id: p.user_id,
+            name: p.name ?? "Usuário",
+            avatar_url: p.perfil ?? undefined,
+            disc_ring_img: bordaAtiva?.img_url ?? undefined,
+            disc: p.disc_profile ?? undefined,
+            total_xp: Number(p.total_xp) || 0,
+            rank: i + 1,
+          };
         });
 
         if (!cancelled) {
           setRanking(rankedList);
 
-          // Posição e XP do usuário atual
+          // Posição e XP do usuário atual (se não estiver no top 50, buscamos o dele separado)
           if (currentUserId) {
             const me = rankedList.find((u) => u.user_id === currentUserId);
-            setMyRank(me?.rank ?? null);
-            setMyXP(me?.total_xp ?? 0);
+            if (me) {
+              setMyRank(me.rank);
+              setMyXP(me.total_xp);
+            } else {
+              // Busca o XP dele se não estiver no TOP 50
+              const { data: myData } = await supabase
+                .from("profiles")
+                .select("total_xp")
+                .eq("user_id", currentUserId)
+                .maybeSingle();
+              
+              if (myData) {
+                setMyXP(Number(myData.total_xp) || 0);
+                // O rank ficaria difícil de saber sem contar todos, mas deixamos null
+                setMyRank(null);
+              }
+            }
           }
 
           setLoading(false);

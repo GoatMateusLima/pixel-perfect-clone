@@ -187,8 +187,8 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
           <Loader2 size={32} className="animate-spin text-primary" style={{ filter: "drop-shadow(0 0 8px hsl(155 60% 45% / 0.6))" }} />
           <Sparkles size={14} className="absolute -top-1 -right-1 text-primary animate-pulse" />
         </div>
-        <p className="text-sm font-accent text-muted-foreground">
-          {generating ? "Gerando questões com IA..." : "Carregando quiz da aula..."}
+        <p className="text-sm font-accent text-muted-foreground uppercase tracking-widest">
+          {generating ? "Consultando ORION..." : "Carregando quiz da aula..."}
         </p>
         {generating && (
           <p className="text-xs text-muted-foreground/60 font-body text-center max-w-xs">
@@ -283,7 +283,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         {attempt > 1 && !didPass && (
           <p className="text-xs text-muted-foreground font-body mb-1">
             Tentativa <span className="text-accent font-semibold">#{attempt}</span>
-            {topic ? " — Novas questões geradas pela IA." : " — As questões foram embaralhadas."}
+            {topic ? " — Novas questões geradas pelo ORION." : " — As questões foram embaralhadas."}
           </p>
         )}
 
@@ -307,7 +307,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
 
         {topic && (
           <p className="text-xs text-muted-foreground/50 font-accent mb-4 flex items-center justify-center gap-1">
-            <Sparkles size={10} /> Questões geradas por IA com base no tópico da aula
+            <Sparkles size={10} /> Questões criadas pelo ORION com base no tópico da aula
           </p>
         )}
 
@@ -349,7 +349,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         {!didPass && (
           <p className="text-xs text-muted-foreground font-body mt-4">
             {topic
-              ? "Novas questões serão geradas pela IA na próxima tentativa."
+              ? "Novas questões serão preparadas pelo ORION na próxima tentativa."
               : "As questões serão embaralhadas na próxima tentativa."}
           </p>
         )}
@@ -371,7 +371,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         <div className="flex items-center gap-3">
           {topic && (
             <span className="text-xs font-accent text-muted-foreground/50 flex items-center gap-1">
-              <Sparkles size={10} /> IA
+              <Sparkles size={10} /> ORION
             </span>
           )}
           <span className="text-xs font-accent text-muted-foreground">
