@@ -13,6 +13,7 @@ import { useLocation } from "react-router-dom";
 import supabase from "../../utils/supabase";
 import { fetchAcceptedFriends } from "../../utils/friends";
 import { useAuth } from "@/contexts/AuthContext";
+import { groqChatCompletion } from "@/lib/apiProxy";
 import notificacaoSfx from "../assets/SFX/notificacao.mp3";
 
 
@@ -538,19 +539,14 @@ const OrionChatPanel = () => {
     setInput("");
     setLoading(true);
     scrollToBottom();
-    const AI_KEY = import.meta.env.VITE_AI_KEY;
     try {
-      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role, content: m.text }));
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
-        body: JSON.stringify({
+      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role as "user" | "assistant", content: m.text }));
+      const reply =
+        (await groqChatCompletion({
           model: "llama-3.1-8b-instant",
           messages: [{ role: "system", content: ORION_PROMPT }, ...history, { role: "user", content: trimmed }],
-        }),
-      });
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || data.error?.message || "Desculpe, a conexão com meus núcleos falhou agora.";
+          temperature: 0.3,
+        })) ?? "Desculpe, a conexão com meus núcleos falhou agora.";
       setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: reply, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }]);
     } catch {
       setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar. Tente novamente.", ts: "agora" }]);

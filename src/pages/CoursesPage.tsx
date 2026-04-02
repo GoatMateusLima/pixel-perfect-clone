@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import Header from "@/components/Header";
 import QuizTab, { QuizQuestion } from "../components/Quiztab";
 import { useAuth } from "@/contexts/AuthContext";
+import { groqChatCompletion } from "@/lib/apiProxy";
 import supabase from "../../utils/supabase.ts";
 import PostModal from "../components/PostModal";
 import {
@@ -753,8 +754,6 @@ Aula atual: ${lessonName}
 Descrição do conteúdo: ${lessonDescription || "O aluno está assistindo a um vídeo sobre este tema."}
 `;
 
-const AI_KEY = import.meta.env.VITE_AI_KEY;
-
 interface AIChatPanelProps {
   courseName: string;
   aula: Aula | null;
@@ -782,24 +781,19 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
     scrollToBottom();
     
     try {
-      // Injetando as variáveis aula.nome e aula.descricao direto do banco de dados
       const dynamicPrompt = generateSystemPrompt(
         courseName || "Curso não identificado",
         aula?.nome || "Aula não identificada",
         aula?.descricao || "Nenhuma descrição fornecida para esta aula."
       );
 
-      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role, content: m.text }));
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
-        body: JSON.stringify({
+      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role as "user" | "assistant", content: m.text }));
+      const reply =
+        (await groqChatCompletion({
           model: "llama-3.1-8b-instant",
           messages: [{ role: "system", content: dynamicPrompt }, ...history, { role: "user", content: trimmed }],
-        }),
-      });
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || data.error?.message || "Desculpe, não consegui responder agora.";
+          temperature: 0.3,
+        })) ?? "Desculpe, não consegui responder agora.";
       setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: reply, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }]);
     } catch {
       setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar com a IA. Tente novamente.", ts: "agora" }]);
