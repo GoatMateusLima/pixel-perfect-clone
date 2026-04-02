@@ -454,11 +454,13 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const RoadmapPanel = ({
   aulas,
   activeIndex,
+  passedIndexes,
   courseName,
   onSelectIndex,
 }: {
   aulas: Aula[];
   activeIndex: number;
+  passedIndexes: Set<number>;
   courseName: string;
   onSelectIndex: (index: number) => void;
 }) => {
@@ -500,15 +502,6 @@ const RoadmapPanel = ({
     return d;
   })();
 
-  const vSegments = aulas.slice(1).map((_, i) => {
-    const p0 = vNodePos[i];
-    const p1 = vNodePos[i + 1];
-    const dy = (p1.y - p0.y) * 0.5;
-    const d = `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
-    const lit = i <= activeIndex;
-    return { d, lit, key: i + 1 };
-  });
-
   const PIN_COLORS = {
     done:   "hsl(155 60% 42%)",
     active: "hsl(25 90% 55%)",
@@ -516,11 +509,40 @@ const RoadmapPanel = ({
     last:   "hsl(45 90% 55%)",
   };
 
-  const getStatus = (i: number) =>
-    i < activeIndex ? "done" : i === activeIndex ? "active" : "locked";
+  // Lógica de status: 
+  // 1. Passou no quiz/aula? -> done (Verde)
+  // 2. É o índice que o usuário está visualizando? -> active (Laranja)
+  // 3. O anterior foi passado ou é o que o usuário parou? -> liberado
+  // 4. Caso contrário -> locked (Cinza)
+  // Lógica de status refinada: 
+  // 1. Passou no quiz/aula? -> done (Verde)
+  // 2. Disponível para clicar? -> active (Laranja) - Se for a primeira ou a anterior estiver feita
+  // 3. Caso contrário -> locked (Cinza)
+  const getStatus = (i: number) => {
+    if (passedIndexes.has(i)) return "done";
+    
+    // A aula está desbloqueada se for a primeira OU se a anterior foi concluída
+    const unlocked = i === 0 || passedIndexes.has(i - 1);
+    if (unlocked) return "active";
 
-  const doneCount = activeIndex;
-  const progressPct = aulas.length > 1 ? Math.round((doneCount / (aulas.length - 1)) * 100) : 0;
+    return "locked";
+  };
+
+  const vSegments = aulas.slice(1).map((_, i) => {
+    const p0 = vNodePos[i];
+    const p1 = vNodePos[i + 1];
+    const dy = (p1.y - p0.y) * 0.5;
+    const d = `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
+    
+    // Segmento aceso se a nota de destino estiver desbloqueada
+    const statusP1 = getStatus(i + 1);
+    const lit = statusP1 !== "locked"; 
+    
+    return { d, lit, key: i + 1 };
+  });
+
+  const doneCount = passedIndexes.size;
+  const progressPct = aulas.length > 0 ? Math.round((doneCount / aulas.length) * 100) : 0;
 
   return (
     <div ref={containerRef} className="relative flex flex-col overflow-hidden" style={{ height: "calc(100vh - 108px)" }}>
@@ -535,7 +557,7 @@ const RoadmapPanel = ({
         </h2>
         <div className="mt-2">
           <div className="flex justify-between text-xs font-accent text-muted-foreground mb-1">
-            <span>Progresso</span>
+            <span>Concluído</span>
             <span className="text-primary font-bold">{doneCount} / {aulas.length}</span>
           </div>
           <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
@@ -554,7 +576,7 @@ const RoadmapPanel = ({
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative"
         style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}>
         <div className="relative" style={{ height: totalH, width: "100%" }}>
-          <svg className="absolute inset-0 pointer-events-none" width="100%" height={totalH}>
+          <svg className="absolute inset-0" width="100%" height={totalH} style={{ pointerEvents: "none" }}>
             <defs>
               <filter id="vRoadGlow" x="-30%" y="-10%" width="160%" height="120%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -586,31 +608,52 @@ const RoadmapPanel = ({
               </circle>
             ))}
 
+            <AnimatePresence>
+              {vNodePos[activeIndex] && (
+                <motion.foreignObject
+                  key={`agent-obj-${activeIndex}`}
+                  initial={{ opacity: 0, scale: 0.5, x: vNodePos[activeIndex].x, y: vNodePos[activeIndex].y }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1,
+                    x: vNodePos[activeIndex].x + (vNodePos[activeIndex].x > midX ? 45 : -85), 
+                    y: vNodePos[activeIndex].y - 65
+                  }}
+                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                  width="40"
+                  height="50"
+                  className="pointer-events-none z-30"
+                >
+                  <img src="/agentMais.webp" className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" alt="Agent" />
+                </motion.foreignObject>
+              )}
+            </AnimatePresence>
+
             {aulas.map((aula, index) => {
               const { x, y } = vNodePos[index];
               const isLast = isLastNode(index);
               const status = getStatus(index);
-              const isDone   = status === "done";
-              const isActive = status === "active";
-              const isLocked = status === "locked";
               const isSelected = index === activeIndex;
               const isHovered  = hoveredId === index;
-              const pinColor = isLast ? PIN_COLORS.last : PIN_COLORS[status];
+              const isLocked = status === "locked";
+              const isDone = status === "done";
+              
+              const pinColor = isLast ? PIN_COLORS.last : (isSelected ? PIN_COLORS.active : (isDone ? PIN_COLORS.done : (status === "locked" ? PIN_COLORS.locked : PIN_COLORS.active)));
               const isOnRight = x > midX;
               const pinW = isLast ? 44 : 36;
               const pinH = isLast ? 54 : 46;
               const pinX = isOnRight ? x + 10 : x - 10;
               const pinTop = y - pinH - 2;
-              const icon = isLocked ? "🔒" : isDone ? "✅" : isActive ? "▶️" : "🏆";
+              const icon = isLocked ? "🔒" : isDone ? "✅" : "▶️";
 
               return (
                 <g key={aula.id}
                   onClick={() => !isLocked && onSelectIndex(index)}
                   onMouseEnter={() => setHoveredId(index)}
                   onMouseLeave={() => setHoveredId(null)}
-                  style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
+                  style={{ cursor: isLocked ? "not-allowed" : "pointer", pointerEvents: "auto" }}
                 >
-                  {(isActive || isSelected) && !isLast && (
+                  {(isSelected) && !isLast && (
                     <circle cx={x} cy={y} r="13" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
                       <animate attributeName="r" values="12;22;12" dur="1.8s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
@@ -665,7 +708,7 @@ const RoadmapPanel = ({
             const isLast = isLastNode(index);
             const status = getStatus(index);
             const isDone   = status === "done";
-            const isActive = status === "active";
+            const isActive = status === "active" || index === activeIndex;
             const isSelected = index === activeIndex;
             const isOnRight = x > midX;
             const pinH = isLast ? 54 : 46;
@@ -702,7 +745,7 @@ const SUGGESTIONS = [
 
 // O Novo Prompt Dinâmico
 const generateSystemPrompt = (courseName: string, lessonName: string, lessonDescription: string) => `
-Você é um Professor Auxiliar Virtual de uma plataforma educacional. Sua função é ler o material didático da página em que foi acionado, compreender o assunto e ajudar os alunos a tirarem suas dúvidas sobre aquele tema específico de forma clara, paciente e didática.
+Você é ORION, o Professor e Tutor de Programação Oficial da plataforma UpJobs! Sua função é ser um assistente hiper-didático...
 
 Sua tarefa é analisar o [CONTEÚDO DA PÁGINA] e a [PERGUNTA DO ALUNO] e decidir como responder.
 
@@ -741,7 +784,7 @@ interface AIChatPanelProps {
 const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: 0, role: "assistant",
-    text: "Olá! Sou seu tutor de programação. Pergunte qualquer coisa sobre o conteúdo da trilha 🚀",
+    text: "Olá estudante! Sou o ORION 🌌 seu tutor pessoal nesta jornada. Tem alguma dúvida sobre o conteúdo desta aula?",
     ts: "agora",
   }]);
   const [input, setInput] = useState("");
@@ -792,7 +835,7 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
               style={msg.role === "assistant"
                 ? { background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }
                 : { background: "hsl(215 25% 22%)", color: "hsl(215 50% 70%)", border: "1px solid hsl(215 25% 32%)" }}>
-              {msg.role === "assistant" ? "IA" : "EU"}
+              {msg.role === "assistant" ? "ORION" : "EU"}
             </div>
             <div className="max-w-[80%] px-3 py-2 rounded-sm text-xs font-body leading-relaxed"
               style={msg.role === "assistant"
@@ -881,49 +924,8 @@ const CoursesPage = () => {
             last_aula_id: aulaAtual.id,
           }, { onConflict: 'user_id,course_id' });
 
-        // Verifica se essa aula já foi concluída antes (para não duplicar XP)
-        const { data: existing } = await supabase
-          .from('lesson_progress')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('aula_id', aulaAtual.id)
-          .eq('completed', true)
-          .maybeSingle();
-
-        await supabase
-          .from('lesson_progress')
-          .upsert({
-            user_id: user.id,
-            aula_id: aulaAtual.id,
-            completed: true,
-            completed_at: new Date().toISOString()
-          }, { onConflict: 'user_id,aula_id' });
-
-        // Se é a primeira vez completando essa aula, incrementa o XP no perfil
-        if (!existing) {
-          const XP_MAP: Record<string, number> = {
-            "Iniciante": 1,
-            "Intermediário": 2.5,
-            "Avançado": 5,
-          };
-          const xpGanho = XP_MAP[courseInfo?.difficult ?? "Iniciante"] ?? 1;
-
-          // Busca XP atual e incrementa
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('total_xp')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          const novoXP = (Number(prof?.total_xp) || 0) + xpGanho;
-
-          await supabase
-            .from('profiles')
-            .upsert({
-              user_id: user.id,
-              total_xp: novoXP,
-            }, { onConflict: 'user_id' });
-        }
+        // Apenas salva que o usuário visualizou a aula (watch), sem marcar como completado ainda.
+        // A marcação de 'completed' e ganho de XP agora ocorre no handleQuizPass.
 
       } catch (err) {
         console.error("Erro ao processar progresso:", err);
@@ -1016,8 +1018,50 @@ const CoursesPage = () => {
     })();
   }, [aulas, activeIndex]);
 
-  const handleQuizPass = () => {
+  const handleQuizPass = async () => {
     setPassedIndexes(prev => new Set([...prev, activeIndex]));
+    
+    const aulaAtual = aulas[activeIndex];
+    if (!aulaAtual || !user) return;
+
+    try {
+      // 1. Verifica se já foi completado
+      const { data: existing } = await supabase
+        .from('lesson_progress')
+        .select('completed')
+        .eq('user_id', user.id)
+        .eq('aula_id', aulaAtual.id)
+        .maybeSingle();
+
+      if (!existing?.completed) {
+        // 2. Marca como completo
+        await supabase
+          .from('lesson_progress')
+          .upsert({
+            user_id: user.id,
+            aula_id: aulaAtual.id,
+            completed: true,
+            completed_at: new Date().toISOString()
+          }, { onConflict: 'user_id,aula_id' });
+
+        // 3. Atribui XP (Valores aumentados para uma experiência melhor)
+        const XP_MAP: Record<string, number> = {
+          "Iniciante": 10,
+          "Intermediário": 25,
+          "Avançado": 50,
+        };
+        const xpGanho = XP_MAP[courseInfo?.difficult ?? "Iniciante"] ?? 10;
+
+        const { data: prof } = await supabase.from('profiles').select('total_xp').eq('user_id', user.id).maybeSingle();
+        const novoXP = (Number(prof?.total_xp) || 0) + xpGanho;
+
+        await supabase.from('profiles').update({ total_xp: novoXP, pontuacao: novoXP }).eq('user_id', user.id);
+        
+        console.log(`[ORION] XP atribuído: +${xpGanho} pela aula ${aulaAtual.nome}`);
+      }
+    } catch (err) {
+      console.error("Erro ao salvar finalização da aula:", err);
+    }
   };
 
   const handleNext = () => {
@@ -1153,6 +1197,7 @@ const CoursesPage = () => {
                   <RoadmapPanel
                     aulas={aulas}
                     activeIndex={activeIndex}
+                    passedIndexes={passedIndexes}
                     courseName={courseName}
                     onSelectIndex={(i) => { setActiveIndex(i); setActiveTab("aula"); }}
                   />
@@ -1182,7 +1227,7 @@ const CoursesPage = () => {
       </motion.button>
 
       {/* Botão IA */}
-      <motion.button onClick={() => setShowChat((v) => !v)} title={showChat ? "Fechar Tutor IA" : "Abrir Tutor IA"}
+      <motion.button onClick={() => setShowChat((v) => !v)} title={showChat ? "Fechar ORION" : "Abrir ORION"}
         whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
         className="fixed z-50 cursor-pointer flex items-center justify-center rounded-full border-0"
         style={{
@@ -1209,7 +1254,7 @@ const CoursesPage = () => {
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/40" style={{ background: "hsl(215 28% 11%)" }}>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
-                <span className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</span>
+                <span className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">ORION · Tutor Online</span>
               </div>
               <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground transition text-base leading-none" style={{ lineHeight: 1 }}>✕</button>
             </div>

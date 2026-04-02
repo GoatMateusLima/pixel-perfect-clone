@@ -523,7 +523,7 @@ interface AIChatMessage { id: number; role: "user" | "assistant"; text: string; 
 const OrionChatPanel = () => {
   const [messages, setMessages] = useState<AIChatMessage[]>([{
     id: 0, role: "assistant",
-    text: "Saudações! Sou o Orion 🌌 Inteligência Artificial da UpJobs. Como posso iluminar seu aprendizado hoje?",
+    text: "Saudações! Sou o ORION 🌌 Sua Inteligência Artificial na UpJobs. Como posso iluminar seu aprendizado hoje?",
     ts: "agora",
   }]);
   const [input, setInput] = useState("");
@@ -608,7 +608,7 @@ const OrionChatPanel = () => {
       <div className="shrink-0 px-3 pb-3 pt-2 border-t border-border/20 flex items-end gap-2">
         <textarea value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-          placeholder="Fale com Orion... (Enter/Enviar)" disabled={loading}
+          placeholder="Fale com ORION... (Enter/Enviar)" disabled={loading}
           className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border/20 text-foreground font-body text-[11px] focus:outline-none focus:border-[hsl(215,60%,45%)]/40 transition-colors resize-none disabled:opacity-50"
           style={{ minHeight: 34, maxHeight: 80 }} />
         <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
@@ -821,7 +821,7 @@ const MessengerWidget = () => {
           <motion.div key="ai-panel" initial={{ opacity: 1, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.97 }} transition={{ type: "spring", stiffness: 420, damping: 32 }} className="fixed bottom-6 left-6 z-50 flex flex-col rounded-xl overflow-hidden" style={{ width: 320, height: 480, background: "hsl(215 30% 10%)", border: "1px solid hsl(215 60% 45% / 0.25)", boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 0 32px hsl(215 60% 45% / 0.1)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/25" style={{ background: "hsl(215 30% 12%)" }}>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[hsl(215,60%,55%)] animate-pulse" style={{ boxShadow: "0 0 6px hsl(215 60% 45%)" }} /><span className="text-xs font-accent font-semibold text-foreground tracking-wide">Orion AI</span>
+                <div className="w-2 h-2 rounded-full bg-[hsl(215,60%,55%)] animate-pulse" style={{ boxShadow: "0 0 6px hsl(215 60% 45%)" }} /><span className="text-xs font-accent font-bold text-foreground tracking-widest uppercase">ORION</span>
               </div>
               <button onClick={() => setIsAiOpen(false)} className="text-muted-foreground hover:text-foreground transition"><X size={15} /></button>
             </div>

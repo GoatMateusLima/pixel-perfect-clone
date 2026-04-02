@@ -20,6 +20,7 @@ type CourseForm = {
 };
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
+const EMPTY = { name: "", descricao: "", difficult: "", courses_id: "", playlist_id: "", playlistUrl: "" };
 const TEMA_TYPES = [
   "Alta demanda", "Tecnologia", "Segurança", "Dados", "Cloud",
   "Desenvolvimento", "Negócios", "Criatividade", "Saúde",
@@ -279,7 +280,7 @@ const AdminPage = () => {
   };
 
   // ── Form: criar curso ──
-  const [courseForm, setCourseForm] = useState({ name: "", difficult: "", courses_id: "", descricao: "", playlist_id: "" });
+  const [courseForm, setCourseForm] = useState<CourseForm>(EMPTY);
   const [savingCourse, setSavingCourse] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -293,92 +294,72 @@ const AdminPage = () => {
     setCourseForm(p => ({ ...p, playlistUrl: raw, playlist_id: extractPlaylistId(raw) }));
   };
 
- const handleSaveCourse = async () => {
-  if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
-    notify("error", "Preencha nome, dificuldade e o tema do curso.");
-    return;
-  }
-  setSavingCourse(true);
-
-  // 1. Salva o curso
-  const { data: course, error } = await supabase
-    .from("courses")
-    .insert({
-      name: courseForm.name.trim(),
-      descricao: courseForm.descricao.trim() || null,
-      difficult: courseForm.difficult,
-      courses_id: courseForm.courses_id,
-      playlist_id: courseForm.playlist_id || null,
-    })
-    .select("id")
-    .single();
-
-  if (error || !course) {
-    notify("error", "Erro ao salvar curso: " + error?.message);
-    setSavingCourse(false);
-    return;
-  }
-
-  // 2. Se tiver playlist, busca os vídeos e salva as aulas
-  if (courseForm.playlist_id) {
-    try {
-      const videos = await getPlaylistVideos(courseForm.playlist_id);
-
-      const aulas = videos.map((video, index) => ({
-        course_id: course.id,
-        nome: video.nome,
-        url_video: video.url,
-        descricao: video.descricao,
-        thumb: video.thumb,
-        position: index,
-      }));
-
-      const { error: aulasError } = await supabase
-        .from("aulas")
-        .insert(aulas);
-
-      if (aulasError) {
-        notify("error", "Curso criado, mas erro ao salvar aulas: " + aulasError.message);
-        setSavingCourse(false);
-        return;
-      }
-
-      notify("success", `Curso criado com ${videos.length} aulas!`);
-    } catch (err: any) {
-      notify("error", "Erro ao buscar playlist: " + err.message);
-      setSavingCourse(false);
+  const handleSaveCourse = async () => {
+    if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
+      notify("error", "Preencha nome, dificuldade e o tema do curso.");
       return;
     }
-    setSavingCourse(true); setSaveStatus("Salvando curso...");
+    setSavingCourse(true);
+    setSaveStatus("Salvando informações do curso...");
 
-  setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlist_id: "" });
-  setSavingCourse(false);
-};
+    try {
+      // 1. Salva o curso principal
+      const { data: course, error } = await supabase
+        .from("courses")
+        .insert({
+          name: courseForm.name.trim(),
+          descricao: courseForm.descricao.trim() || null,
+          difficult: courseForm.difficult,
+          courses_id: courseForm.courses_id,
+          playlist_id: courseForm.playlist_id || null,
+        })
+        .select("id")
+        .single();
 
-    if (error || !course) { notify("error", "Erro ao salvar curso: " + error?.message); setSavingCourse(false); setSaveStatus(""); return; }
+      if (error || !course) throw new Error(error?.message || "Falha ao criar curso.");
 
-    if (!courseForm.playlist_id) {
-      notify("success", `Curso "${courseForm.name}" criado!`);
-      setCourseForm(EMPTY); setSavingCourse(false); setSaveStatus(""); loadCourses(); return;
+      // 2. Se tiver playlist, busca vídeos e cria as aulas automaticamente
+      if (courseForm.playlist_id) {
+        setSaveStatus("Buscando vídeos da playlist no YouTube...");
+        const videos = await getPlaylistVideos(courseForm.playlist_id);
+        
+        if (videos.length > 0) {
+          setSaveStatus(`Salvando ${videos.length} aulas no banco de dados...`);
+          const aulasParaInserir = videos.map((v, i) => ({
+            course_id: course.id,
+            nome: v.nome,
+            url_video: v.url,
+            descricao: v.descricao,
+            thumb: v.thumb,
+            position: i
+          }));
+
+          const { data: savedAulas, error: aulasError } = await supabase
+            .from("aulas")
+            .insert(aulasParaInserir)
+            .select("id, nome, descricao");
+
+          if (aulasError) throw new Error("Curso criado, mas erro ao salvar aulas: " + aulasError.message);
+
+          // 3. Gera quizzes via ORION para cada aula
+          if (savedAulas && savedAulas.length > 0) {
+            setSaveStatus(`ORION gerando quizzes para ${savedAulas.length} aulas...`);
+            await Promise.allSettled(
+              savedAulas.map(a => generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? ""))
+            );
+          }
+        }
+      }
+
+      notify("success", `Curso "${courseForm.name}" criado com sucesso!`);
+      setCourseForm(EMPTY);
+      loadCourses();
+    } catch (err: any) {
+      notify("error", err.message || "Erro inesperado ao salvar.");
+    } finally {
+      setSavingCourse(false);
+      setSaveStatus("");
     }
-
-    setSaveStatus("Buscando vídeos da playlist...");
-    let videos;
-    try { videos = await getPlaylistVideos(courseForm.playlist_id); }
-    catch (err: any) { notify("error", "Erro ao buscar playlist: " + err.message); setSavingCourse(false); setSaveStatus(""); return; }
-
-    setSaveStatus(`Salvando ${videos.length} aulas...`);
-    const { data: savedAulas, error: aulasError } = await supabase.from("aulas")
-      .insert(videos.map((v, i) => ({ course_id: course.id, nome: v.nome, url_video: v.url, descricao: v.descricao, thumb: v.thumb, position: i })))
-      .select("id, nome, descricao");
-
-    if (aulasError || !savedAulas) { notify("error", "Curso criado, mas erro ao salvar aulas: " + aulasError?.message); setSavingCourse(false); setSaveStatus(""); return; }
-
-    setSaveStatus(`Gerando quizzes com IA para ${savedAulas.length} aulas...`);
-    await Promise.allSettled(savedAulas.map(a => generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? "")));
-
-    notify("success", `Curso criado com ${videos.length} aulas e quizzes gerados! 🎉`);
-    setCourseForm(EMPTY); setSavingCourse(false); setSaveStatus(""); loadCourses();
   };
 
   const handleUpdateTema = async (t: Tema) => {
@@ -468,14 +449,6 @@ const AdminPage = () => {
                 {courseForm.playlist_id && courseForm.playlist_id !== courseForm.playlistUrl && (
                   <p className="text-xs font-accent text-primary/70 mt-1">ID extraído: <span className="font-mono text-primary">{courseForm.playlist_id}</span></p>
                 )}
-              </Field>
-              <Field label="Desvrição do Curso" icon={Tag}>
-                <input type="text" value={courseForm.descricao} onChange={e => setCourseForm(p => ({ ...p, descricao: e.target.value }))}
-                  placeholder="ex: Python para Iniciantes" className={inputClass} />
-              </Field>
-              <Field label="URL do Curso" icon={Tag}>
-                <input type="text" value={courseForm.playlist_id} onChange={e => setCourseForm(p => ({ ...p, playlist_id: e.target.value }))}
-                  placeholder="ex: Python para Iniciantes" className={inputClass} />
               </Field>
               <Field label="Dificuldade" icon={Zap}>
                 <div className="grid grid-cols-3 gap-2">
