@@ -117,6 +117,72 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
 };
 
 // =============================================================================
+// SCAN RING — efeito de riscos orbitando ao redor da foto
+// =============================================================================
+const AvatarScanRings = ({ color }: { color: string }) => {
+  const dimColor = color.replace("hsl(", "hsla(").replace(")", " / 0.15)");
+  const brightColor = color;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none select-none" style={{ zIndex: 0 }}>
+      {/* Background Glow - Central soft glow */}
+      <div 
+        className="absolute inset-[15%] rounded-full opacity-30 blur-2xl transition-all duration-700"
+        style={{ background: brightColor }}
+      />
+      
+      {/* Glassy Halo - The "organic" soft ring from the image */}
+      <div 
+        className="absolute inset-[-12%] rounded-[42%] border border-white/5 backdrop-blur-[1px] opacity-40 rotate-[15deg]"
+        style={{ 
+          background: `radial-gradient(circle at 30% 30%, ${brightColor}20 0%, transparent 70%)`,
+          boxShadow: `inset 0 0 15px ${dimColor}, 0 0 20px ${dimColor}`
+        }}
+      />
+      
+      {/* Main Orbiting Ring */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-5%] rounded-full opacity-60"
+        style={{
+          border: "1.5px solid transparent",
+          borderTopColor: brightColor,
+          borderRightColor: dimColor,
+          filter: `drop-shadow(0 0 8px ${brightColor}80)`
+        }}
+      />
+
+      {/* Dotted Orbiting Ring - Inner */}
+      <motion.div
+        animate={{ rotate: -360 }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-10%] rounded-full opacity-20"
+        style={{
+          border: `1px dashed ${brightColor}`,
+        }}
+      />
+
+      {/* Orbiting Particle */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-5%]"
+      >
+        <div 
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+          style={{ 
+            background: brightColor,
+            boxShadow: `0 0 12px 3px ${brightColor}`,
+            border: "1.5px solid white"
+          }}
+        />
+      </motion.div>
+    </div>
+  );
+};
+
+// =============================================================================
 // UPLOAD HELPER
 // =============================================================================
 async function uploadCroppedImage(dataUrl: string, userId: string, slot: "photo" | "banner"): Promise<string> {
@@ -227,7 +293,7 @@ const ProfilePage = () => {
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
   const [loadingVagas, setLoadingVagas] = useState(false);
-  const [loading, setLoading] = useState(false); // Changed to false to avoid initial loader if user is already loaded
+  const [loading, setLoading] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -254,17 +320,14 @@ const ProfilePage = () => {
   const [hoverPhoto, setHoverPhoto] = useState(false);
   const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
 
-  // Progresso geral real do usuário
   const [overallProgress, setOverallProgress] = useState<OverallProgress>({
     totalCursos: 0, cursosConcluidos: 0, cursosEmAndamento: 0,
     progressoMedio: 0, totalAulasAssistidas: 0, courseProgressList: [],
   });
 
-  // Modal resultado avaliação — abre 1 vez após concluir
   const [showResultModal, setShowResultModal] = useState(() => sessionStorage.getItem("show_assessment_result") === "1");
   const handleCloseResultModal = () => { setShowResultModal(false); sessionStorage.removeItem("show_assessment_result"); };
 
-  // Carrega dados
   useEffect(() => {
     if (!user) return;
     async function loadData() {
@@ -291,7 +354,6 @@ const ProfilePage = () => {
     loadData();
   }, [user]);
 
-  // Busca dados reais para o Progresso Geral
   useEffect(() => {
     if (!user) return;
     async function loadOverallProgress() {
@@ -381,12 +443,10 @@ const ProfilePage = () => {
     syncProfile();
   }, [user]);
 
-  // XP e nível dinâmicos via ranking - Mover para cima para evitar violação de Hooks
   const { myRank, myXP } = useRanking(user?.id);
 
   if (!user) return null;
 
-  // Derivados
   const discProfile = assessment?.discProfile ?? "S";
   const ringColor = DISC_COLORS[discProfile] ?? "hsl(155 60% 45%)";
 
@@ -404,7 +464,6 @@ const ProfilePage = () => {
   const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
   const emptySocials = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
 
-  // XP e nível dinâmicos calculados acima
   const currentXP = myXP;
   const currentLevel = xpToLevel(currentXP);
   const xpNextLevel = xpForNextLevel(currentLevel);
@@ -413,9 +472,8 @@ const ProfilePage = () => {
   const currentStreak = 12;
   const currentRank = myRank ?? "—";
 
-  // Handlers edição
   const handleStartEdit = () => {
-    setDraftName(profile.name ?? user.email?.split("@")[0] ?? "Usuário"); 
+    setDraftName(profile.name ?? user.email?.split("@")[0] ?? "Usuário");
     setDraftDescricao(profile.descricao ?? "");
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setDraftBordas(null);
     setBorderPickerOpen(false); setDraftMedalhas(null); setSaveError(null); setIsEditing(true);
@@ -438,11 +496,11 @@ const ProfilePage = () => {
       const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
       setProfile(payload);
-      refreshPhoto(); // Sincroniza foto globalmente (Header, Sidebars, etc)
+      refreshPhoto();
       setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
-    } catch (err: unknown) { 
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao salvar perfil.";
-      setSaveError(errorMessage); 
+      setSaveError(errorMessage);
     }
     finally { setSaving(false); }
   };
@@ -459,9 +517,6 @@ const ProfilePage = () => {
 
   if (loadingProfile) return <div className="min-h-screen gradient-hero scanline flex items-center justify-center"><Loader2 size={32} className="text-primary animate-spin" /></div>;
 
-  // =============================================================================
-  // RENDER
-  // =============================================================================
   return (
     <div className="min-h-screen gradient-hero scanline">
       <Header />
@@ -518,11 +573,9 @@ const ProfilePage = () => {
               />
             </motion.div>
 
-            {/* AMIGOS (CARD LATERAL) */}
             <div className="flex-1 min-h-[300px]">
               <FriendsListCard />
             </div>
-
           </aside>
 
           {/* COLUNA CENTRAL */}
@@ -548,38 +601,75 @@ const ProfilePage = () => {
 
               <div className="px-6 pb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -20 }}>
-                  {/* Avatar */}
-                  <div className="flex-shrink-0 relative" style={{ width: 112, height: 112 }}>
-                    {bordaAtiva
-                      ? <img src={bordaAtiva.img_url} alt={bordaAtiva.nome} className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-                      : DISC_IMGS[discProfile]
-                        ? <img src={DISC_IMGS[discProfile]} alt={DISC_LABELS[discProfile]} className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-                        : null}
-                    <div onClick={() => isEditing && photoInputRef.current?.click()}
-                      onMouseEnter={() => isEditing && setHoverPhoto(true)} onMouseLeave={() => setHoverPhoto(false)}
-                      className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center"
-                      style={{ width: 80, height: 80, top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 2, border: "3px solid hsl(var(--background))", cursor: isEditing ? "pointer" : "default" }}>
+
+                  {/* ── AVATAR com aura e scan rings ── */}
+                  <div className="flex-shrink-0 relative shrink-0" style={{ width: 112, height: 112, zIndex: 10 }}>
+                    
+                    <AvatarScanRings color={ringColor} />
+
+                    {/* Borda desbloqueável ou Borda DISC */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+                      {bordaAtiva ? (
+                        <img src={bordaAtiva.img_url} alt={bordaAtiva.nome} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        DISC_IMGS[discProfile] && (
+                          <img src={DISC_IMGS[discProfile]} alt={DISC_LABELS[discProfile]} className="w-full h-full rounded-full object-cover" />
+                        )
+                      )}
+                    </div>
+
+                    {/* Foto de perfil centrada */}
+                    <div
+                      onClick={() => isEditing && photoInputRef.current?.click()}
+                      onMouseEnter={() => isEditing && setHoverPhoto(true)}
+                      onMouseLeave={() => setHoverPhoto(false)}
+                      className="absolute rounded-full overflow-hidden bg-secondary/80 backdrop-blur-sm flex items-center justify-center transition-all duration-300"
+                      style={{
+                        width: 76, height: 76,
+                        top: "50%", left: "50%",
+                        transform: "translate(-50%,-50%)",
+                        zIndex: 2,
+                        border: `2px solid ${ringColor}40`,
+                        boxShadow: `0 0 20px ${ringColor}20`,
+                        cursor: isEditing ? "pointer" : "default",
+                      }}
+                    >
                       {displayPhoto ? <img src={displayPhoto} alt="Foto" className="w-full h-full object-cover" /> : <User size={28} className="text-muted-foreground" />}
                       <AnimatePresence>
                         {isEditing && hoverPhoto && (
                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full"
                             style={{ background: "rgba(0,0,0,0.6)" }}>
-                            <Camera size={16} className="text-white" /><span className="text-[8px] text-white font-accent">Alterar</span>
-                            {displayPhoto && <button type="button" onClick={e => { e.stopPropagation(); setDraftPhoto(""); }} className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">remover</button>}
+                            <Camera size={16} className="text-white" />
+                            <span className="text-[8px] text-white font-accent">Alterar</span>
+                            {displayPhoto && (
+                              <button type="button" onClick={e => { e.stopPropagation(); setDraftPhoto(""); }}
+                                className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">
+                                remover
+                              </button>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
+
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+
+                    {/* Botão de trocar borda */}
                     {isEditing && (
                       <button type="button" onClick={() => setBorderPickerOpen(p => !p)}
                         className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                        style={{ zIndex: 3, background: borderPickerOpen ? ringColor : "hsl(var(--secondary))", border: "2px solid hsl(var(--background))", boxShadow: borderPickerOpen ? `0 0 8px ${ringColor}60` : "none" }}>
+                        style={{
+                          zIndex: 3,
+                          background: borderPickerOpen ? ringColor : "hsl(var(--secondary))",
+                          border: "2px solid hsl(var(--background))",
+                          boxShadow: borderPickerOpen ? `0 0 8px ${ringColor}60` : "none",
+                        }}>
                         <Sparkles size={12} style={{ color: borderPickerOpen ? "white" : "hsl(var(--muted-foreground))" }} />
                       </button>
                     )}
                   </div>
+                  {/* ── fim AVATAR ── */}
 
                   {/* Nome + botões */}
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
