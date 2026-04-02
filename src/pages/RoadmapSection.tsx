@@ -90,7 +90,7 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
 // ─── Componente Principal ───────────────────────────────────────────────────
 const RoadmapSection = () => {
-  const { assessment } = useAuth();
+  const { assessment, user } = useAuth();
   const [temasBrutos, setTemasBrutos] = useState<Tema[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,26 +103,46 @@ const RoadmapSection = () => {
 
   useEffect(() => {
     async function fetchAiRecommendations() {
-      const interests = assessment?.areasInteresse;
-      if (!interests || interests.length === 0 || temasBrutos.length === 0) return;
+      let interests = assessment?.areasInteresse || [];
+      let disc = assessment?.discProfile;
+
+      if (!assessment?.completed && interests.length === 0) {
+        // Se não tiver no contexto, tenta buscar do banco uma última vez
+        const { data: prof } = await supabase.from("profiles").select("areas_interesse, disc_profile").eq("user_id", user?.id || "").maybeSingle();
+        if (prof?.areas_interesse) {
+             interests = prof.areas_interesse as string[];
+        }
+        if (prof?.disc_profile) {
+             disc = prof.disc_profile as "D" | "I" | "S" | "C";
+        }
+        
+        if (interests.length === 0 && !disc) {
+             return; // Nem interesses nem DISC, nada a recomendar por agora
+        }
+      }
+      
+      if (temasBrutos.length === 0) return;
 
       setIsAILoading(true);
       try {
-        const ids = await getRecommendedTemasIA(interests, temasBrutos);
+        // Enriquecemos o prompt enviando interesses E perfil DISC se disponível
+        const profileContext = disc ? [ ...interests, `Perfil DISC: ${disc}` ] : interests;
+        
+        const ids = await getRecommendedTemasIA(profileContext, temasBrutos);
         if (ids.length > 0) {
-          setAiRecommendedIds(ids);
+          setAiRecommendedIds(ids.map(id => String(id))); // Garante que são strings
         }
       } catch(e) {
-        console.error(e);
+        console.error("Erro AI Roadmap:", e);
       } finally {
         setIsAILoading(false);
       }
     }
 
-    if (aiRecommendedIds.length === 0 && !isAILoading && !loading) {
+    if (aiRecommendedIds.length === 0 && !isAILoading && !loading && temasBrutos.length > 0) {
       fetchAiRecommendations();
     }
-  }, [temasBrutos, assessment?.areasInteresse, aiRecommendedIds, isAILoading, loading]);
+  }, [temasBrutos, assessment, aiRecommendedIds, isAILoading, loading]);
 
   useEffect(() => {
     async function loadData() {
@@ -149,7 +169,7 @@ const RoadmapSection = () => {
   const temasProntos = useMemo(() => {
     return temasBrutos.map((tema) => ({
       ...tema,
-      courses: allCourses.filter((c) => c.courses_id === tema.id)
+      courses: allCourses.filter((c) => String(c.courses_id) === String(tema.id))
     }));
   }, [temasBrutos, allCourses]);
 
@@ -169,18 +189,22 @@ const RoadmapSection = () => {
 
   const recommendedTemas = useMemo(() => {
     if (aiRecommendedIds.length > 0) {
+      // Usamos String() para comparar IDs de forma segura (número vs string)
       const validTemas = aiRecommendedIds
-        .map(id => temasProntos.find(t => t.id === id))
+        .map(id => temasProntos.find(t => String(t.id) === String(id)))
         .filter(Boolean) as Tema[];
       
       if (validTemas.length > 0) {
         const remaining = [...temasProntos]
           .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
-          .filter(t => !aiRecommendedIds.includes(t.id));
+          .filter(t => !aiRecommendedIds.includes(String(t.id)));
         return [...validTemas, ...remaining].slice(0, 5);
       }
     }
-    return [...temasProntos].sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0)).slice(0, 5);
+    // Fallback: temas com mais cursos
+    return [...temasProntos]
+      .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
+      .slice(0, 5);
   }, [temasProntos, aiRecommendedIds]);
 
   return (
