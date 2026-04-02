@@ -264,42 +264,69 @@ const ProfilePage = () => {
   const [showResultModal, setShowResultModal] = useState(() => sessionStorage.getItem("show_assessment_result") === "1");
   const handleCloseResultModal = () => { setShowResultModal(false); sessionStorage.removeItem("show_assessment_result"); };
 
-  // Carrega dados
+  // Carrega perfil + vagas (uma vez por usuário — depende de user.id, não do objeto user,
+  // para não refazer tudo a cada TOKEN_REFRESHED / novo objeto Session do Supabase)
   useEffect(() => {
-    if (!user) return;
+    const uid = user?.id;
+    if (!uid) return;
+    let cancelled = false;
+
     async function loadData() {
       setLoading(true);
+      setLoadingProfile(true);
       try {
-        const { data: prof } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
-        if (prof) setProfile(prof as Profile);
+        const { data, error } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
+        if (cancelled) return;
+        if (error || !data) {
+          setProfile({
+            user_id: uid,
+            name: user?.email?.split("@")[0] ?? "Usuário",
+            redes: {},
+            bordas: [],
+          });
+        } else {
+          setProfile(data as Profile);
+        }
 
         const { data: cursoInteresse } = await supabase
           .from("watch").select("course_id, courses(name)")
-          .eq("user_id", user.id).limit(1).maybeSingle();
+          .eq("user_id", uid).limit(1).maybeSingle();
+
+        if (cancelled) return;
 
         if (cursoInteresse) {
           const courseName = (cursoInteresse.courses as any)?.name;
           if (courseName) {
             setLoadingVagas(true);
             const jobs = await fetchVagasByInterest(courseName);
-            setVagasDinamicas(jobs.slice(0, 3));
+            if (!cancelled) setVagasDinamicas(jobs.slice(0, 3));
           }
         }
-      } catch (err) { console.error("Erro ao carregar dados:", err); }
-      finally { setLoadingVagas(false); setLoading(false); }
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+      } finally {
+        if (!cancelled) {
+          setLoadingVagas(false);
+          setLoading(false);
+          setLoadingProfile(false);
+        }
+      }
     }
+
     loadData();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   // Busca dados reais para o Progresso Geral
   useEffect(() => {
-    if (!user) return;
+    const uid = user?.id;
+    if (!uid) return;
     async function loadOverallProgress() {
       try {
         const { data: watchData } = await supabase
           .from("watch")
           .select("course_id, courses(id, name, difficult)")
-          .eq("user_id", user.id);
+          .eq("user_id", uid);
 
         if (!watchData || watchData.length === 0) return;
 
@@ -325,7 +352,7 @@ const ProfilePage = () => {
           const { count: completedAulas } = await supabase
             .from("lesson_progress")
             .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id)
+            .eq("user_id", uid)
             .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
             .eq("completed", true);
 
@@ -365,21 +392,11 @@ const ProfilePage = () => {
       }
     }
     loadOverallProgress();
-  }, [user]);
-
-  useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user) return;
-    async function syncProfile() {
-      setLoadingProfile(true);
-      const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
-      if (error || !data) setProfile({ user_id: user.id, name: user.email?.split("@")[0] ?? "Usuário", redes: {}, bordas: [] });
-      else setProfile(data as Profile);
-      setLoadingProfile(false);
-    }
-    syncProfile();
-  }, [user]);
+    if (!user?.id) navigate("/login");
+  }, [user?.id, navigate]);
 
   // XP e nível dinâmicos via ranking - Mover para cima para evitar violação de Hooks
   const { myRank, myXP } = useRanking(user?.id);
