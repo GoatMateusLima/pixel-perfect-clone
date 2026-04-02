@@ -5,6 +5,7 @@ import { LogIn, LogOut, User, LifeBuoy, Home, Globe, MessageCircle } from "lucid
 import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
 import NotificationBell from "./NotificationBell";
+import { AccessibilityTrigger } from "@/components/AccessibilityPanel";
 
 const NAV_ITEMS = [
   { label: "Início",     href: "/roadmap",    icon: Home     },
@@ -108,6 +109,7 @@ const Header = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
+                <AccessibilityTrigger variant="header" />
                 <NotificationBell />
                 <Link to="/perfil"
                   className="flex-shrink-0 w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] bg-primary/5"
@@ -143,6 +145,7 @@ const Header = () => {
               </>
             ) : (
               <div className="flex items-center gap-3">
+                <AccessibilityTrigger variant="header" />
                 <Link to="/login" className="text-[11px] font-accent font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
                   Entrar
                 </Link>
@@ -154,7 +157,8 @@ const Header = () => {
           </div>
 
           {/* Mobile Right (Título apenas, navegação foi para baixo) */}
-          <div className="flex md:hidden items-center gap-3">
+          <div className="flex md:hidden items-center gap-2">
+            <AccessibilityTrigger variant="header" className="h-9 w-9" />
             <span className="text-[10px] font-accent font-black text-primary uppercase tracking-[0.2em]">UpJobs Hub</span>
           </div>
         </div>

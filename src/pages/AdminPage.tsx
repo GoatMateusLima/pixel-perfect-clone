@@ -6,6 +6,7 @@ import {
   Check, X, ChevronRight, Link,
 } from "lucide-react";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import supabase from "../../utils/supabase";
 import { getPlaylistVideos } from "../../utils/ApiPlaylist";
 import { invokeApiProxy } from "@/lib/apiProxy";
@@ -386,7 +387,7 @@ const AdminPage = () => {
       <Header />
       <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
 
-      <div className="relative z-10 pt-32 pb-24 px-4 sm:px-6 max-w-5xl mx-auto">
+      <MainLandmark className="relative z-10 pt-32 pb-24 px-4 sm:px-6 max-w-5xl mx-auto">
 
         {/* Header */}
         <motion.div initial={{ opacity: 1, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="mb-14">
@@ -554,9 +555,9 @@ const AdminPage = () => {
             )}
           </AnimatePresence>
         </motion.div>
-      </div>
 
       <ToastStack notifications={notifications} onRemove={id => setNotifications(p => p.filter(n => n.id !== id))} />
+      </MainLandmark>
     </section>
   );
 };

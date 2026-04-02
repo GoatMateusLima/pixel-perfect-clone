@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, LogIn, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase";
+import { MainLandmark } from "@/components/MainLandmark";
 
 // ─── LoginPage ────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center gap-16 gradient-hero scanline px-6 lg:px-20">
+    <MainLandmark className="min-h-screen flex items-center justify-center gap-16 gradient-hero scanline px-6 lg:px-20">
 
       {/* ── Bloco lateral de marketing ── */}
       <motion.div
@@ -148,7 +149,7 @@ const LoginPage = () => {
           <Link to="/cadastro" className="text-primary hover:underline">Cadastre-se grátis</Link>
         </p>
       </motion.div>
-    </div>
+    </MainLandmark>
   );
 };
 

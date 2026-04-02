@@ -17,6 +17,7 @@ import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal from "@/components/ImageCropModal";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import Progress from "@/components/progress";
 import Vagas from "@/components/Vagas";
 import CursosEmAndamento from "@/components/CursosEmAndamento";
@@ -560,12 +561,17 @@ const ProfilePage = () => {
   const removeSocialLink = (key: SocialKey) => setDraftSocial(prev => ({ ...prev, [key]: "" }));
   const handleToggleMedal = (id: number) => { const base = draftMedalhas ?? profile.medalhas ?? []; setDraftMedalhas(toggleMedalAtiva(base, id)); };
 
-  if (loadingProfile) return <div className="min-h-screen gradient-hero scanline flex items-center justify-center"><Loader2 size={32} className="text-primary animate-spin" /></div>;
+  if (loadingProfile) return (
+    <MainLandmark className="min-h-screen gradient-hero scanline flex items-center justify-center">
+      <Loader2 size={32} className="text-primary animate-spin" />
+    </MainLandmark>
+  );
 
   return (
     <div className="min-h-screen gradient-hero scanline">
       <Header />
 
+      <MainLandmark>
       <AnimatePresence>
         {showResultModal && assessment?.completed && (
           <AssessmentResultModal assessment={assessment} onClose={handleCloseResultModal} />
@@ -962,6 +968,7 @@ const ProfilePage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </MainLandmark>
     </div>
   );
 };

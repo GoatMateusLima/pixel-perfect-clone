@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
+import { SkipToMainLink } from "@/components/SkipToMainLink";
 import ProtectedRoute from "./contexts/ProtectedRoute";
 import AuthRoute from "./contexts/AuthRoute";
 import AppBootstrapShell from "@/components/AppBootstrapShell";
@@ -46,11 +48,13 @@ const App = () => (
       <Sonner />
 
       <BrowserRouter>
-        <AuthProvider>
-          <AppBootstrapShell>
-            <Suspense fallback={routeFallback}>
-              <MessengerWidget />
-              <Routes>
+        <AccessibilityProvider>
+          <SkipToMainLink />
+          <AuthProvider>
+            <AppBootstrapShell>
+              <Suspense fallback={routeFallback}>
+                <MessengerWidget />
+                <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
                 <Route path="/cadastro" element={<AuthRoute><SignupPage /></AuthRoute>} />
@@ -65,10 +69,11 @@ const App = () => (
                 <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
                 <Route path="/u/:identifier" element={<PublicProfilePage />} />
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </AppBootstrapShell>
-        </AuthProvider>
+                </Routes>
+              </Suspense>
+            </AppBootstrapShell>
+          </AuthProvider>
+        </AccessibilityProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

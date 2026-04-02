@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import HeroSection from "@/components/HeroSection";
 import PainCardsSection from "@/components/PainCardsSection";
 import RoadmapSection from "@/components/RoadmapSection";
@@ -11,13 +12,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <HeroSection />
-      <PainCardsSection />
-      <RoadmapSection />
-      
-      <TestimonialsSection />
-      <FAQSection />
-      <Footer />
+      <MainLandmark>
+        <HeroSection />
+        <PainCardsSection />
+        <RoadmapSection />
+        <TestimonialsSection />
+        <FAQSection />
+        <Footer />
+      </MainLandmark>
     </div>
   );
 };

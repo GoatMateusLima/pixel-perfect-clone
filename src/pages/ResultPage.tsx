@@ -7,6 +7,7 @@ import dominanciaImg from "@/assets/disc/Dominancia.webp";
 import influenciaImg from "@/assets/disc/Influencia.webp";
 import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
+import { MainLandmark } from "@/components/MainLandmark";
 
 const DISC_INFO: Record<string, { label: string; desc: string; img: string; color: string }> = {
   D: {
@@ -59,7 +60,7 @@ const ResultPage = () => {
     : null;
 
   return (
-    <div className="min-h-screen gradient-hero scanline px-4 pt-24 pb-12">
+    <MainLandmark className="min-h-screen gradient-hero scanline px-4 pt-24 pb-12">
       <div className="max-w-2xl mx-auto space-y-8">
         {/* DISC Profile */}
         <motion.div
@@ -198,7 +199,7 @@ const ResultPage = () => {
           </Link>
         </div>
       </div>
-    </div>
+    </MainLandmark>
   );
 };
 

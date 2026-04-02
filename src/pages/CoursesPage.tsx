@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useParams } from "react-router-dom";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import QuizTab, { QuizQuestion } from "../components/Quiztab";
 import { useAuth } from "@/contexts/AuthContext";
 import { groqChatCompletion } from "@/lib/apiProxy";
@@ -1082,6 +1083,7 @@ const CoursesPage = () => {
     <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
       <Header />
 
+      <MainLandmark className="flex flex-col flex-1 min-h-0 min-w-0">
       <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border/50 bg-background/40 backdrop-blur-sm">
         <Link to="/roadmap" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition">
           <ArrowLeft size={14} /> Voltar
@@ -1267,6 +1269,7 @@ const CoursesPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </MainLandmark>
     </div>
   );
 };

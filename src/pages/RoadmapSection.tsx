@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import supabase from "../../utils/supabase";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
@@ -228,8 +229,9 @@ const RoadmapSection = () => {
   return (
     <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
       <Header />
-      <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
-      
+      <MainLandmark className="relative z-10 block min-h-0">
+        <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
+
       <AnimatePresence mode="wait">
         {!selectedTema ? (
           <motion.div 
@@ -355,6 +357,7 @@ const RoadmapSection = () => {
           />
         )}
       </AnimatePresence>
+      </MainLandmark>
     </section>
   );
 };

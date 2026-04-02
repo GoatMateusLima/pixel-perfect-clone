@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Users, TrendingUp, Zap, Loader2, ArrowUp } from "lucide-react";
 
 import Header          from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import { useAuth }     from "@/contexts/AuthContext";
 import PostCard        from "../components/PostCard";
 import PostModal       from "../components/PostModal";
@@ -341,6 +342,7 @@ const CommunityPage = () => {
       <TechBackground />
       <Header />
 
+      <MainLandmark className="relative">
       <div className="px-3 sm:px-4 pt-20 sm:pt-24 pb-16">
         <div className="max-w-7xl mx-auto ">
 
@@ -363,7 +365,7 @@ const CommunityPage = () => {
             </aside>
 
             {/* Feed central — largura máxima fixa como Twitter (~600px) */}
-            <main className="w-full max-w-[620px] flex-shrink-0 space-y-4 min-w-0 relative">
+            <div className="w-full max-w-[620px] flex-shrink-0 space-y-4 min-w-0 relative">
 
               {/* Filtro Estilo Pill Flutuante */}
               <div className="sticky top-20 z-40 py-4 flex justify-center pointer-events-none">
@@ -490,7 +492,7 @@ const CommunityPage = () => {
                   Você viu todas as publicações.
                 </p>
               )}
-            </main>
+            </div>
 
             {/* Sidebar direita — fixa, aparece em xl+ */}
             <aside className="hidden xl:block w-72 xl:w-80 flex-shrink-0">
@@ -513,6 +515,7 @@ const CommunityPage = () => {
           myUserId={myCreatorId}
         />
       )}
+      </MainLandmark>
     </div>
   );
 };
