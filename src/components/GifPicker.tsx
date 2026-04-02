@@ -1,15 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Loader2 } from "lucide-react";
-
-const KLIPY_KEY = import.meta.env.VITE_KLIPY_API_KEY ?? "";
-const KLIPY_URL = "https://api.klipy.com/v2"; 
+import { invokeApiProxy } from "@/lib/apiProxy"; 
 
 interface KlipyGif {
   id:      string;
   title:   string;
   url:     string;  // URL do GIF para exibir
   preview: string;  // URL menor para grid
+}
+
+type KlipyMediaFmt = Record<string, { url?: string } | undefined>;
+interface KlipyApiResult {
+  id?: string;
+  title?: string;
+  media_formats?: KlipyMediaFmt;
+  files?: KlipyMediaFmt;
+  media?: unknown[];
 }
 
 interface GifPickerProps {
@@ -32,38 +39,33 @@ const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
   useEffect(() => { fetchGifs(""); }, []);
 
   const fetchGifs = async (q: string, pos?: string) => {
-    if (!KLIPY_KEY) {
-      console.warn("VITE_KLIPY_API_KEY não configurada. Adicione no .env");
-      return;
-    }
     setLoading(true);
 
-    const endpoint = q.trim() ? "search" : "featured";
-    const params = new URLSearchParams({
-      key:        KLIPY_KEY,
-      q:          q.trim() || "trending",
-      limit:      "20",
-      ...(pos ? { pos } : {}),
-    });
-
     try {
-      const res  = await fetch(`${KLIPY_URL}/${endpoint}?${params}`);
-      const data = await res.json();
+      const { data, error } = await invokeApiProxy<{ results?: unknown[]; next?: string | null }>("klipy_gifs", {
+        q: q.trim(),
+        featured: !q.trim(),
+        ...(pos ? { pos } : {}),
+      });
+      if (error) {
+        console.warn("Klipy (api-proxy):", error);
+        setGifs([]);
+        setNext(null);
+        return;
+      }
 
-      // Mapeamento à prova de falhas: tenta ler as propriedades do Tenor ou as nativas da Klipy
-      const mapped: KlipyGif[] = (data.results ?? []).map((r: any) => {
-        const media = r.media_formats || r.files || (r.media && r.media[0]) || {};
-        
+      const mapped: KlipyGif[] = (data?.results ?? []).map((raw: KlipyApiResult) => {
+        const media = (raw.media_formats || raw.files || (Array.isArray(raw.media) ? raw.media[0] : {}) || {}) as KlipyMediaFmt;
         return {
-          id:      r.id,
-          title:   r.title ?? "",
-          url:     media?.gif?.url     ?? media?.mediumgif?.url ?? "",
+          id:      String(raw.id ?? ""),
+          title:   String(raw.title ?? ""),
+          url:     media?.gif?.url ?? media?.mediumgif?.url ?? "",
           preview: media?.tinygif?.url ?? media?.gif?.url ?? "",
         };
       }).filter((g: KlipyGif) => g.url);
 
       setGifs(pos ? (prev) => [...prev, ...mapped] : mapped);
-      setNext(data.next ?? null);
+      setNext(data?.next ?? null);
     } catch (err) {
       console.error("Klipy API erro:", err);
     } finally {
@@ -111,14 +113,7 @@ const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
 
       {/* Grid de GIFs */}
       <div className="overflow-y-auto flex-1 p-2">
-        {!KLIPY_KEY ? (
-          <div className="text-center py-8 space-y-2">
-            <p className="text-xs font-accent text-muted-foreground">Chave do Klipy não configurada.</p>
-            <p className="text-[10px] font-body text-muted-foreground">
-              Adicione <code className="text-primary">VITE_KLIPY_API_KEY</code> no <code>.env</code>
-            </p>
-          </div>
-        ) : gifs.length === 0 && !loading ? (
+        {gifs.length === 0 && !loading ? (
           <p className="text-center text-xs text-muted-foreground font-body py-8">
             {query ? "Nenhum GIF encontrado." : "Carregando…"}
           </p>

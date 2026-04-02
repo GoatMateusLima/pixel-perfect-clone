@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import Header from "@/components/Header";
 import supabase from "../../utils/supabase";
-import {getPlaylistVideos} from "../../utils/ApiPlaylist";
+import { getPlaylistVideos } from "../../utils/ApiPlaylist";
+import { invokeApiProxy } from "@/lib/apiProxy";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tema = { id: string; name: string; description: string; type: string };
@@ -37,45 +38,13 @@ const gridBg = {
 
 async function generateQuizForAula(aulaId: string, aulaNome: string, aulaDesc: string) {
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${import.meta.env.VITE_AI_KEY_QUIZ}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          {
-            role: "system",
-            content: "Você é um gerador de quizzes. Responda APENAS com um array JSON puro, sem markdown, sem explicações."
-          },
-          {
-            role: "user",
-            content: `Gere um quiz de 3 perguntas para a aula: "${aulaNome}". Descrição: "${aulaDesc}". Retorne no formato: [{"id": 1, "text": "...", "options": ["a", "b", "c", "d"], "correct": 0}]`
-          }
-        ],
-        temperature: 0.2, // Temperatura baixa para evitar que a IA invente formatos
-        stream: false     // OBRIGATÓRIO ser false para o parse funcionar
-      }),
+    const { data, error } = await invokeApiProxy<{ ok?: boolean; error?: string }>("admin_quiz_insert", {
+      aulaId,
+      aulaNome,
+      aulaDesc,
     });
-
-    const data = await response.json();
-    let text = data.choices[0]?.message?.content || "";
-
-    // Limpeza de segurança caso a IA envie markdown ```json ... ```
-    const cleanJson = text.replace(/```json|```/g, "").trim();
-    const questions = JSON.parse(cleanJson);
-
-    console.log(questions)
-    // Salva no banco
-    const { error } = await supabase.from("quizzes").insert({
-      aula_id: aulaId,
-      questions: questions
-    });
-
     if (error) throw error;
-
+    if (data && typeof data === "object" && "error" in data && data.error) throw new Error(String(data.error));
   } catch (err) {
     console.error(`[Quiz Error] Aula ${aulaId}:`, err);
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, CheckCircle2, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { invokeApiProxy } from "@/lib/apiProxy";
 
 export interface QuizQuestion {
   id: number;
@@ -23,7 +24,7 @@ interface QuizTabProps {
 const QUESTIONS_PER_QUIZ = 5;
 const PASS_THRESHOLD = 0.8;
 
-// ─── Geração de questões via Anthropic API ───────────────────────────────────
+// ─── Geração de questões (Groq via Edge api-proxy) ──────────────────────────
 
 async function generateQuestions(topic: string): Promise<QuizQuestion[]> {
   const prompt = `Você é um professor especialista. Gere ${QUESTIONS_PER_QUIZ} questões de múltipla escolha sobre o seguinte tópico:
@@ -53,30 +54,9 @@ Formato obrigatório:
 
 O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
-
-const AI_KEY = import.meta.env.VITE_AI_KEY;
-
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [{ role: "system", content: prompt }],
-        }),
-      });
-
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
-
-  const data = await response.json();
-
-  console.log(data)
-  const text = data.choices?.[0]?.message?.content ?? "";
-
-  // Remove possíveis backticks/markdown caso o modelo adicione mesmo assim
-  const clean = text.replace(/```json|```/gi, "").trim();
-  const parsed: QuizQuestion[] = JSON.parse(clean);
-
-  // Validação básica
+  const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
+  if (error) throw new Error(error.message);
+  const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
 }

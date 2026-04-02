@@ -396,31 +396,57 @@ const ProfilePage = () => {
         const progressList: CourseProgress[] = [];
         let totalAssistidas = 0;
 
-        for (const w of watchData) {
-          const course = Array.isArray(w.courses) ? w.courses[0] : w.courses as any;
-          if (!course) continue;
+        const courseRows = watchData
+          .map((w) => {
+            const course = Array.isArray(w.courses) ? w.courses[0] : (w.courses as any);
+            return course ? { w, course } : null;
+          })
+          .filter(Boolean) as { w: (typeof watchData)[0]; course: { id: string; name: string; difficult?: string } }[];
 
-          const { count: totalAulas } = await supabase
-            .from("aulas")
-            .select("id", { count: "exact", head: true })
-            .eq("course_id", course.id);
+        const courseIds = [...new Set(courseRows.map(({ course }) => course.id))];
 
-          const { data: aulasCourse } = await supabase
-            .from("aulas")
-            .select("id")
-            .eq("course_id", course.id);
+        if (courseIds.length === 0) {
+          setOverallProgress({
+            totalCursos: 0,
+            cursosConcluidos: 0,
+            cursosEmAndamento: 0,
+            progressoMedio: 0,
+            totalAulasAssistidas: 0,
+            courseProgressList: [],
+          });
+          return;
+        }
 
-          const aulaIds = (aulasCourse ?? []).map(a => Number(a.id));
+        const { data: allAulas } = await supabase
+          .from("aulas")
+          .select("id, course_id")
+          .in("course_id", courseIds);
 
-          const { count: completedAulas } = await supabase
-            .from("lesson_progress")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", uid)
-            .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
-            .eq("completed", true);
+        const aulaIdsByCourse = new Map<string, number[]>();
+        for (const row of allAulas ?? []) {
+          const cid = String(row.course_id);
+          if (!aulaIdsByCourse.has(cid)) aulaIdsByCourse.set(cid, []);
+          aulaIdsByCourse.get(cid)!.push(Number(row.id));
+        }
 
-          const total = totalAulas ?? 0;
-          const completed = completedAulas ?? 0;
+        const allAulaIds = (allAulas ?? []).map((a) => Number(a.id));
+
+        const { data: progressRows } =
+          allAulaIds.length > 0
+            ? await supabase
+                .from("lesson_progress")
+                .select("aula_id")
+                .eq("user_id", uid)
+                .eq("completed", true)
+                .in("aula_id", allAulaIds)
+            : { data: [] as { aula_id: number }[] };
+
+        const completedAulaSet = new Set((progressRows ?? []).map((p) => Number(p.aula_id)));
+
+        for (const { course } of courseRows) {
+          const aulaIds = aulaIdsByCourse.get(String(course.id)) ?? [];
+          const total = aulaIds.length;
+          const completed = aulaIds.filter((id) => completedAulaSet.has(id)).length;
           const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
           totalAssistidas += completed;
