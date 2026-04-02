@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useRanking, xpToLevel, xpForNextLevel } from "@/hooks/useRanking";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, ArrowLeft, Loader2, Shield, Trophy, Star, Zap,
@@ -79,6 +80,11 @@ const PublicProfilePage = () => {
   const [notFound,    setNotFound]    = useState(false);
   const [copied,      setCopied]      = useState(false);
 
+  // XP e nível dinâmicos via ranking — Mover para cima para evitar violação de Hooks
+  // Se profile ainda não carregou, passamos undefined
+  const { ranking } = useRanking(profile?.user_id);
+  const profileRanked = ranking.find(u => u.user_id === profile?.user_id);
+
   useEffect(() => {
     if (!identifier) return;
     async function load() {
@@ -142,10 +148,11 @@ const PublicProfilePage = () => {
   const filledSocials = Object.entries(profile.redes ?? {}).filter(([, v]) => v) as [SocialKey, string][];
   const featuredMedals = (profile.medalhas ?? [])
     .filter(m => m.ativa).map(m => ALL_MEDALS.find(a => a.id === m.id)).filter(Boolean) as typeof ALL_MEDALS[number][];
-  const currentLevel  = profile.nivel || 1;
-  const currentXP     = Number(profile.total_xp || 0);
-  const xpNext        = currentLevel * 1000;
-  const xpPct         = Math.min((currentXP / xpNext) * 100, 100);
+  // XP e nível dinâmicos calculados acima
+  const currentXP     = profileRanked?.total_xp ?? 0;
+  const currentLevel  = xpToLevel(currentXP);
+  const xpInLevel     = currentXP - ((currentLevel - 1) * 10);
+  const xpPct         = Math.min((xpInLevel / 10) * 100, 100);
   const isOwnProfile  = me?.id === profile.user_id;
 
   return (

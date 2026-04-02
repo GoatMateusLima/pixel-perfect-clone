@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useRanking, xpToLevel, xpForNextLevel } from "@/hooks/useRanking";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,6 +39,15 @@ interface CourseProgress {
   completedAulas: number;
   pct: number;
   thumb?: string;
+}
+
+interface OverallProgress {
+  totalCursos: number;
+  cursosConcluidos: number;
+  cursosEmAndamento: number;
+  progressoMedio: number;
+  totalAulasAssistidas: number;
+  courseProgressList: CourseProgress[];
 }
 
 // =============================================================================
@@ -212,7 +222,7 @@ const AssessmentResultModal = ({
 // COMPONENTE PRINCIPAL
 // =============================================================================
 const ProfilePage = () => {
-  const { user, logout, assessment } = useAuth();
+  const { user, logout, assessment, refreshPhoto } = useAuth();
   const navigate = useNavigate();
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
@@ -243,6 +253,12 @@ const ProfilePage = () => {
   const [medalPickerOpen, setMedalPickerOpen] = useState(false);
   const [hoverPhoto, setHoverPhoto] = useState(false);
   const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
+
+  // Progresso geral real do usuário
+  const [overallProgress, setOverallProgress] = useState<OverallProgress>({
+    totalCursos: 0, cursosConcluidos: 0, cursosEmAndamento: 0,
+    progressoMedio: 0, totalAulasAssistidas: 0, courseProgressList: [],
+  });
 
   // Modal resultado avaliação — abre 1 vez após concluir
   const [showResultModal, setShowResultModal] = useState(() => sessionStorage.getItem("show_assessment_result") === "1");
@@ -275,19 +291,98 @@ const ProfilePage = () => {
     loadData();
   }, [user]);
 
+  // Busca dados reais para o Progresso Geral
+  useEffect(() => {
+    if (!user) return;
+    async function loadOverallProgress() {
+      try {
+        const { data: watchData } = await supabase
+          .from("watch")
+          .select("course_id, courses(id, name, difficult)")
+          .eq("user_id", user.id);
+
+        if (!watchData || watchData.length === 0) return;
+
+        const progressList: CourseProgress[] = [];
+        let totalAssistidas = 0;
+
+        for (const w of watchData) {
+          const course = Array.isArray(w.courses) ? w.courses[0] : w.courses as any;
+          if (!course) continue;
+
+          const { count: totalAulas } = await supabase
+            .from("aulas")
+            .select("id", { count: "exact", head: true })
+            .eq("course_id", course.id);
+
+          const { data: aulasCourse } = await supabase
+            .from("aulas")
+            .select("id")
+            .eq("course_id", course.id);
+
+          const aulaIds = (aulasCourse ?? []).map(a => Number(a.id));
+
+          const { count: completedAulas } = await supabase
+            .from("lesson_progress")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
+            .eq("completed", true);
+
+          const total = totalAulas ?? 0;
+          const completed = completedAulas ?? 0;
+          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+          totalAssistidas += completed;
+
+          progressList.push({
+            courseId: course.id,
+            courseName: course.name,
+            difficult: course.difficult ?? "Iniciante",
+            totalAulas: total,
+            completedAulas: completed,
+            pct,
+          });
+        }
+
+        const totalCursos = progressList.length;
+        const concluidos = progressList.filter(c => c.pct === 100).length;
+        const emAndamento = progressList.filter(c => c.pct > 0 && c.pct < 100).length;
+        const media = totalCursos > 0
+          ? Math.round(progressList.reduce((acc, c) => acc + c.pct, 0) / totalCursos)
+          : 0;
+
+        setOverallProgress({
+          totalCursos,
+          cursosConcluidos: concluidos,
+          cursosEmAndamento: emAndamento,
+          progressoMedio: media,
+          totalAulasAssistidas: totalAssistidas,
+          courseProgressList: progressList,
+        });
+      } catch (err) {
+        console.error("Erro ao carregar progresso geral:", err);
+      }
+    }
+    loadOverallProgress();
+  }, [user]);
+
   useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
 
   useEffect(() => {
     if (!user) return;
     async function syncProfile() {
       setLoadingProfile(true);
-      const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
-      if (error) setProfile({ user_id: user.id, name: user.name, redes: {}, bordas: [] });
+      const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+      if (error || !data) setProfile({ user_id: user.id, name: user.email?.split("@")[0] ?? "Usuário", redes: {}, bordas: [] });
       else setProfile(data as Profile);
       setLoadingProfile(false);
     }
     syncProfile();
   }, [user]);
+
+  // XP e nível dinâmicos via ranking - Mover para cima para evitar violação de Hooks
+  const { myRank, myXP } = useRanking(user?.id);
 
   if (!user) return null;
 
@@ -309,17 +404,19 @@ const ProfilePage = () => {
   const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
   const emptySocials = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
 
-  // XP e nível vêm do banco diretamente
-  const currentLevel = profile.nivel || 1;
-  const currentXP = Number(profile.total_xp || 0);
-  const xpNextLevel = currentLevel * 1000;
-  const xpProgress = Math.min((currentXP / xpNextLevel) * 100, 100);
+  // XP e nível dinâmicos calculados acima
+  const currentXP = myXP;
+  const currentLevel = xpToLevel(currentXP);
+  const xpNextLevel = xpForNextLevel(currentLevel);
+  const xpInCurrentLevel = currentXP - ((currentLevel - 1) * 10);
+  const xpProgress = Math.min((xpInCurrentLevel / 10) * 100, 100);
   const currentStreak = 12;
-  const currentRank = 48;
+  const currentRank = myRank ?? "—";
 
   // Handlers edição
   const handleStartEdit = () => {
-    setDraftName(profile.name ?? user.name ?? ""); setDraftDescricao(profile.descricao ?? "");
+    setDraftName(profile.name ?? user.email?.split("@")[0] ?? "Usuário"); 
+    setDraftDescricao(profile.descricao ?? "");
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setDraftBordas(null);
     setBorderPickerOpen(false); setDraftMedalhas(null); setSaveError(null); setIsEditing(true);
   };
@@ -341,8 +438,12 @@ const ProfilePage = () => {
       const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
       setProfile(payload);
+      refreshPhoto(); // Sincroniza foto globalmente (Header, Sidebars, etc)
       setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
-    } catch (err: any) { setSaveError(err?.message ?? "Erro ao salvar perfil."); }
+    } catch (err: unknown) { 
+      const errorMessage = err instanceof Error ? err.message : "Erro ao salvar perfil.";
+      setSaveError(errorMessage); 
+    }
     finally { setSaving(false); }
   };
 
@@ -407,7 +508,14 @@ const ProfilePage = () => {
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
-              <Progress />
+              <Progress
+                totalCursos={overallProgress.totalCursos}
+                cursosConcluidos={overallProgress.cursosConcluidos}
+                cursosEmAndamento={overallProgress.cursosEmAndamento}
+                progressoMedio={overallProgress.progressoMedio}
+                totalAulasAssistidas={overallProgress.totalAulasAssistidas}
+                courseProgressList={overallProgress.courseProgressList}
+              />
             </motion.div>
 
             {/* AMIGOS (CARD LATERAL) */}
@@ -479,7 +587,7 @@ const ProfilePage = () => {
                       {isEditing
                         ? <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Seu nome"
                           className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
-                        : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.name}</h1>}
+                        : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.email?.split("@")[0] ?? "Usuário"}</h1>}
                       <p className="text-sm text-muted-foreground font-body">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground" style={{ backgroundColor: ringColor }}>{DISC_LABELS[discProfile]}</span>

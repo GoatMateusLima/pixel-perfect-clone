@@ -21,6 +21,7 @@ type AuthContextType = {
   loading:            boolean;
   assessment:         AssessmentData;
   profilePhoto:       string | null;
+  role:               "user" | "admin" | null; // Added role support
   updateAssessment:   (partial: Partial<AssessmentData>) => void;
   saveAssessmentToDb: (data: AssessmentData) => Promise<void>;
   refreshPhoto:       () => void;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,         setUser]         = useState<User | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [role,         setRole]         = useState<"user" | "admin" | null>(null);
 
   const [assessment, setAssessment] = useState<AssessmentData>(() => {
     try { return JSON.parse(localStorage.getItem(ASSESSMENT_KEY) ?? "{}"); }
@@ -43,29 +45,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   // ── Busca foto do perfil em background (mantida para refresh explícito) ────
-  const fetchProfilePhoto = (userId: string) => {
+  const fetchProfilePhoto = (currentUser: User) => {
     supabase
       .from("profiles")
       .select("perfil")
-      .eq("user_id", userId)
+      .eq("user_id", currentUser.id)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (!error && data?.perfil) setProfilePhoto(data.perfil);
+        const photo = data?.perfil || 
+                      currentUser.user_metadata?.avatar_url || 
+                      currentUser.user_metadata?.picture || 
+                      currentUser.user_metadata?.photoURL || 
+                      currentUser.user_metadata?.photo || 
+                      null;
+        if (!error) setProfilePhoto(photo);
       });
   };
 
   // ── Busca todos os dados iniciais do usuário numa única requisição ─────────
-  const fetchUserData = (userId: string) => {
+  const fetchUserData = (currentUser: User) => {
     supabase
       .from("profiles")
-      .select("perfil, calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed")
-      .eq("user_id", userId)
+      .select("*")
+      .eq("user_id", currentUser.id)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (error || !data) return;
+        // Foto de perfil e Role com fallbacks inteligentes usando o objeto passado
+        const finalPhoto = data?.perfil || 
+                           currentUser.user_metadata?.avatar_url || 
+                           currentUser.user_metadata?.picture || 
+                           currentUser.user_metadata?.photoURL ||
+                           currentUser.user_metadata?.photo ||
+                           null;
+        setProfilePhoto(finalPhoto);
+        
+        if (data?.role) setRole(data.role as "user" | "admin");
 
-        // Foto de perfil
-        if (data.perfil) setProfilePhoto(data.perfil);
+        if (error || !data) return;
 
         // Assessment
         const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
@@ -88,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshPhoto = () => {
-    if (user?.id) fetchProfilePhoto(user.id);
+    if (user) fetchProfilePhoto(user);
   };
 
   useEffect(() => {
@@ -96,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!error && data.session?.user) {
         setSession(data.session);
         setUser(data.session.user);
-        fetchUserData(data.session.user.id); // Requisição consolidada
+        fetchUserData(data.session.user); // Chama com o objeto direto da sessão
       }
       setLoading(false);
     });
@@ -107,9 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
-        fetchUserData(session.user.id);
+        fetchUserData(session.user);
       } else {
         setProfilePhoto(null);
+        setRole(null);
         setAssessment({});
         localStorage.removeItem(ASSESSMENT_KEY);
       }
@@ -227,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      session, user, loading,
+      session, user, loading, role,
       assessment, updateAssessment, saveAssessmentToDb,
       profilePhoto, refreshPhoto,
       signOutUser,

@@ -314,14 +314,14 @@ const PostModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.2 }}
-          className="hologram-panel rounded-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          className="hologram-panel w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-white/10 shadow-2xl"
           onClick={(e) => e.stopPropagation()}>
 
           {/* ── Header ── */}
-          <div className="p-5 pb-0 flex items-start justify-between gap-3 flex-shrink-0">
+          <div className="p-6 pb-2 flex items-start justify-between gap-3 flex-shrink-0">
             {/* Div alterada para ser clicável e redirecionar ao perfil */}
             <div 
-              className="flex items-start gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              className="flex items-start gap-4 cursor-pointer group/avatar"
               onClick={handleAvatarClick}
             >
               <UserAvatar
@@ -331,35 +331,37 @@ const PostModal = ({
                 size="lg" isMe={isMe}
                 discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
               />
-              <div>
+              <div className="pt-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-accent font-semibold text-sm text-foreground">
+                  <p className="font-display font-bold text-base text-white group-hover/avatar:text-primary transition-colors">
                     {isMe ? myName : authorName}
                   </p>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                    style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-accent font-bold uppercase tracking-wider"
+                    style={{ background: `${DISC_COLOR[authorDisc]}20`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}30` }}>
                     {authorDisc} · {DISC_LABEL[authorDisc]}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-                <p className="text-[10px] text-muted-foreground font-body opacity-60">
+                <p className="text-xs text-muted-foreground font-body mt-0.5 font-medium">{authorRole}</p>
+                <p className="text-[11px] text-muted-foreground/60 font-body mt-1">
                   {formatRelativeTime(post.date)}
                 </p>
               </div>
             </div>
             <button onClick={onClose}
-              className="text-muted-foreground hover:text-foreground transition p-1 rounded-sm flex-shrink-0">
-              <X size={16} />
+              className="text-muted-foreground hover:text-white transition-all p-2 rounded-full hover:bg-white/5 flex-shrink-0">
+              <X size={20} />
             </button>
           </div>
 
           {/* ── Descrição e Mídia ── */}
-          <div className="px-5 py-4 flex-shrink-0">
-            <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line mb-3">
+          <div className="px-6 py-4 flex-shrink-0">
+            <p className="text-[15px] font-body text-foreground/90 leading-relaxed whitespace-pre-line mb-4">
               {post.description}
             </p>
             {post.midia && post.midia !== "EMPTY" && (
-              <PostMedia midia={post.midia} maxHeight={380} inModal />
+              <div className="rounded-2xl overflow-hidden border border-white/5">
+                <PostMedia midia={post.midia} maxHeight={400} inModal />
+              </div>
             )}
           </div>
 
@@ -368,15 +370,15 @@ const PostModal = ({
             <span>{totalComments} comentário{totalComments !== 1 ? "s" : ""}</span>
           </div>
 
-          <div className="px-5 py-2 flex items-center gap-1 border-t border-border/30 flex-shrink-0">
+          <div className="px-6 py-2 flex items-center gap-2 border-t border-white/5 bg-white/[0.02] flex-shrink-0">
             {[
-              { label: "Curtir",      el: <Heart size={14} className={isLiked ? "fill-rose-400" : ""} />,   active: isLiked,  color: "text-rose-400", fn: handleLikeToggle },
-              { label: "Salvar",      el: <Bookmark size={14} className={isSaved ? "fill-primary" : ""} />, active: isSaved,  color: "text-primary",  fn: handleSaveToggle },
-              { label: "Copiar link", el: <Share2 size={14} />,                                             active: false,    color: "",              fn: copyLink },
+              { label: "Curtir",      el: <Heart size={16} className={isLiked ? "fill-rose-500 text-rose-500" : ""} />,   active: isLiked,  color: "text-rose-500", fn: handleLikeToggle },
+              { label: "Salvar",      el: <Bookmark size={16} className={isSaved ? "fill-primary text-primary" : ""} />, active: isSaved,  color: "text-primary",  fn: handleSaveToggle },
+              { label: "Link",        el: <Share2 size={16} />,                                             active: false,    color: "",              fn: copyLink },
             ].map(({ label, el, active, color, fn }) => (
               <button key={label} onClick={fn}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
-                {el} {label}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-accent font-bold transition-all duration-200 hover:bg-white/5 active:scale-95 ${active ? color : "text-muted-foreground hover:text-white"}`}>
+                {el} <span>{label}</span>
               </button>
             ))}
           </div>
@@ -442,7 +444,7 @@ const PostModal = ({
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
                   placeholder="Escreva um comentário…"
                   disabled={submitting}
-                  className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-3 py-2 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition disabled:opacity-50"
+                  className="flex-1 bg-white/[0.03] border border-white/10 rounded-full px-5 py-2.5 text-sm font-body text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-white/[0.05] transition-all disabled:opacity-50"
                 />
 
                 <div className="flex gap-1 items-center bg-secondary/20 rounded-sm px-1 py-0.5 border border-border/30">

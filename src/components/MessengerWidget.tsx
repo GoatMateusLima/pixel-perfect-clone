@@ -96,7 +96,7 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
 
   // Escuta Realtime na tabela de sessões para atualizar a lista instantaneamente
   useEffect(() => {
-    const channel = supabase.channel('sessions-list')
+    const channel = supabase.channel(`sessions-list-${Math.random().toString(36).substring(7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_sessions' }, (payload) => {
         const row = payload.new as any;
         if (row && (row.user1_id === myId || row.user2_id === myId)) {
@@ -273,7 +273,7 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
   }, [myId, chat.userId]);
 
   useEffect(() => {
-    const channel = supabase.channel('chat-room')
+    const channel = supabase.channel(`chat-room-${Math.random().toString(36).substring(7)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const row = payload.new as Message;
         const isFromChat = (row.sender_id === myId && row.receiver_id === chat.userId) ||
@@ -643,7 +643,10 @@ const MessengerWidget = () => {
   const loadBadge = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.rpc("get_unread_total");
-    setUnreadTotal(Number(data ?? 0));
+    const count = Number(data ?? 0);
+    setUnreadTotal(count);
+    // 📢 Sincroniza o contador com o Header
+    window.dispatchEvent(new CustomEvent('unread-sync', { detail: { count } }));
   }, [user]);
 
   // Inicializa som de notificação global
@@ -656,7 +659,7 @@ const MessengerWidget = () => {
   // Listener Global de Novas Mensagens (Som de Notificação + Popup)
   useEffect(() => {
     if (!user) return;
-    const ch = supabase.channel("global-messages")
+    const ch = supabase.channel(`global-messages-${Math.random().toString(36).substring(7)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
         const row = payload.new as Message;
         if (row && row.receiver_id === user.id) {
@@ -709,14 +712,19 @@ const MessengerWidget = () => {
 
   useEffect(() => {
     const refresh = () => setListRefreshKey(k => k + 1);
+    const toggle = () => setIsOpen(prev => !prev);
     window.addEventListener("friendship-changed", refresh);
-    return () => window.removeEventListener("friendship-changed", refresh);
+    window.addEventListener("toggle-messenger", toggle);
+    return () => {
+      window.removeEventListener("friendship-changed", refresh);
+      window.removeEventListener("toggle-messenger", toggle);
+    };
   }, []);
 
 
   useEffect(() => {
     loadBadge();
-    const ch = supabase.channel("messenger-sync")
+    const ch = supabase.channel(`messenger-sync-${Math.random().toString(36).substring(7)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_sessions" }, (payload) => {
         const row = payload.new as any;
         if (row && (row.user1_id === user?.id || row.user2_id === user?.id)) loadBadge();
@@ -756,7 +764,7 @@ const MessengerWidget = () => {
       <AnimatePresence>
         {!isOpen && !isAiOpen && (
           <>
-            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+            <div className={`fixed bottom-6 right-6 z-50 ${isOpen ? 'hidden' : 'hidden md:flex'} items-center gap-3`}>
               <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} 
                 onClick={() => { 
                   // Unlock audio
@@ -768,14 +776,14 @@ const MessengerWidget = () => {
                   }
                   setIsOpen(true); setView("list"); loadBadge(); 
                 }} 
-                className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(155 60% 38%), hsl(155 60% 22%))", border: "1.5px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
-                <MessageCircle size={22} style={{ color: "hsl(155 60% 90%)" }} />
-                {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white" style={{ background: "hsl(0 70% 55%)", boxShadow: "0 0 8px hsl(0 70% 55% / 0.6)" }}>{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
+                className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, #059669, #064e3b)", border: "1.5px solid rgba(16, 185, 129, 0.4)", boxShadow: "0 0 20px rgba(16, 185, 129, 0.3), 0 4px 16px rgba(0,0,0,0.5)" }}>
+                <MessageCircle size={22} className="text-emerald-100" />
+                {unreadTotal > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-accent font-bold text-white bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.6)]">{unreadTotal > 9 ? "9+" : unreadTotal}</motion.span>}
               </motion.button>
             </div>
-            <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3">
-              <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsAiOpen(true); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, hsl(215 60% 38%), hsl(215 60% 22%))", border: "1.5px solid hsl(215 60% 45% / 0.6)", boxShadow: "0 0 20px hsl(215 60% 45% / 0.45), 0 4px 16px rgba(0,0,0,0.5)" }}>
-                <Bot size={22} style={{ color: "hsl(215 60% 90%)" }} />
+            <div className={`fixed bottom-6 left-6 z-50 ${isAiOpen ? 'hidden' : 'hidden md:flex'} items-center gap-3`}>
+              <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => { setIsAiOpen(true); }} className="relative w-13 h-13 rounded-full flex items-center justify-center border-0" style={{ width: 52, height: 52, background: "radial-gradient(circle at 35% 35%, #2563eb, #1e3a8a)", border: "1.5px solid rgba(59, 130, 246, 0.4)", boxShadow: "0 0 20px rgba(59, 130, 246, 0.3), 0 4px 16px rgba(0,0,0,0.5)" }}>
+                <Bot size={22} className="text-blue-100" />
               </motion.button>
             </div>
           </>
