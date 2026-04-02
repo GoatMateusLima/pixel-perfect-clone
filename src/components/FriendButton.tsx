@@ -40,22 +40,17 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     let cancelled = false;
 
     async function load() {
-      // Consulta direta para máxima precisão, sem depender do RPC
-      const { data, error } = await supabase
-        .from("amizades")
-        .select("*")
-        .or(`and(user1.eq.${me.id},user2.eq.${targetUserId}),and(user1.eq.${targetUserId},user2.eq.${me.id})`)
-        .maybeSingle();
+      // Duas consultas com .eq — evita falhas de sintaxe do .or(and(...),and(...)) no PostgREST
+      const [a, b] = await Promise.all([
+        supabase.from("amizades").select("*").eq("user1", me.id).eq("user2", targetUserId).maybeSingle(),
+        supabase.from("amizades").select("*").eq("user1", targetUserId).eq("user2", me.id).maybeSingle(),
+      ]);
+      const data = a.data ?? b.data;
 
       if (cancelled) return;
 
-      if (error) {
-        console.error("Erro ao carregar status de amizade:", error);
-        setStatus("none");
-        return;
-      }
-
       if (!data) {
+        if (a.error && b.error) console.error("Erro ao carregar status de amizade:", a.error, b.error);
         setStatus("none");
       } else if (data.tipo === "Amigos") {
         setStatus("accepted");
@@ -143,9 +138,8 @@ const FriendButton = ({ targetUserId, targetName = "usuário", onStatusChange, c
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase.from("amizades").delete().or(
-      `and(user1.eq.${user.id},user2.eq.${targetUserId}),and(user1.eq.${targetUserId},user2.eq.${user.id})`
-    );
+    await supabase.from("amizades").delete().eq("user1", user.id).eq("user2", targetUserId);
+    await supabase.from("amizades").delete().eq("user1", targetUserId).eq("user2", user.id);
     setSaving(false);
     setStatus("none");
     setMenuOpen(false);

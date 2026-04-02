@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import supabase from "../../utils/supabase";
+import { fetchAcceptedFriends } from "../../utils/friends";
 import { useAuth } from "@/contexts/AuthContext";
 import notificacaoSfx from "../assets/SFX/notificacao.mp3";
 
@@ -82,14 +83,14 @@ const ConversationList = ({ onSelectChat, myId, refreshKey }: { onSelectChat: (c
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: convData }, { data: friendData }] = await Promise.all([
+    const [{ data: convData }, friendsRes] = await Promise.all([
       supabase.rpc("get_conversations"),
-      supabase.rpc("get_friends"),
+      fetchAcceptedFriends(myId),
     ]);
     setConvs(convData ?? []);
-    setFriends(friendData ?? []);
+    setFriends(friendsRes.data ?? []);
     setLoading(false);
-  }, []);
+  }, [myId]);
 
   // Reload when returning from a chat (refreshKey muda)
   useEffect(() => { load(); }, [load, refreshKey]);
