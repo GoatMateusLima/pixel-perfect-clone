@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Flame, Trophy, Zap, Loader2 } from "lucide-react";
+import { Trophy, Zap, Loader2, Bookmark, Heart, LayoutList } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar, DISC_IMGS, DISC_COLOR, DISC_LABEL, toInitials } from "./PostCard";
@@ -27,6 +27,8 @@ const BADGES = ["🥇", "🥈", "🥉", "4º", "5º"];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+type FeedFilter = "recentes" | "populares" | "curtidos" | "salvos";
+
 interface LeftSidebarProps {
   myName:           string;
   myDisc:           string;
@@ -35,7 +37,9 @@ interface LeftSidebarProps {
   myCourseProgress: number;
   myCourseTitle:    string;
   myUserId?:        string;
-  myAvatarUrl?:      string | null;
+  myAvatarUrl?:     string | null;
+  activeFilter?:    FeedFilter;
+  onFilter?:        (f: FeedFilter) => void;
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -44,6 +48,8 @@ const LeftSidebar = ({
   myName, myDisc, myRole, myHourValue,
   myCourseProgress, myCourseTitle, myUserId,
   myAvatarUrl: localAvatarProp,
+  activeFilter = "recentes",
+  onFilter,
 }: LeftSidebarProps) => {
   const { profilePhoto: globalAvatar } = useAuth(); // foto do contexto global
   const myAvatarUrl = localAvatarProp || globalAvatar;
@@ -166,25 +172,64 @@ const LeftSidebar = ({
         </div>
       </motion.div>
 
-      {/* ── Tópicos em Alta ── */}
-      <motion.div
-        initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
-        <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
-          <Flame size={16} className="text-primary/60" /> Tópicos em Alta
-        </h3>
-        <div className="space-y-5">
-          {TRENDING.map((t, i) => (
-            <motion.button key={t.tag} whileHover={{ x: 4 }} className="w-full flex items-center justify-between text-left group">
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] text-white/10 font-black w-4">{String(i + 1).padStart(2, '0')}</span>
-                <span className="text-[14px] font-body font-bold text-white/80 group-hover:text-primary transition-colors duration-300 tracking-tight">{t.tag}</span>
-              </div>
-              <span className="text-[10px] text-white/20 font-black font-accent bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{t.posts}</span>
-            </motion.button>
-          ))}
-        </div>
-      </motion.div>
+      {/* ── Minhas Publicações (Curtidas / Salvas) ── */}
+      {onFilter && (
+        <motion.div
+          initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.07, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="glass-card border border-white/5 rounded-3xl shadow-xl overflow-hidden"
+        >
+          <div className="px-5 pt-5 pb-2">
+            <h3 className="font-display text-[10px] font-black text-white/30 flex items-center gap-3 uppercase tracking-[0.2em] mb-4">
+              <LayoutList size={14} className="text-primary/60" /> Minhas Publicações
+            </h3>
+          </div>
+
+          {([
+            {
+              id: "curtidos" as FeedFilter,
+              label: "Curtidas",
+              icon: Heart,
+              activeColor: "text-rose-400",
+              activeBg: "bg-rose-400/10",
+              activeBorder: "border-rose-400/20",
+            },
+            {
+              id: "salvos" as FeedFilter,
+              label: "Salvas",
+              icon: Bookmark,
+              activeColor: "text-primary",
+              activeBg: "bg-primary/10",
+              activeBorder: "border-primary/20",
+            },
+          ]).map(({ id, label, icon: Icon, activeColor, activeBg, activeBorder }) => {
+            const isActive = activeFilter === id;
+            return (
+              <button
+                key={id}
+                onClick={() => onFilter(isActive ? "recentes" : id)}
+                className={`w-full flex items-center gap-3 px-5 py-3.5 transition-all duration-200 group
+                  ${isActive
+                    ? `${activeBg} border-l-2 ${activeBorder}`
+                    : "hover:bg-white/[0.03] border-l-2 border-transparent"}`}
+              >
+                <Icon
+                  size={15}
+                  className={`flex-shrink-0 transition-colors duration-200 ${isActive ? activeColor : "text-white/30 group-hover:text-white/60"}`}
+                  fill={isActive ? "currentColor" : "none"}
+                />
+                <span
+                  className={`flex-1 text-left text-[13px] font-body font-semibold transition-colors duration-200 ${
+                    isActive ? `${activeColor}` : "text-white/50 group-hover:text-white/80"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+          <div className="h-2" />
+        </motion.div>
+      )}
 
       {/* ── Ranking por XP (dinâmico) ── */}
       <motion.div

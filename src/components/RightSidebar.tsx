@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, ExternalLink, Clock, ChevronRight } from "lucide-react";
+import { TrendingUp, ExternalLink, Clock, ChevronRight, Flame } from "lucide-react";
 
 interface NewsItem {
   id:            number;
@@ -28,14 +28,45 @@ const MOCK_NEWS: NewsItem[] = [
   { id: 6, title: "Brasil registra alta de 65% em ataques ransomware em 2025",         category: "Cibersegurança",          categoryColor: "hsl(0 70% 55%)",   time: "há 1d",  url: "https://canaltech.com.br/seguranca/",             image: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=400&q=80" },
 ];
 
+const TRENDING = [
+  { tag: "#RemoteWork",             posts: 1240 },
+  { tag: "#InteligenciaArtificial", posts: 987  },
+  { tag: "#FreelancerBR",           posts: 754  },
+  { tag: "#DataScience",            posts: 612  },
+  { tag: "#CarreiraTech",           posts: 501  },
+];
+
 const RightSidebar = () => {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? MOCK_NEWS : MOCK_NEWS.slice(0, 4);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-      className="glass-card overflow-hidden border border-white/5 shadow-2xl rounded-3xl">
+    <div className="space-y-6">
+
+      {/* ── Tópicos em Alta ── */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}
+        className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
+        <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
+          <Flame size={16} className="text-primary/60" /> Tópicos em Alta
+        </h3>
+        <div className="space-y-5">
+          {TRENDING.map((t, i) => (
+            <motion.button key={t.tag} whileHover={{ x: 4 }} className="w-full flex items-center justify-between text-left group">
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] text-white/10 font-black w-4">{String(i + 1).padStart(2, '0')}</span>
+                <span className="text-[14px] font-body font-bold text-white/80 group-hover:text-primary transition-colors duration-300 tracking-tight">{t.tag}</span>
+              </div>
+              <span className="text-[10px] text-white/20 font-black font-accent bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{t.posts}</span>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── Radar Tech ── */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+        className="glass-card overflow-hidden border border-white/5 shadow-2xl rounded-3xl">
 
       <div className="px-7 py-5 border-b border-white/5 flex items-center justify-between bg-white/[0.03]">
         <div className="flex items-center gap-3">
@@ -96,6 +127,8 @@ const RightSidebar = () => {
         <ChevronRight size={13} className={`transition-transform duration-500 ${expanded ? "rotate-90" : ""}`} />
       </button>
     </motion.div>
+
+    </div>
   );
 };
 

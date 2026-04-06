@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, TrendingUp, Zap, Loader2, ArrowUp } from "lucide-react";
+import { Loader2, ArrowUp, Bookmark, Heart } from "lucide-react";
 
 import Header          from "@/components/Header";
 import { MainLandmark } from "@/components/MainLandmark";
@@ -31,12 +31,16 @@ import { DISC_IMGS }  from "../components/PostCard";
 import type { Post, Publication } from "../components/PostCard";
 import supabase from "../../utils/supabase.ts";
 
+// ─── Tipos de filtro ──────────────────────────────────────────────────────────
+
+type FilterType = "recentes" | "populares" | "curtidos" | "salvos";
+
 // ─── CommunityPage ────────────────────────────────────────────────────────────
 
 const CommunityPage = () => {
   const { user, profilePhoto, assessment } = useAuth();
 
-  const [filter,      setFilter]      = useState<"recentes" | "populares">("recentes");
+  const [filter,      setFilter]      = useState<FilterType>("recentes");
   const [openPost,    setOpenPost]    = useState<Post | null>(null);
 
   const [myName, setMyName] = useState("Você");
@@ -50,6 +54,15 @@ const CommunityPage = () => {
   const myHourValue      = assessment?.valorHoraLiquida
     ? `R$ ${assessment.valorHoraLiquida.toFixed(0)}/h` : "—";
   const myDiscRingImg    = DISC_IMGS[myDisc] || DISC_IMGS.S;
+
+  // ── IDs de posts salvos (state = reatividade UI, ref = acesso síncrono sem dep em useCallback)
+  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+  const savedPostIdsRef = useRef<Set<string>>(new Set());
+
+  const updateSavedIds = (newSet: Set<string>) => {
+    savedPostIdsRef.current = newSet;
+    setSavedPostIds(newSet);
+  };
 
   // Busca perfil e progresso do curso
   useEffect(() => {
@@ -66,7 +79,6 @@ const CommunityPage = () => {
       const finalName = prof?.name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Usuário";
       setMyName(finalName);
       if (prof?.descricao) setMyRole(prof.descricao);
-      if (prof?.perfil) setLocalAvatar(prof.perfil);
       if (prof?.perfil) setLocalAvatar(prof.perfil);
 
       // 2. Busca curso mais recente na tabela watch
@@ -87,7 +99,7 @@ const CommunityPage = () => {
       const course = Array.isArray(watchData.courses) ? watchData.courses[0] : watchData.courses as any;
       setMyCourseTitle(course.name);
 
-      // 3. Calcula progresso desse curso (similar ao CursosEmAndamento.tsx)
+      // 3. Calcula progresso desse curso
       const { count: totalAulas } = await supabase
         .from("aulas")
         .select("id", { count: "exact", head: true })
@@ -116,6 +128,33 @@ const CommunityPage = () => {
     loadProfileAndProgress();
   }, [user?.id]);
 
+  // ── Carrega IDs salvos — aplica nos posts já carregados para não piscar ─────
+  useEffect(() => {
+    if (!myCreatorId) return;
+
+    async function loadSavedIds() {
+      const { data, error } = await supabase
+        .from("saved_posts")
+        .select("post_id")
+        .eq("user_id", myCreatorId);
+
+      if (!error && data) {
+        const newSet = new Set(data.map((r: any) => r.post_id as string));
+        updateSavedIds(newSet);
+
+        // Aplica `saved: true` nos posts já visíveis no feed (chegam antes do loadSavedIds)
+        if (newSet.size > 0) {
+          const patch = (list: Post[]) =>
+            list.map((p) => newSet.has(p.id ?? "") ? { ...p, saved: true } : p);
+          setPosts((prev) => patch(prev));
+          setLikedPosts((prev) => patch(prev));
+        }
+      }
+    }
+
+    loadSavedIds();
+  }, [myCreatorId]);
+
   // ── Estado dos posts ─────────────────────────────────────────────────────────
   const [posts,        setPosts]       = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -123,13 +162,19 @@ const CommunityPage = () => {
   const [hasMore,      setHasMore]      = useState(true);
   const [page,         setPage]         = useState(0);
 
+  // ── Estados para posts curtidos/salvos ────────────────────────────────────
+  const [likedPosts,       setLikedPosts]       = useState<Post[]>([]);
+  const [savedPosts,       setSavedPosts]        = useState<Post[]>([]);
+  const [loadingSubfeed,   setLoadingSubfeed]    = useState(false);
+
   // ── Estados para o estilo Twitter / Infinite Scroll ──────────────────────────
   const [newPostsCount, setNewPostsCount] = useState(0);
 
   const PAGE_SIZE = 10;
 
   // Converte row do banco → Post de UI
-  const rowToPost = (row: any, userId?: string): Post => {
+  // Usa savedPostIdsRef (ref síncrono) para não criar dependência que dispara re-fetch
+  const rowToPost = useCallback((row: any, userId?: string): Post => {
     const profileRaw  = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles ?? row.profile ?? null;
     const bordaAtiva  = (profileRaw?.bordas ?? []).find((b: any) => b.ativa) ?? null;
 
@@ -151,10 +196,10 @@ const CommunityPage = () => {
         disc:           undefined,
       } : undefined,
       liked:    userId ? (row.liked_by ?? []).includes(userId) : false,
-      saved:    false,
+      saved:    savedPostIdsRef.current.has(row.id),  // ref é sempre atual sem deps
       comments: [],
     };
-  };
+  }, []);
 
   // ── Carrega posts iniciais do Supabase ───────────────────────────────────────
   const fetchPosts = useCallback(async () => {
@@ -182,12 +227,78 @@ const CommunityPage = () => {
     setPage(1);
     setHasMore(data.length === PAGE_SIZE);
     setLoadingPosts(false);
-    setNewPostsCount(0); // Reseta as novidades ao recarregar
-  }, [myCreatorId]);
+    setNewPostsCount(0);
+  }, [myCreatorId, rowToPost]);
 
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
+
+  // ── Carrega posts curtidos pelo usuário ──────────────────────────────────
+  const fetchLikedPosts = useCallback(async () => {
+    if (!myCreatorId) return;
+    setLoadingSubfeed(true);
+
+    const { data, error } = await supabase
+      .from("publications")
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+      .contains("liked_by", [myCreatorId])
+      .order("date", { ascending: false });
+
+    if (error) {
+      console.error("[CommunityPage] Erro ao carregar curtidos:", error.message);
+      setLoadingSubfeed(false);
+      return;
+    }
+
+    setLikedPosts((data ?? []).map((row) => rowToPost(row, myCreatorId)));
+    setLoadingSubfeed(false);
+  }, [myCreatorId, rowToPost]);
+
+  // ── Carrega posts salvos pelo usuário ────────────────────────────────────
+  const fetchSavedPosts = useCallback(async () => {
+    if (!myCreatorId) return;
+    setLoadingSubfeed(true);
+
+    const { data: savedRows, error: savedError } = await supabase
+      .from("saved_posts")
+      .select("post_id")
+      .eq("user_id", myCreatorId)
+      .order("created_at", { ascending: false });
+
+    if (savedError || !savedRows || savedRows.length === 0) {
+      setSavedPosts([]);
+      setLoadingSubfeed(false);
+      return;
+    }
+
+    const postIds = savedRows.map((r: any) => r.post_id);
+
+    const { data, error } = await supabase
+      .from("publications")
+      .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+      .in("id", postIds);
+
+    if (error) {
+      console.error("[CommunityPage] Erro ao carregar salvos:", error.message);
+      setLoadingSubfeed(false);
+      return;
+    }
+
+    // Mantém a ordem de quando foi salvo
+    const ordered = postIds
+      .map((id: string) => (data ?? []).find((r: any) => r.id === id))
+      .filter(Boolean);
+
+    setSavedPosts(ordered.map((row: any) => rowToPost(row, myCreatorId)));
+    setLoadingSubfeed(false);
+  }, [myCreatorId, rowToPost]);
+
+  // Busca subfeed quando troca de aba
+  useEffect(() => {
+    if (filter === "curtidos") fetchLikedPosts();
+    if (filter === "salvos")   fetchSavedPosts();
+  }, [filter, fetchLikedPosts, fetchSavedPosts]);
 
   // ── Carregar mais (Infinite Scroll com proteção anti-duplicados) ─────────────
   const handleLoadMore = useCallback(async () => {
@@ -205,7 +316,6 @@ const CommunityPage = () => {
     if (!data || data.length === 0) { setHasMore(false); setLoadingMore(false); return; }
     
     setPosts((prev) => {
-      // Cria a lista nova e filtra os IDs que já existem na tela para não duplicar
       const novosPosts = data.map((row) => rowToPost(row, myCreatorId));
       const postsUnicos = novosPosts.filter(
         (novoPost) => !prev.some((postExistente) => postExistente.id === novoPost.id)
@@ -216,7 +326,7 @@ const CommunityPage = () => {
     setPage((p) => p + 1);
     setHasMore(data.length === PAGE_SIZE);
     setLoadingMore(false);
-  }, [loadingMore, hasMore, page, myCreatorId, posts.length]);
+  }, [loadingMore, hasMore, page, myCreatorId, posts.length, rowToPost]);
 
   // ── Observador do Infinite Scroll ────────────────────────────────────────────
   const observer = useRef<IntersectionObserver | null>(null);
@@ -241,7 +351,6 @@ const CommunityPage = () => {
   useEffect(() => {
     if (filter !== "recentes") return;
 
-    // Conecta no canal do banco de dados para escutar novos INSERTS
     const channel = supabase
       .channel('novas-publicacoes-feed')
       .on(
@@ -252,16 +361,12 @@ const CommunityPage = () => {
           table: 'publications',
         },
         (payload) => {
-          // Ignora se o post for do próprio usuário logado
           if (payload.new.creator_id === myCreatorId) return;
-
-          // Se for de outra pessoa, aumenta o contador na mesma hora!
           setNewPostsCount((prev) => prev + 1);
         }
       )
       .subscribe();
 
-    // Desconecta o canal se o usuário sair da página para economizar memória
     return () => {
       supabase.removeChannel(channel);
     };
@@ -291,10 +396,64 @@ const CommunityPage = () => {
       { pub_id: id, uid: myCreatorId }
     );
     if (error) { console.error("Like:", error.message); setPosts(prevPosts); }
+
+    // Atualiza aba curtidos se estava aberta
+    if (filter === "curtidos") fetchLikedPosts();
   };
 
-  const handleSave = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, saved: !p.saved } : p));
+  // ── handleSave — persiste no banco ───────────────────────────────────────
+  const handleSave = async (id: string) => {
+    if (!myCreatorId) return;
+
+    const isSaved = savedPostIdsRef.current.has(id);
+
+    // Optimistic update — atualiza ref + state juntos
+    const nextSet = new Set(savedPostIdsRef.current);
+    if (isSaved) nextSet.delete(id);
+    else nextSet.add(id);
+    updateSavedIds(nextSet);
+
+    // Atualiza estado `saved` nos posts do feed
+    const updateSavedField = (list: Post[]) =>
+      list.map((p) => p.id === id ? { ...p, saved: !isSaved } : p);
+
+    setPosts(updateSavedField);
+    setLikedPosts(updateSavedField);
+    setSavedPosts((prev) =>
+      isSaved ? prev.filter((p) => p.id !== id) : prev
+    );
+
+    // Persiste no banco
+    if (isSaved) {
+      const { error } = await supabase
+        .from("saved_posts")
+        .delete()
+        .eq("user_id", myCreatorId)
+        .eq("post_id", id);
+      if (error) {
+        console.error("Dessalvar:", error.message);
+        // Reverte ref + state
+        const revertSet = new Set(savedPostIdsRef.current);
+        revertSet.add(id);
+        updateSavedIds(revertSet);
+        setPosts(updateSavedField);
+      }
+    } else {
+      const { error } = await supabase
+        .from("saved_posts")
+        .insert({ user_id: myCreatorId, post_id: id });
+      if (error) {
+        console.error("Salvar:", error.message);
+        // Reverte ref + state
+        const revertSet = new Set(savedPostIdsRef.current);
+        revertSet.delete(id);
+        updateSavedIds(revertSet);
+        setPosts(updateSavedField);
+      } else {
+        if (filter === "salvos") fetchSavedPosts();
+      }
+    }
+  };
 
   const handlePost = (publi: Publication) => {
     if (!publi.description?.trim()) return;
@@ -337,6 +496,27 @@ const CommunityPage = () => {
     ? [...posts].sort((a, b) => (b.like_qnt ?? 0) - (a.like_qnt ?? 0))
     : [...posts].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime());
 
+  // ── Configuração das abas (pill — só feed público) ───────────────────────
+  const feedTabs: { id: FilterType; label: string; emoji: string }[] = [
+    { id: "recentes",  label: "Recentes",  emoji: "🕒" },
+    { id: "populares", label: "Populares", emoji: "🔥" },
+  ];
+
+  const savedCount = savedPostIds.size;
+  const likedCount = likedPosts.length;
+
+  // ── Posts a exibir conforme aba ───────────────────────────────────────────
+  const isSubfeed = filter === "curtidos" || filter === "salvos";
+  const displayPosts = filter === "curtidos" ? likedPosts : filter === "salvos" ? savedPosts : sortedPosts;
+
+  // ── Mensagem vazia por aba ────────────────────────────────────────────────
+  const emptyMessages: Record<FilterType, string> = {
+    recentes:  "Nenhuma publicação ainda. Seja o primeiro!",
+    populares: "Nenhuma publicação ainda.",
+    curtidos:  "Você ainda não curtiu nenhuma publicação.",
+    salvos:    "Você ainda não salvou nenhuma publicação.",
+  };
+
   return (
     <div className="min-h-screen relative overflow-clip">
       <TechBackground />
@@ -360,6 +540,8 @@ const CommunityPage = () => {
                   myCourseTitle={myCourseTitle}
                   myUserId={myCreatorId}
                   myAvatarUrl={localAvatar}
+                  activeFilter={filter}
+                  onFilter={setFilter}
                 />
               </div>
             </aside>
@@ -370,15 +552,23 @@ const CommunityPage = () => {
               {/* Filtro Estilo Pill Flutuante */}
               <div className="sticky top-20 z-40 py-4 flex justify-center pointer-events-none">
                 <div className="glass-card p-1.5 flex gap-1 pointer-events-auto border-white/10 shadow-2xl backdrop-blur-2xl">
-                  {(["recentes", "populares"] as const).map((f) => (
-                    <button key={f} onClick={() => setFilter(f)}
-                      className={`px-6 py-2 rounded-full text-xs font-accent font-bold transition-all duration-300
-                        ${f === filter
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
-                          : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}>
-                      {f === "recentes" ? "🕒 Recentes" : "🔥 Populares"}
-                    </button>
-                  ))}
+                  {feedTabs.map((tab) => {
+                    // No subfeed (curtidos/salvos), o pill fica neutro mas "Recentes" ganha borda sutil
+                    const isActive = tab.id === filter;
+                    const isReturnHint = isSubfeed && tab.id === "recentes";
+                    return (
+                      <button key={tab.id} onClick={() => setFilter(tab.id)}
+                        className={`px-4 py-2 rounded-full text-xs font-accent font-bold transition-all duration-300 flex items-center gap-1.5
+                          ${isActive
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
+                            : isReturnHint
+                            ? "text-muted-foreground border border-white/10 hover:text-foreground hover:bg-white/5"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}>
+                        <span>{tab.emoji}</span>
+                        <span className="hidden sm:inline">{tab.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -404,16 +594,48 @@ const CommunityPage = () => {
                 )}
               </AnimatePresence>
 
-              {/* Formulário de nova publicação */}
-              <CreatePost
-                onPost={handlePost}
-                myCreatorId={myCreatorId}
-                myAvatarUrl={localAvatar}
-              />
+              {/* Formulário de nova publicação — oculto nas abas de salvos/curtidos */}
+              {!isSubfeed && (
+                <CreatePost
+                  onPost={handlePost}
+                  myCreatorId={myCreatorId}
+                  myAvatarUrl={localAvatar}
+                />
+              )}
+
+              {/* Banner de contexto para abas Curtidos / Salvos */}
+              <AnimatePresence>
+                {isSubfeed && (
+                  <motion.div
+                    key={`banner-${filter}`}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="glass-card rounded-2xl border-white/5 px-6 py-4 flex items-center gap-3"
+                  >
+                    {filter === "salvos" ? (
+                      <>
+                        <Bookmark size={18} className="text-primary flex-shrink-0" />
+                        <p className="text-sm text-muted-foreground font-body">
+                          Suas <span className="text-foreground font-semibold">publicações salvas</span> — só você vê isso.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Heart size={18} className="text-rose-400 flex-shrink-0" />
+                        <p className="text-sm text-muted-foreground font-body">
+                          Publicações que você <span className="text-foreground font-semibold">curtiu</span>.
+                        </p>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="relative">
                 <AnimatePresence initial={false}>
-                  {loadingPosts ? (
+                  {(loadingPosts && !isSubfeed) || (loadingSubfeed && isSubfeed) ? (
                     <motion.div
                       key="skeletons"
                       initial={{ opacity: 1 }}
@@ -439,28 +661,34 @@ const CommunityPage = () => {
                         </div>
                       ))}
                     </motion.div>
-                  ) : sortedPosts.length === 0 ? (
+                  ) : displayPosts.length === 0 ? (
                     <motion.div
                       key="empty"
-                      initial={{ opacity: 1 }}
-                      animate={{ opacity: 1 }}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="glass-card rounded-3xl border-white/5 p-10 text-center"
+                      transition={{ duration: 0.2 }}
+                      className="glass-card rounded-3xl border-white/5 p-10 text-center flex flex-col items-center gap-3"
                     >
+                      {filter === "salvos" && (
+                        <Bookmark size={32} className="text-muted-foreground/40" />
+                      )}
+                      {filter === "curtidos" && (
+                        <Heart size={32} className="text-muted-foreground/40" />
+                      )}
                       <p className="text-sm text-muted-foreground font-body">
-                        Nenhuma publicação ainda. Seja o primeiro!
+                        {emptyMessages[filter]}
                       </p>
                     </motion.div>
                   ) : (
                     <motion.div
-                      key="feed"
+                      key={`feed-${filter}`}
                       initial={{ opacity: 1 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.2 }}
                       className="space-y-6"
                     >
-                      {sortedPosts.map((post) => (
+                      {displayPosts.map((post) => (
                         <PostCard
                           key={post.id}
                           post={post}
@@ -490,6 +718,15 @@ const CommunityPage = () => {
               {!hasMore && posts.length > 0 && filter === "recentes" && (
                 <p className="text-center text-[11px] text-muted-foreground font-body py-8 opacity-40">
                   Você viu todas as publicações.
+                </p>
+              )}
+
+              {/* Fim da aba curtidos/salvos */}
+              {isSubfeed && displayPosts.length > 0 && !loadingSubfeed && (
+                <p className="text-center text-[11px] text-muted-foreground font-body py-6 opacity-40">
+                  {filter === "curtidos"
+                    ? `${displayPosts.length} ${displayPosts.length === 1 ? "publicação curtida" : "publicações curtidas"}`
+                    : `${displayPosts.length} ${displayPosts.length === 1 ? "publicação salva" : "publicações salvas"}`}
                 </p>
               )}
             </div>

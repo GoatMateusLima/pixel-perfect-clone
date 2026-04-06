@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ZoomIn, ZoomOut, RotateCcw, Check, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { Check, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 
 interface Props {
   src: string;
@@ -11,59 +11,64 @@ interface Props {
   onCancel: () => void;
 }
 
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 4;
+const MIN_SCALE = 1;   // multiplicador relativo ao baseScale (cover)
+const MAX_SCALE = 4;
 
 const ImageCropModal = ({ src, shape, outputWidth, outputHeight, onConfirm, onCancel }: Props) => {
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef       = useRef<HTMLImageElement | null>(null);
 
-  // image natural size
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  // baseScale = escala que faz a imagem preencher exatamente o preview (cover)
+  const baseScaleRef = useRef(1);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [scale,  setScale]  = useState(1);      // relativo ao baseScale
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
-  // crop state
-  const [zoom,   setZoom]   = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 }); // offset of image center from crop center
+  const dragging = useRef(false);
+  const lastPos  = useRef({ x: 0, y: 0 });
 
-  // drag
-  const dragging   = useRef(false);
-  const lastPos    = useRef({ x: 0, y: 0 });
-
-  // ── preview area size (px) ──────────────────────────────────────────────────
-  const PREVIEW = shape === "circle" ? 280 : Math.min(560, Math.round(280 * (outputWidth / outputHeight)));
+  // Tamanho visual (CSS px) do canvas de preview
+  const PREVIEW   = shape === "circle" ? 280 : Math.min(520, Math.round(280 * (outputWidth / outputHeight)));
   const PREVIEW_H = shape === "circle" ? 280 : Math.round(PREVIEW * (outputHeight / outputWidth));
 
-  // ── load image ─────────────────────────────────────────────────────────────
+  // ── Carrega imagem e calcula baseScale (cover) ────────────────────────
   useEffect(() => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       imgRef.current = img;
-      setImgLoaded(true);
-      // fit image to fill crop area initially
-      const scale = Math.max(PREVIEW / img.naturalWidth, PREVIEW_H / img.naturalHeight);
-      setZoom(scale);
+      const bs = Math.max(PREVIEW / img.naturalWidth, PREVIEW_H / img.naturalHeight);
+      baseScaleRef.current = bs;
+      setScale(1);
       setOffset({ x: 0, y: 0 });
+      setImgLoaded(true);
     };
     img.src = src;
-  }, [src]);
+  }, [src, PREVIEW, PREVIEW_H]);
 
-  // ── draw preview ────────────────────────────────────────────────────────────
+  // ── Renderiza o preview — DPR-aware para nitidez perfeita ─────────────
   useEffect(() => {
     if (!imgLoaded || !canvasRef.current || !imgRef.current) return;
     const canvas = canvasRef.current;
     const ctx    = canvas.getContext("2d")!;
-    canvas.width  = PREVIEW;
-    canvas.height = PREVIEW_H;
+    const dpr    = window.devicePixelRatio || 1;
+
+    canvas.width  = PREVIEW  * dpr;
+    canvas.height = PREVIEW_H * dpr;
+    canvas.style.width  = `${PREVIEW}px`;
+    canvas.style.height = `${PREVIEW_H}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     ctx.clearRect(0, 0, PREVIEW, PREVIEW_H);
 
-    const img = imgRef.current;
-    const drawW = img.naturalWidth  * zoom;
-    const drawH = img.naturalHeight * zoom;
-    // top-left corner of image so its center + offset lands at crop center
-    const x = PREVIEW  / 2 - drawW / 2 + offset.x;
-    const y = PREVIEW_H / 2 - drawH / 2 + offset.y;
+    const img   = imgRef.current;
+    const effZ  = baseScaleRef.current * scale;
+    const drawW = img.naturalWidth  * effZ;
+    const drawH = img.naturalHeight * effZ;
+    const x     = PREVIEW  / 2 - drawW / 2 + offset.x;
+    const y     = PREVIEW_H / 2 - drawH / 2 + offset.y;
 
     ctx.save();
     if (shape === "circle") {
@@ -73,34 +78,53 @@ const ImageCropModal = ({ src, shape, outputWidth, outputHeight, onConfirm, onCa
     }
     ctx.drawImage(img, x, y, drawW, drawH);
     ctx.restore();
-  }, [imgLoaded, zoom, offset, shape]);
+  }, [imgLoaded, scale, offset, shape, PREVIEW, PREVIEW_H]);
 
-  // ── clamp offset so image always covers crop ────────────────────────────────
-  const clampOffset = useCallback((ox: number, oy: number, z: number) => {
+  // ── Clamp offset para imagem nunca sair do frame ──────────────────────
+  const clampOffset = useCallback((ox: number, oy: number, s: number) => {
     if (!imgRef.current) return { x: ox, y: oy };
-    const drawW = imgRef.current.naturalWidth  * z;
-    const drawH = imgRef.current.naturalHeight * z;
+    const effZ  = baseScaleRef.current * s;
+    const drawW = imgRef.current.naturalWidth  * effZ;
+    const drawH = imgRef.current.naturalHeight * effZ;
     const maxX  = Math.max(0, (drawW - PREVIEW)  / 2);
     const maxY  = Math.max(0, (drawH - PREVIEW_H) / 2);
-    return { x: Math.max(-maxX, Math.min(maxX, ox)), y: Math.max(-maxY, Math.min(maxY, oy)) };
+    return {
+      x: Math.max(-maxX, Math.min(maxX, ox)),
+      y: Math.max(-maxY, Math.min(maxY, oy)),
+    };
   }, [PREVIEW, PREVIEW_H]);
 
-  // ── mouse drag ──────────────────────────────────────────────────────────────
+  // ── Mouse drag ────────────────────────────────────────────────────────
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     dragging.current = true;
-    lastPos.current  = { x: e.clientX, y: e.clientY };
+    setIsDragging(true);
+    lastPos.current = { x: e.clientX, y: e.clientY };
   };
+
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragging.current) return;
     const dx = e.clientX - lastPos.current.x;
     const dy = e.clientY - lastPos.current.y;
     lastPos.current = { x: e.clientX, y: e.clientY };
-    setOffset(prev => clampOffset(prev.x + dx, prev.y + dy, zoom));
-  }, [zoom, clampOffset]);
-  const onMouseUp   = () => { dragging.current = false; };
+    setOffset(prev => clampOffset(prev.x + dx, prev.y + dy, scale));
+  }, [scale, clampOffset]);
 
-  // ── touch drag ──────────────────────────────────────────────────────────────
+  const onMouseUp = useCallback(() => {
+    dragging.current = false;
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup",   onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup",   onMouseUp);
+    };
+  }, [onMouseMove, onMouseUp]);
+
+  // ── Touch ─────────────────────────────────────────────────────────────
   const onTouchStart = (e: React.TouchEvent) => {
     lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
@@ -108,111 +132,112 @@ const ImageCropModal = ({ src, shape, outputWidth, outputHeight, onConfirm, onCa
     const dx = e.touches[0].clientX - lastPos.current.x;
     const dy = e.touches[0].clientY - lastPos.current.y;
     lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    setOffset(prev => clampOffset(prev.x + dx, prev.y + dy, zoom));
+    setOffset(prev => clampOffset(prev.x + dx, prev.y + dy, scale));
   };
 
-  useEffect(() => {
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup",   onMouseUp);
-    return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
-  }, [onMouseMove]);
-
-  // ── wheel zoom ──────────────────────────────────────────────────────────────
+  // ── Scroll para zoom com suavidade ────────────────────────────────────
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.08 : 0.93;
-    const newZ   = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
-    setZoom(newZ);
-    setOffset(prev => clampOffset(prev.x, prev.y, newZ));
+    const factor   = e.deltaY < 0 ? 1.08 : 0.93;
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+    setScale(newScale);
+    setOffset(prev => clampOffset(prev.x, prev.y, newScale));
   };
 
-  // ── zoom buttons ─────────────────────────────────────────────────────────────
-  const changeZoom = (factor: number) => {
-    const newZ = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
-    setZoom(newZ);
-    setOffset(prev => clampOffset(prev.x, prev.y, newZ));
+  const changeScale = (factor: number) => {
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+    setScale(newScale);
+    setOffset(prev => clampOffset(prev.x, prev.y, newScale));
   };
 
-  // ── reset ───────────────────────────────────────────────────────────────────
-  const reset = () => {
-    if (!imgRef.current) return;
-    const scale = Math.max(PREVIEW / imgRef.current.naturalWidth, PREVIEW_H / imgRef.current.naturalHeight);
-    setZoom(scale);
-    setOffset({ x: 0, y: 0 });
-  };
+  const reset = () => { setScale(1); setOffset({ x: 0, y: 0 }); };
 
-  // ── confirm — render to output size ─────────────────────────────────────────
+  // ── Confirmar — mesma fórmula do preview escalada para o output ───────
   const confirm = () => {
     if (!imgRef.current) return;
-    const out = document.createElement("canvas");
-    out.width  = outputWidth;
-    out.height = outputHeight;
-    const ctx  = out.getContext("2d")!;
 
+    const out    = document.createElement("canvas");
+    out.width    = outputWidth;
+    out.height   = outputHeight;
+    const ctx    = out.getContext("2d")!;
+
+    // Proporção preview → output
     const scaleX = outputWidth  / PREVIEW;
     const scaleY = outputHeight / PREVIEW_H;
-    const drawW  = imgRef.current.naturalWidth  * zoom * scaleX;
-    const drawH  = imgRef.current.naturalHeight * zoom * scaleY;
-    const x      = outputWidth  / 2 - drawW / 2 + offset.x * scaleX;
-    const y      = outputHeight / 2 - drawH / 2 + offset.y * scaleY;
+
+    // zoom efetivo no espaço do output (usa a MESMA base do preview)
+    const effZ  = baseScaleRef.current * scale;
+    const drawW = imgRef.current.naturalWidth  * effZ * scaleX;
+    const drawH = imgRef.current.naturalHeight * effZ * scaleY;
+    const x     = outputWidth  / 2 - drawW / 2 + offset.x * scaleX;
+    const y     = outputHeight / 2 - drawH / 2 + offset.y * scaleY;
 
     if (shape === "circle") {
       ctx.beginPath();
       ctx.arc(outputWidth / 2, outputHeight / 2, outputWidth / 2, 0, Math.PI * 2);
       ctx.clip();
     }
+
     ctx.drawImage(imgRef.current, x, y, drawW, drawH);
     onConfirm(out.toDataURL("image/png"));
   };
 
-  const zoomPct = imgRef.current
-    ? Math.round((zoom / Math.max(PREVIEW / imgRef.current.naturalWidth, PREVIEW_H / imgRef.current.naturalHeight)) * 100)
-    : 100;
+  const zoomPct = Math.round(scale * 100);
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(10px)" }}
       onClick={onCancel}
     >
       <motion.div
-        initial={{ scale: 0.93, y: 16 }}
-        animate={{ scale: 1,    y: 0  }}
-        exit={{ scale: 0.93,    y: 16 }}
-        transition={{ type: "spring", stiffness: 360, damping: 28 }}
+        initial={{ scale: 0.93, y: 24, opacity: 0 }}
+        animate={{ scale: 1,    y: 0,  opacity: 1 }}
+        exit={{    scale: 0.93, y: 24, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 380, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-col items-center gap-5 rounded-sm p-6"
+        className="flex flex-col items-center gap-5 p-7 rounded-2xl"
         style={{
-          background: "hsl(215 30% 10%)",
-          border: "1px solid hsl(155 60% 45% / 0.3)",
-          boxShadow: "0 0 60px hsl(155 60% 45% / 0.12)",
-          maxWidth: "90vw",
+          background: "linear-gradient(135deg, hsl(230 35% 8%) 0%, hsl(270 40% 6%) 100%)",
+          border: "1px solid hsl(270 60% 55% / 0.25)",
+          boxShadow: "0 0 80px hsl(270 60% 55% / 0.1), 0 32px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
+          maxWidth: "92vw",
         }}
       >
-        {/* Title */}
+        {/* Header */}
         <div className="w-full flex items-center justify-between">
-          <p className="font-display text-sm font-bold text-foreground">
-            {shape === "circle" ? "Ajustar foto de perfil" : "Ajustar banner"}
-          </p>
-          <p className="text-[10px] font-accent text-muted-foreground">
-            Arraste para reposicionar · scroll para zoom
-          </p>
+          <div>
+            <p className="text-white/90 text-sm font-semibold tracking-wide">
+              {shape === "circle" ? "✦ Ajustar foto de perfil" : "✦ Ajustar banner"}
+            </p>
+            <p className="text-white/25 text-[10px] mt-0.5">
+              Arraste para reposicionar · Scroll para zoom
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-all"
+          >
+            <X size={14} />
+          </button>
         </div>
 
-        {/* Canvas crop area */}
+        <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, hsl(270 60% 55% / 0.3), transparent)" }} />
+
+        {/* Canvas de preview */}
         <div
           ref={containerRef}
           className="relative flex-shrink-0 overflow-hidden select-none"
           style={{
-            width:  PREVIEW,
-            height: PREVIEW_H,
-            borderRadius: shape === "circle" ? "50%" : "4px",
-            border: "2px solid hsl(155 60% 45% / 0.5)",
-            boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
-            cursor: "grab",
+            width:        PREVIEW,
+            height:       PREVIEW_H,
+            borderRadius: shape === "circle" ? "50%" : "12px",
+            border:       "2px solid hsl(270 60% 60% / 0.5)",
+            boxShadow:    "0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px hsl(270 60% 55% / 0.2)",
+            cursor:       isDragging ? "grabbing" : "grab",
           }}
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
@@ -220,66 +245,86 @@ const ImageCropModal = ({ src, shape, outputWidth, outputHeight, onConfirm, onCa
           onWheel={onWheel}
         >
           {imgLoaded
-            ? <canvas ref={canvasRef} style={{ width: PREVIEW, height: PREVIEW_H, display: "block", pointerEvents: "none" }} />
-            : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs font-accent">Carregando...</div>
+            ? <canvas
+                ref={canvasRef}
+                style={{ display: "block", pointerEvents: "none" }}
+              />
+            : <div className="w-full h-full flex items-center justify-center text-white/20 text-xs">
+                Carregando…
+              </div>
           }
         </div>
 
-        {/* Zoom controls */}
-        <div className="flex items-center gap-3">
+        {/* Controles de zoom */}
+        <div className="flex items-center gap-3 w-full justify-center">
           <button
-            onClick={() => changeZoom(0.85)}
-            className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition"
-            style={{ border: "1px solid hsl(var(--border))", background: "hsl(215 25% 14%)" }}>
-            <ZoomOut size={14} />
+            onClick={() => changeScale(0.85)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 border border-white/10 hover:border-white/25 transition-all"
+          >
+            <ZoomOut size={13} />
           </button>
 
-          {/* Zoom slider */}
-          <input
-            type="range"
-            min={MIN_ZOOM * 100}
-            max={MAX_ZOOM * 100}
-            step={1}
-            value={Math.round(zoom * 100)}
-            onChange={(e) => {
-              const newZ = Number(e.target.value) / 100;
-              setZoom(newZ);
-              setOffset(prev => clampOffset(prev.x, prev.y, newZ));
-            }}
-            className="w-32 accent-primary h-1 cursor-pointer"
-          />
+          <div className="relative flex-1 max-w-[160px] h-1 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="absolute left-0 top-0 h-full rounded-full transition-all"
+              style={{
+                width: `${((scale - MIN_SCALE) / (MAX_SCALE - MIN_SCALE)) * 100}%`,
+                background: "linear-gradient(90deg, hsl(270 60% 55%), hsl(155 60% 50%))",
+              }}
+            />
+            <input
+              type="range"
+              min={MIN_SCALE * 100}
+              max={MAX_SCALE * 100}
+              step={1}
+              value={Math.round(scale * 100)}
+              onChange={(e) => {
+                const newScale = Number(e.target.value) / 100;
+                setScale(newScale);
+                setOffset(prev => clampOffset(prev.x, prev.y, newScale));
+              }}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+            />
+          </div>
 
           <button
-            onClick={() => changeZoom(1.15)}
-            className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition"
-            style={{ border: "1px solid hsl(var(--border))", background: "hsl(215 25% 14%)" }}>
-            <ZoomIn size={14} />
+            onClick={() => changeScale(1.15)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 border border-white/10 hover:border-white/25 transition-all"
+          >
+            <ZoomIn size={13} />
           </button>
 
-          <span className="text-[11px] font-accent text-muted-foreground w-10 text-right">{zoomPct}%</span>
+          <span className="text-white/25 text-[11px] w-10 text-right font-mono">{zoomPct}%</span>
 
           <button
             onClick={reset}
             title="Resetar"
-            className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition"
-            style={{ border: "1px solid hsl(var(--border))", background: "hsl(215 25% 14%)" }}>
-            <RotateCcw size={13} />
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 border border-white/10 hover:border-white/25 transition-all"
+          >
+            <RotateCcw size={12} />
           </button>
         </div>
 
-        {/* Actions */}
+        {/* Ações */}
         <div className="flex gap-3 w-full">
           <button
             onClick={onCancel}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-foreground hover:border-foreground/30 transition">
-            <X size={13} /> Cancelar
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 transition-all"
+          >
+            <X size={12} /> Cancelar
           </button>
           <button
             onClick={confirm}
             disabled={!imgLoaded}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs font-accent font-semibold text-primary-foreground disabled:opacity-50 transition"
-            style={{ background: "hsl(155 60% 40%)" }}>
-            <Check size={13} /> Confirmar
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: "linear-gradient(135deg, hsl(270 60% 45%), hsl(270 60% 35%))",
+              border: "1px solid hsl(270 60% 55% / 0.5)",
+              color: "white",
+              boxShadow: imgLoaded ? "0 0 20px hsl(270 60% 55% / 0.25)" : "none",
+            }}
+          >
+            <Check size={12} /> Confirmar recorte
           </button>
         </div>
       </motion.div>
