@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "@/components/Header";
 import { MainLandmark } from "@/components/MainLandmark";
@@ -102,7 +102,63 @@ const RoadmapSection = () => {
   
   const [aiRecommendedIds, setAiRecommendedIds] = useState<string[]>([]);
   const [isAILoading, setIsAILoading] = useState(false);
+  const aiAttemptedRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Estados para o formulário de sugestão
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    temaNome: "",
+    cursoNome: "",
+    playlistUrl: "",
+    cursoDesc: "",
+    temaDesc: "",
+    dificuldade: "Iniciante",
+    responsavelNome: "",
+    responsavelEmail: ""
+  });
+
+  const handleSubmitRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('course_requests')
+        .insert({
+          tema_nome: formData.temaNome,
+          curso_nome: formData.cursoNome,
+          playlist_url: formData.playlistUrl,
+          curso_descricao: formData.cursoDesc,
+          tema_descricao: formData.temaDesc,
+          dificuldade: formData.dificuldade,
+          responsavel_nome: formData.responsavelNome,
+          responsavel_email: formData.responsavelEmail,
+          user_id: user?.id
+        });
+
+      if (error) throw error;
+
+      alert("Sugestão enviada com sucesso! Nossa equipe entrará em contato.");
+      setIsSubmitModalOpen(false);
+      setFormData({
+        temaNome: "",
+        cursoNome: "",
+        playlistUrl: "",
+        cursoDesc: "",
+        temaDesc: "",
+        dificuldade: "Iniciante",
+        responsavelNome: "",
+        responsavelEmail: ""
+      });
+    } catch (err: any) {
+      console.error("Erro ao enviar sugestão:", err.message);
+      alert("Houve um erro ao enviar. Tente novamente mais tarde.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -154,10 +210,11 @@ const RoadmapSection = () => {
       }
     }
 
-    if (aiRecommendedIds.length === 0 && !isAILoading && !loading && temasBrutos.length > 0) {
+    if (!aiAttemptedRef.current && !isAILoading && !loading && temasBrutos.length > 0) {
+      aiAttemptedRef.current = true;
       fetchAiRecommendations();
     }
-  }, [temasBrutos, assessment, aiRecommendedIds, isAILoading, loading]);
+  }, [temasBrutos, assessment, isAILoading, loading]);
 
   useEffect(() => {
     async function loadData() {
@@ -345,9 +402,177 @@ const RoadmapSection = () => {
                       onClick={() => setSelectedTema(tema)} 
                     />
                   ))}
+
+                  {/* Card de Sugestão - Sempre ao final da grid filtrada */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    onClick={() => setIsSubmitModalOpen(true)}
+                    className="group relative h-full min-h-[320px] rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 hover:border-primary transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative z-10">
+                      <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform">
+                        <Search className="text-primary w-8 h-8" />
+                      </div>
+                      <h3 className="text-xl font-display font-bold text-foreground mb-4">Quer ver seu curso aqui?</h3>
+                      <p className="text-sm text-muted-foreground font-body leading-relaxed max-w-[240px] mb-8">
+                        Colabore com a plataforma e ajude a expandir nossa base de conhecimento.
+                      </p>
+                      <button className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-accent font-bold text-xs shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all">
+                        Enviar Sugestão
+                      </button>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </div>
+
+            {/* Popup / Modal de Sugestão */}
+            {isSubmitModalOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSubmitModalOpen(false)}
+                  className="absolute inset-0 bg-background/80 backdrop-blur-md"
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="relative z-10 w-full max-w-2xl bg-secondary/90 border border-white/10 p-8 rounded-3xl shadow-2xl backdrop-blur-xl max-h-[90vh] overflow-y-auto"
+                >
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-display font-bold text-foreground mb-2">Envie seu conteúdo</h2>
+                    <p className="text-sm text-muted-foreground">Preencha os detalhes do tema e curso que deseja sugerir.</p>
+                  </div>
+
+                  <form onSubmit={handleSubmitRequest} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Nome do Tema</label>
+                        <input
+                          required
+                          value={formData.temaNome}
+                          onChange={e => setFormData({...formData, temaNome: e.target.value})}
+                          placeholder="Ex: Desenvolvimento Web"
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Nome do Curso</label>
+                        <input
+                          required
+                          value={formData.cursoNome}
+                          onChange={e => setFormData({...formData, cursoNome: e.target.value})}
+                          placeholder="Ex: React para Iniciantes"
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Link da Playlist do YouTube</label>
+                      <input
+                        required
+                        type="url"
+                        value={formData.playlistUrl}
+                        onChange={e => setFormData({...formData, playlistUrl: e.target.value})}
+                        placeholder="https://youtube.com/playlist?list=..."
+                        className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Descrição do Curso</label>
+                        <textarea
+                          required
+                          rows={3}
+                          value={formData.cursoDesc}
+                          onChange={e => setFormData({...formData, cursoDesc: e.target.value})}
+                          placeholder="O que os alunos aprenderão?"
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all resize-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Descrição do Tema</label>
+                        <textarea
+                          required
+                          rows={3}
+                          value={formData.temaDesc}
+                          onChange={e => setFormData({...formData, temaDesc: e.target.value})}
+                          placeholder="Fale um pouco sobre a área..."
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Dificuldade</label>
+                        <select
+                          value={formData.dificuldade}
+                          onChange={e => setFormData({...formData, dificuldade: e.target.value})}
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all appearance-none"
+                        >
+                          <option value="Iniciante">Iniciante</option>
+                          <option value="Intermediário">Intermediário</option>
+                          <option value="Avançado">Avançado</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Nome do Responsável</label>
+                        <input
+                          required
+                          value={formData.responsavelNome}
+                          onChange={e => setFormData({...formData, responsavelNome: e.target.value})}
+                          placeholder="Seu nome completo"
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Email do Responsável</label>
+                      <input
+                        required
+                        type="email"
+                        value={formData.responsavelEmail}
+                        onChange={e => setFormData({...formData, responsavelEmail: e.target.value})}
+                        placeholder="seu@contato.com"
+                        className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-6 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setIsSubmitModalOpen(false)}
+                        className="px-6 py-3 rounded-xl hover:bg-white/5 text-sm font-bold transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="px-8 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 disabled:opacity-50 transition-all flex items-center gap-2"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : "Enviar Sugestão"}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
           </motion.div>
         ) : (
           <TemaCoursesView 

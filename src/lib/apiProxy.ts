@@ -28,6 +28,28 @@ export async function groqChatCompletion(params: {
   temperature?: number;
   max_tokens?: number;
 }): Promise<string | null> {
+  // --- FALLBACK LOCAL PARA DESENVOLVIMENTO ---
+  const localKey = import.meta.env.VITE_AI_KEY;
+  if (import.meta.env.DEV && localKey) {
+    try {
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localKey.trim()}` },
+        body: JSON.stringify({ 
+          model: params.model ?? "llama-3.1-8b-instant",
+          messages: params.messages,
+          temperature: params.temperature ?? 0.3,
+          ...(params.max_tokens != null ? { max_tokens: params.max_tokens } : {}),
+          stream: false 
+        }),
+      });
+      const res = await r.json();
+      return res.choices?.[0]?.message?.content || null;
+    } catch (e) {
+      console.warn("[apiProxy] Falha no fallback local da Groq, tentando proxy...", e);
+    }
+  }
+
   const { data, error } = await invokeApiProxy<{ reply?: string }>("chat", {
     model: params.model ?? "llama-3.1-8b-instant",
     messages: params.messages,
