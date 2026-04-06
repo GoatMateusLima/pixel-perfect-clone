@@ -11,7 +11,7 @@ import { Flame, Trophy, Zap, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAvatar, DISC_IMGS, DISC_COLOR, DISC_LABEL, toInitials } from "./PostCard";
-import { useRanking } from "@/hooks/useRanking";
+import { useRanking, xpToLevel } from "@/hooks/useRanking";
 
 // ─── Constantes estáticas ─────────────────────────────────────────────────────
 
@@ -47,12 +47,16 @@ const LeftSidebar = ({
 }: LeftSidebarProps) => {
   const { profilePhoto: globalAvatar } = useAuth(); // foto do contexto global
   const myAvatarUrl = localAvatarProp || globalAvatar;
-  const discImg   = DISC_IMGS[myDisc];
   const discColor = DISC_COLOR[myDisc] ?? DISC_COLOR.S;
 
   // Ranking dinâmico com XP
-  const { ranking, loading: rankingLoading } = useRanking(myUserId);
+  const { ranking, myXP, loading: rankingLoading } = useRanking(myUserId);
   const top5 = ranking.slice(0, 5);
+
+  // Lógica de Nível (igual ao ProfilePage)
+  const currentLevel = xpToLevel(myXP);
+  const xpInCurrentLevel = myXP - ((currentLevel - 1) * 10);
+  const xpProgress = Math.min((xpInCurrentLevel / 10) * 100, 100);
 
   // Banner buscado da tabela profiles — coluna `banner`, PK = user_id
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
@@ -139,19 +143,19 @@ const LeftSidebar = ({
               </div>
               <div className="text-right">
                 <span className="text-[9px] text-white/20 font-black uppercase tracking-widest mb-1 block">Level</span>
-                <span className="text-xs font-accent text-white font-black tracking-widest uppercase">{myHourValue}</span>
+                <span className="text-xs font-accent text-white font-black tracking-widest uppercase">{currentLevel}</span>
               </div>
             </div>
 
-            {/* Progresso da trilha */}
+            {/* Progresso de Nível */}
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">
-                <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em]">Progresso Trilha</p>
-                <span className="text-xs text-primary font-black drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">{myCourseProgress}%</span>
+                <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em]">Progresso de Nível</p>
+                <span className="text-xs text-primary font-black drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">{Math.round(xpProgress)}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-white/5 overflow-hidden border border-white/5 p-[1px]">
                 <motion.div
-                  initial={{ width: 0 }} animate={{ width: `${myCourseProgress}%` }}
+                  initial={{ width: 0 }} animate={{ width: `${xpProgress}%` }}
                   transition={{ delay: 0.6, duration: 1 }}
                   className="h-full rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                   style={{ background: `linear-gradient(90deg, #059669, #10b981)` }}
