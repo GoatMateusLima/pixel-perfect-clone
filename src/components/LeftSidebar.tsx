@@ -78,7 +78,7 @@ const LeftSidebar = ({
 
       {/* ── Card do perfil ── */}
       <motion.div
-        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
+        initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="glass-card overflow-hidden border border-white/5 shadow-2xl rounded-3xl">
 
         {/* Banner: foto real ou gradiente DISC */}
@@ -168,7 +168,7 @@ const LeftSidebar = ({
 
       {/* ── Tópicos em Alta ── */}
       <motion.div
-        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+        initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
         <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
           <Flame size={16} className="text-primary/60" /> Tópicos em Alta
@@ -188,7 +188,7 @@ const LeftSidebar = ({
 
       {/* ── Ranking por XP (dinâmico) ── */}
       <motion.div
-        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+        initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
         <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
           <Trophy size={16} className="text-primary/60" /> Ranking por XP
@@ -223,7 +223,7 @@ const LeftSidebar = ({
 
       {/* ── Comunidade Hoje ── */}
       <motion.div
-        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
+        initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
         <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
           <Zap size={16} className="text-primary/60" /> Atividade

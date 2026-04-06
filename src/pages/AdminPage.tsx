@@ -6,8 +6,10 @@ import {
   Check, X, ChevronRight, Link,
 } from "lucide-react";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import supabase from "../../utils/supabase";
-import {getPlaylistVideos} from "../../utils/ApiPlaylist";
+import { getPlaylistVideos } from "../../utils/ApiPlaylist";
+import { invokeApiProxy } from "@/lib/apiProxy";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tema = { id: string; name: string; description: string; type: string };
@@ -19,6 +21,7 @@ type CourseForm = {
 };
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
+const EMPTY = { name: "", descricao: "", difficult: "", courses_id: "", playlist_id: "", playlistUrl: "" };
 const TEMA_TYPES = [
   "Alta demanda", "Tecnologia", "Segurança", "Dados", "Cloud",
   "Desenvolvimento", "Negócios", "Criatividade", "Saúde",
@@ -37,45 +40,13 @@ const gridBg = {
 
 async function generateQuizForAula(aulaId: string, aulaNome: string, aulaDesc: string) {
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${import.meta.env.VITE_AI_KEY_QUIZ}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          {
-            role: "system",
-            content: "Você é um gerador de quizzes. Responda APENAS com um array JSON puro, sem markdown, sem explicações."
-          },
-          {
-            role: "user",
-            content: `Gere um quiz de 3 perguntas para a aula: "${aulaNome}". Descrição: "${aulaDesc}". Retorne no formato: [{"id": 1, "text": "...", "options": ["a", "b", "c", "d"], "correct": 0}]`
-          }
-        ],
-        temperature: 0.2, // Temperatura baixa para evitar que a IA invente formatos
-        stream: false     // OBRIGATÓRIO ser false para o parse funcionar
-      }),
+    const { data, error } = await invokeApiProxy<{ ok?: boolean; error?: string }>("admin_quiz_insert", {
+      aulaId,
+      aulaNome,
+      aulaDesc,
     });
-
-    const data = await response.json();
-    let text = data.choices[0]?.message?.content || "";
-
-    // Limpeza de segurança caso a IA envie markdown ```json ... ```
-    const cleanJson = text.replace(/```json|```/g, "").trim();
-    const questions = JSON.parse(cleanJson);
-
-    console.log(questions)
-    // Salva no banco
-    const { error } = await supabase.from("quizzes").insert({
-      aula_id: aulaId,
-      questions: questions
-    });
-
     if (error) throw error;
-
+    if (data && typeof data === "object" && "error" in data && data.error) throw new Error(String(data.error));
   } catch (err) {
     console.error(`[Quiz Error] Aula ${aulaId}:`, err);
   }
@@ -120,7 +91,8 @@ const ToastStack = ({ notifications, onRemove }: { notifications: Notification[]
   <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 items-end">
     <AnimatePresence>
       {notifications.map(n => (
-        <motion.div key={n.id} initial={{ opacity: 0, x: 40, scale: 0.9 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 40, scale: 0.9 }}
+        <motion.div key={n.id} initial={{ opacity: 1, x: 20, scale: 0.98 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 28, scale: 0.96 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className={`flex items-center gap-3 px-4 py-3 rounded-sm border text-sm font-accent font-semibold shadow-xl backdrop-blur-sm
             ${n.type === "success" ? "bg-background/90 border-primary/40 text-primary" : "bg-background/90 border-rose-500/40 text-rose-400"}`}>
           {n.type === "success" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
@@ -134,7 +106,7 @@ const ToastStack = ({ notifications, onRemove }: { notifications: Notification[]
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
 const Panel = ({ title, icon: Icon, accent, children }: { title: string; icon: React.ElementType; accent: string; children: React.ReactNode }) => (
-  <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="hologram-panel rounded-sm overflow-hidden">
+  <motion.div initial={{ opacity: 1, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm overflow-hidden">
     <div className="h-[2px]" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}30)` }} />
     <div className="p-6 sm:p-8">
       <div className="flex items-center gap-3 mb-8">
@@ -163,7 +135,7 @@ const TemaRow = ({ tema, onSave, onDelete }: { tema: Tema; onSave: (t: Tema) => 
   return (
     <AnimatePresence mode="wait">
       {editing ? (
-        <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border border-primary/30 bg-primary/5 rounded-sm p-4 flex flex-col gap-3">
+        <motion.div key="edit" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="border border-primary/30 bg-primary/5 rounded-sm p-4 flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input value={draft.name} onChange={e => setDraft(p => ({ ...p, name: e.target.value }))} placeholder="Nome" className={inlineInputClass} />
             <InlineSelect value={draft.type} onChange={v => setDraft(p => ({ ...p, type: v }))} options={TEMA_TYPES} />
@@ -177,7 +149,7 @@ const TemaRow = ({ tema, onSave, onDelete }: { tema: Tema; onSave: (t: Tema) => 
           </div>
         </motion.div>
       ) : (
-        <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
+        <motion.div key="view" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full border border-primary/20 bg-primary/10 text-primary whitespace-nowrap">{tema.type}</span>
             <span className="text-sm font-display font-bold text-foreground truncate">{tema.name}</span>
@@ -221,7 +193,7 @@ const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas:
   return (
     <AnimatePresence mode="wait">
       {editing ? (
-        <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border border-blue-500/30 bg-blue-500/5 rounded-sm p-4 flex flex-col gap-3">
+        <motion.div key="edit" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="border border-blue-500/30 bg-blue-500/5 rounded-sm p-4 flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input value={draft.name} onChange={e => setDraft(p => ({ ...p, name: e.target.value }))} placeholder="Nome do curso" className={inlineInputClass} />
             <InlineSelect value={draft.difficult} onChange={v => setDraft(p => ({ ...p, difficult: v }))} options={DIFFICULTIES} />
@@ -240,7 +212,7 @@ const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas:
           </div>
         </motion.div>
       ) : (
-        <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
+        <motion.div key="view" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="group flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-border/20 bg-secondary/10 hover:bg-secondary/20 hover:border-border/40 transition-all">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-sm border whitespace-nowrap" style={{ color: diffColor, background: `${diffColor}15`, borderColor: `${diffColor}30` }}>{course.difficult}</span>
             <span className="text-sm font-display font-bold text-foreground truncate">{course.name}</span>
@@ -309,7 +281,7 @@ const AdminPage = () => {
   };
 
   // ── Form: criar curso ──
-  const [courseForm, setCourseForm] = useState({ name: "", difficult: "", courses_id: "", descricao: "", playlist_id: "" });
+  const [courseForm, setCourseForm] = useState<CourseForm>(EMPTY);
   const [savingCourse, setSavingCourse] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -323,92 +295,72 @@ const AdminPage = () => {
     setCourseForm(p => ({ ...p, playlistUrl: raw, playlist_id: extractPlaylistId(raw) }));
   };
 
- const handleSaveCourse = async () => {
-  if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
-    notify("error", "Preencha nome, dificuldade e o tema do curso.");
-    return;
-  }
-  setSavingCourse(true);
-
-  // 1. Salva o curso
-  const { data: course, error } = await supabase
-    .from("courses")
-    .insert({
-      name: courseForm.name.trim(),
-      descricao: courseForm.descricao.trim() || null,
-      difficult: courseForm.difficult,
-      courses_id: courseForm.courses_id,
-      playlist_id: courseForm.playlist_id || null,
-    })
-    .select("id")
-    .single();
-
-  if (error || !course) {
-    notify("error", "Erro ao salvar curso: " + error?.message);
-    setSavingCourse(false);
-    return;
-  }
-
-  // 2. Se tiver playlist, busca os vídeos e salva as aulas
-  if (courseForm.playlist_id) {
-    try {
-      const videos = await getPlaylistVideos(courseForm.playlist_id);
-
-      const aulas = videos.map((video, index) => ({
-        course_id: course.id,
-        nome: video.nome,
-        url_video: video.url,
-        descricao: video.descricao,
-        thumb: video.thumb,
-        position: index,
-      }));
-
-      const { error: aulasError } = await supabase
-        .from("aulas")
-        .insert(aulas);
-
-      if (aulasError) {
-        notify("error", "Curso criado, mas erro ao salvar aulas: " + aulasError.message);
-        setSavingCourse(false);
-        return;
-      }
-
-      notify("success", `Curso criado com ${videos.length} aulas!`);
-    } catch (err: any) {
-      notify("error", "Erro ao buscar playlist: " + err.message);
-      setSavingCourse(false);
+  const handleSaveCourse = async () => {
+    if (!courseForm.name.trim() || !courseForm.difficult || !courseForm.courses_id) {
+      notify("error", "Preencha nome, dificuldade e o tema do curso.");
       return;
     }
-    setSavingCourse(true); setSaveStatus("Salvando curso...");
+    setSavingCourse(true);
+    setSaveStatus("Salvando informações do curso...");
 
-  setCourseForm({ name: "", descricao: "", difficult: "", courses_id: "", playlist_id: "" });
-  setSavingCourse(false);
-};
+    try {
+      // 1. Salva o curso principal
+      const { data: course, error } = await supabase
+        .from("courses")
+        .insert({
+          name: courseForm.name.trim(),
+          descricao: courseForm.descricao.trim() || null,
+          difficult: courseForm.difficult,
+          courses_id: courseForm.courses_id,
+          playlist_id: courseForm.playlist_id || null,
+        })
+        .select("id")
+        .single();
 
-    if (error || !course) { notify("error", "Erro ao salvar curso: " + error?.message); setSavingCourse(false); setSaveStatus(""); return; }
+      if (error || !course) throw new Error(error?.message || "Falha ao criar curso.");
 
-    if (!courseForm.playlist_id) {
-      notify("success", `Curso "${courseForm.name}" criado!`);
-      setCourseForm(EMPTY); setSavingCourse(false); setSaveStatus(""); loadCourses(); return;
+      // 2. Se tiver playlist, busca vídeos e cria as aulas automaticamente
+      if (courseForm.playlist_id) {
+        setSaveStatus("Buscando vídeos da playlist no YouTube...");
+        const videos = await getPlaylistVideos(courseForm.playlist_id);
+        
+        if (videos.length > 0) {
+          setSaveStatus(`Salvando ${videos.length} aulas no banco de dados...`);
+          const aulasParaInserir = videos.map((v, i) => ({
+            course_id: course.id,
+            nome: v.nome,
+            url_video: v.url,
+            descricao: v.descricao,
+            thumb: v.thumb,
+            position: i
+          }));
+
+          const { data: savedAulas, error: aulasError } = await supabase
+            .from("aulas")
+            .insert(aulasParaInserir)
+            .select("id, nome, descricao");
+
+          if (aulasError) throw new Error("Curso criado, mas erro ao salvar aulas: " + aulasError.message);
+
+          // 3. Gera quizzes via ORION para cada aula
+          if (savedAulas && savedAulas.length > 0) {
+            setSaveStatus(`ORION gerando quizzes para ${savedAulas.length} aulas...`);
+            await Promise.allSettled(
+              savedAulas.map(a => generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? ""))
+            );
+          }
+        }
+      }
+
+      notify("success", `Curso "${courseForm.name}" criado com sucesso!`);
+      setCourseForm(EMPTY);
+      loadCourses();
+    } catch (err: any) {
+      notify("error", err.message || "Erro inesperado ao salvar.");
+    } finally {
+      setSavingCourse(false);
+      setSaveStatus("");
     }
-
-    setSaveStatus("Buscando vídeos da playlist...");
-    let videos;
-    try { videos = await getPlaylistVideos(courseForm.playlist_id); }
-    catch (err: any) { notify("error", "Erro ao buscar playlist: " + err.message); setSavingCourse(false); setSaveStatus(""); return; }
-
-    setSaveStatus(`Salvando ${videos.length} aulas...`);
-    const { data: savedAulas, error: aulasError } = await supabase.from("aulas")
-      .insert(videos.map((v, i) => ({ course_id: course.id, nome: v.nome, url_video: v.url, descricao: v.descricao, thumb: v.thumb, position: i })))
-      .select("id, nome, descricao");
-
-    if (aulasError || !savedAulas) { notify("error", "Curso criado, mas erro ao salvar aulas: " + aulasError?.message); setSavingCourse(false); setSaveStatus(""); return; }
-
-    setSaveStatus(`Gerando quizzes com IA para ${savedAulas.length} aulas...`);
-    await Promise.allSettled(savedAulas.map(a => generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? "")));
-
-    notify("success", `Curso criado com ${videos.length} aulas e quizzes gerados! 🎉`);
-    setCourseForm(EMPTY); setSavingCourse(false); setSaveStatus(""); loadCourses();
   };
 
   const handleUpdateTema = async (t: Tema) => {
@@ -435,10 +387,10 @@ const AdminPage = () => {
       <Header />
       <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
 
-      <div className="relative z-10 pt-32 pb-24 px-4 sm:px-6 max-w-5xl mx-auto">
+      <MainLandmark className="relative z-10 pt-32 pb-24 px-4 sm:px-6 max-w-5xl mx-auto">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-14">
+        <motion.div initial={{ opacity: 1, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="mb-14">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-sm flex items-center justify-center bg-primary/10 border border-primary/20">
               <LayoutDashboard size={15} className="text-primary" />
@@ -468,7 +420,7 @@ const AdminPage = () => {
               </Field>
               <AnimatePresence>
                 {temaForm.type && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                     <div className="p-3 rounded-sm border border-border/30 bg-secondary/10 flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-accent font-bold text-muted-foreground uppercase tracking-widest">Preview:</span>
                       <span className="text-xs font-accent font-bold px-2 py-0.5 rounded-full border border-primary/20 bg-primary/10 text-primary">{temaForm.type}</span>
@@ -498,14 +450,6 @@ const AdminPage = () => {
                 {courseForm.playlist_id && courseForm.playlist_id !== courseForm.playlistUrl && (
                   <p className="text-xs font-accent text-primary/70 mt-1">ID extraído: <span className="font-mono text-primary">{courseForm.playlist_id}</span></p>
                 )}
-              </Field>
-              <Field label="Desvrição do Curso" icon={Tag}>
-                <input type="text" value={courseForm.descricao} onChange={e => setCourseForm(p => ({ ...p, descricao: e.target.value }))}
-                  placeholder="ex: Python para Iniciantes" className={inputClass} />
-              </Field>
-              <Field label="URL do Curso" icon={Tag}>
-                <input type="text" value={courseForm.playlist_id} onChange={e => setCourseForm(p => ({ ...p, playlist_id: e.target.value }))}
-                  placeholder="ex: Python para Iniciantes" className={inputClass} />
               </Field>
               <Field label="Dificuldade" icon={Zap}>
                 <div className="grid grid-cols-3 gap-2">
@@ -537,7 +481,7 @@ const AdminPage = () => {
               </Field>
               <AnimatePresence>
                 {selectedTema && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                     <div className="p-3 rounded-sm border border-border/30 bg-secondary/10">
                       <p className="text-[10px] font-accent font-bold text-muted-foreground uppercase tracking-widest mb-1">Tema vinculado</p>
                       <p className="text-sm font-display font-bold text-foreground">{selectedTema.name}</p>
@@ -566,7 +510,7 @@ const AdminPage = () => {
         </div>
 
         {/* Gerenciamento */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-12">
+        <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="mt-12">
           <h2 className="text-xl font-display font-bold text-foreground mb-6">Gerenciar existentes</h2>
 
           <div className="flex gap-1 p-1 rounded-sm bg-secondary/20 border border-border/30 w-fit mb-6">
@@ -584,7 +528,7 @@ const AdminPage = () => {
 
           <AnimatePresence mode="wait">
             {activeTab === "temas" && (
-              <motion.div key="temas-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <motion.div key="temas-tab" initial={{ opacity: 1, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                 {loadingTemas ? (
                   <div className="flex items-center gap-2 py-10 justify-center"><Loader2 size={16} className="animate-spin text-muted-foreground" /><span className="text-sm font-accent text-muted-foreground">Carregando...</span></div>
                 ) : temas.length === 0 ? (
@@ -597,7 +541,7 @@ const AdminPage = () => {
               </motion.div>
             )}
             {activeTab === "courses" && (
-              <motion.div key="courses-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <motion.div key="courses-tab" initial={{ opacity: 1, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                 {loadingCourses ? (
                   <div className="flex items-center gap-2 py-10 justify-center"><Loader2 size={16} className="animate-spin text-muted-foreground" /><span className="text-sm font-accent text-muted-foreground">Carregando...</span></div>
                 ) : courses.length === 0 ? (
@@ -611,9 +555,9 @@ const AdminPage = () => {
             )}
           </AnimatePresence>
         </motion.div>
-      </div>
 
       <ToastStack notifications={notifications} onRemove={id => setNotifications(p => p.filter(n => n.id !== id))} />
+      </MainLandmark>
     </section>
   );
 };

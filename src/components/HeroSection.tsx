@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext"; // ajuste o caminho
+import { useAuth } from "../contexts/AuthContext";
+import { AccessibilityTrigger } from "@/components/AccessibilityPanel";
 
 const HeroSection = () => {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ const HeroSection = () => {
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center gradient-hero scanline overflow-hidden pt-24">
+      <AccessibilityTrigger variant="hero" />
       <div className="absolute inset-0 opacity-5" style={{
         backgroundImage: `linear-gradient(hsl(155 60% 45% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(155 60% 45% / 0.3) 1px, transparent 1px)`,
         backgroundSize: '60px 60px'
@@ -24,9 +26,9 @@ const HeroSection = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 1, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-bold leading-tight mb-6 text-glow">
               Sua proxima carreira {" "}
@@ -37,9 +39,9 @@ const HeroSection = () => {
 
           <motion.div
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
+            transition={{ duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           >
             {/* ✅ Botão com redirecionamento condicional */}
             <button
@@ -54,16 +56,16 @@ const HeroSection = () => {
 
         <motion.div
           className="grid grid-cols-3 gap-4 max-w-2xl mx-auto mt-16"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
+          initial={{ opacity: 1, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
           {[
             { value: "47%", label: "das profissões vão mudar até 2030" },
             { value: "150K+", label: "vagas abertas em áreas do futuro no Brasil" },
             { value: "2x", label: "mais vagas do que profissionais qualificados" },
           ].map((stat, i) => (
-            <div key={i} className="text-center p-4 hologram-panel rounded-sm animate-hologram-flicker" style={{ animationDelay: `${i * 1.3}s` }}>
+            <div key={i} className="text-center p-4 hologram-panel rounded-sm">
               <div className="text-2xl sm:text-3xl font-display font-bold text-primary text-glow">{stat.value}</div>
               <div className="text-xs sm:text-sm text-muted-foreground font-body mt-1">{stat.label}</div>
             </div>

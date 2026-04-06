@@ -11,6 +11,7 @@ import {
 import supabase from "../../utils/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import FriendButton from "@/components/FriendButton";
 import CursosEmAndamento from "@/components/CursosEmAndamento";
 
@@ -111,18 +112,21 @@ const PublicProfilePage = () => {
   // ─── Loading ─────────────────────────────────────────────────────────────
 
   if (loadingMain) return (
-    <div className="min-h-screen gradient-hero scanline flex items-center justify-center">
+    <>
       <Header />
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-3">
-        <Loader2 size={28} className="text-primary animate-spin" />
-        <p className="text-xs font-accent text-muted-foreground">Carregando perfil…</p>
-      </motion.div>
-    </div>
+      <MainLandmark className="min-h-screen gradient-hero scanline flex items-center justify-center">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-3">
+          <Loader2 size={28} className="text-primary animate-spin" />
+          <p className="text-xs font-accent text-muted-foreground">Carregando perfil…</p>
+        </motion.div>
+      </MainLandmark>
+    </>
   );
 
   if (notFound) return (
-    <div className="min-h-screen gradient-hero scanline flex flex-col items-center justify-center">
+    <>
       <Header />
+      <MainLandmark className="min-h-screen gradient-hero scanline flex flex-col items-center justify-center">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center px-4">
         <div className="mx-auto w-20 h-20 rounded-full bg-secondary/40 flex items-center justify-center mb-6"
           style={{ border: "1px solid hsl(155 60% 45% / 0.2)" }}>
@@ -135,7 +139,8 @@ const PublicProfilePage = () => {
           <ArrowLeft size={14} /> Voltar ao início
         </Link>
       </motion.div>
-    </div>
+      </MainLandmark>
+    </>
   );
 
   if (!profile) return null;
@@ -156,9 +161,10 @@ const PublicProfilePage = () => {
   const isOwnProfile  = me?.id === profile.user_id;
 
   return (
-    <div className="min-h-screen gradient-hero scanline">
+    <>
       <Header />
 
+      <MainLandmark className="min-h-screen gradient-hero scanline">
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-20 space-y-4">
 
         {/* Voltar */}
@@ -409,7 +415,8 @@ const PublicProfilePage = () => {
         </motion.div>
 
       </div>
-    </div>
+      </MainLandmark>
+    </>
   );
 };
 

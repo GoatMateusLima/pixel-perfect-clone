@@ -1,10 +1,13 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Compass, ArrowLeft, MonitorPlay } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "@/components/Header";
-import supabase from "../../utils/supabase.ts";
+import { MainLandmark } from "@/components/MainLandmark";
+import supabase from "../../utils/supabase";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { getRecommendedTemasIA } from "../../utils/APIrecomendacao";
 
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -35,9 +38,10 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: 20 }} 
+      initial={{ opacity: 1, x: 12 }} 
       animate={{ opacity: 1, x: 0 }} 
-      exit={{ opacity: 0, x: -20 }} 
+      exit={{ opacity: 0, x: -12 }} 
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-5xl mx-auto min-h-[70vh]"
     >
       <button onClick={onBack} className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-8">
@@ -88,12 +92,72 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
 // ─── Componente Principal ───────────────────────────────────────────────────
 const RoadmapSection = () => {
+  const { assessment, user } = useAuth();
   const [temasBrutos, setTemasBrutos] = useState<Tema[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("Todos");
   const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
+  
+  const [aiRecommendedIds, setAiRecommendedIds] = useState<string[]>([]);
+  const [isAILoading, setIsAILoading] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 340;
+      scrollContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  useEffect(() => {
+    async function fetchAiRecommendations() {
+      let interests = assessment?.areasInteresse || [];
+      let disc = assessment?.discProfile;
+
+      if (!assessment?.completed && interests.length === 0) {
+        // Se não tiver no contexto, tenta buscar do banco uma última vez
+        const { data: prof } = await supabase.from("profiles").select("areas_interesse, disc_profile").eq("user_id", user?.id || "").maybeSingle();
+        if (prof?.areas_interesse) {
+             interests = prof.areas_interesse as string[];
+        }
+        if (prof?.disc_profile) {
+             disc = prof.disc_profile as "D" | "I" | "S" | "C";
+        }
+        
+        if (interests.length === 0 && !disc) {
+             return; // Nem interesses nem DISC, nada a recomendar por agora
+        }
+      }
+      
+      if (temasBrutos.length === 0) return;
+
+      setIsAILoading(true);
+      try {
+        // Enriquecemos o prompt enviando interesses E perfil DISC se disponível
+        const profileContext = disc ? [ ...interests, `Perfil DISC: ${disc}` ] : interests;
+        
+        const ids = await getRecommendedTemasIA(profileContext, temasBrutos);
+        if (ids.length > 0) {
+          // Deduplicamos os IDs e garantimos que são strings para evitar repetições na UI
+          const uniqueIds = Array.from(new Set(ids.map(id => String(id))));
+          setAiRecommendedIds(uniqueIds);
+        }
+      } catch(e) {
+        console.error("Erro AI Roadmap:", e);
+      } finally {
+        setIsAILoading(false);
+      }
+    }
+
+    if (aiRecommendedIds.length === 0 && !isAILoading && !loading && temasBrutos.length > 0) {
+      fetchAiRecommendations();
+    }
+  }, [temasBrutos, assessment, aiRecommendedIds, isAILoading, loading]);
 
   useEffect(() => {
     async function loadData() {
@@ -120,7 +184,9 @@ const RoadmapSection = () => {
   const temasProntos = useMemo(() => {
     return temasBrutos.map((tema) => ({
       ...tema,
-      courses: allCourses.filter((c) => c.courses_id === tema.id)
+      courses: allCourses
+        .filter((c) => String(c.courses_id) === String(tema.id))
+        .filter((c, index, self) => self.findIndex(s => s.id === c.id) === index) // Garantia anti-duplicação
     }));
   }, [temasBrutos, allCourses]);
 
@@ -139,21 +205,41 @@ const RoadmapSection = () => {
   }, [temasProntos, search, activeType]);
 
   const recommendedTemas = useMemo(() => {
-    return [...temasProntos].sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0)).slice(0, 5);
-  }, [temasProntos]);
+    if (aiRecommendedIds.length > 0) {
+      // Remove IDs duplicados que a IA possa ter retornado por engano
+      const uniqueAIIds = Array.from(new Set(aiRecommendedIds));
+      
+      const validTemas = uniqueAIIds
+        .map(id => temasProntos.find(t => String(t.id) === String(id)))
+        .filter(Boolean) as Tema[];
+      
+      if (validTemas.length > 0) {
+        const remaining = [...temasProntos]
+          .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
+          .filter(t => !uniqueAIIds.includes(String(t.id)));
+        return [...validTemas, ...remaining].slice(0, 5);
+      }
+    }
+    // Fallback: temas com mais cursos
+    return [...temasProntos]
+      .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
+      .slice(0, 5);
+  }, [temasProntos, aiRecommendedIds]);
 
   return (
     <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
       <Header />
-      <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
-      
+      <MainLandmark className="relative z-10 block min-h-0">
+        <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
+
       <AnimatePresence mode="wait">
         {!selectedTema ? (
           <motion.div 
             key="grid-view"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 1, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-7xl mx-auto"
           >
             <div className="max-w-3xl mx-auto text-center mb-16">
@@ -175,21 +261,47 @@ const RoadmapSection = () => {
             </div>
 
             {!loading && recommendedTemas.length > 0 && search === "" && activeType === "Todos" && (
-              <div className="mb-12">
+              <div className="mb-12 relative group/section">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">Recomendações</h2>
-                  <span className="text-xs font-accent font-bold text-primary tracking-widest uppercase">Em Alta</span>
+                  <span className="text-xs font-accent font-bold text-primary tracking-widest uppercase">
+                    {isAILoading ? 'Consultando ORION...' : (aiRecommendedIds.length > 0 ? 'Sugestões do ORION' : 'Em Alta')}
+                  </span>
                 </div>
-                <div className="flex gap-4 md:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x" style={{ scrollbarWidth: "none" }}>
-                  {recommendedTemas.map((tema, i) => (
-                    <div key={tema.id} className="snap-start shrink-0 w-[280px] md:w-[320px]">
-                      <TemaCard 
-                        tema={tema} 
-                        index={i}
-                        onClick={() => setSelectedTema(tema)} 
-                      />
-                    </div>
-                  ))}
+                
+                <div className="relative">
+                  {/* Scroll Buttons */}
+                  <button 
+                    onClick={() => scroll('left')}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 p-2 rounded-full bg-secondary/80 border border-border/50 text-foreground opacity-0 group-hover/section:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground backdrop-blur-sm hidden md:flex items-center justify-center"
+                    aria-label="Scroll left"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <button 
+                    onClick={() => scroll('right')}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 p-2 rounded-full bg-secondary/80 border border-border/50 text-foreground opacity-0 group-hover/section:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground backdrop-blur-sm hidden md:flex items-center justify-center"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+
+                  <div 
+                    ref={scrollContainerRef}
+                    className="flex gap-4 md:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x scroll-smooth" 
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {recommendedTemas.map((tema, i) => (
+                      <div key={tema.id} className="snap-start shrink-0 w-[280px] md:w-[320px]">
+                        <TemaCard 
+                          tema={tema} 
+                          index={i}
+                          onClick={() => setSelectedTema(tema)} 
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -245,6 +357,7 @@ const RoadmapSection = () => {
           />
         )}
       </AnimatePresence>
+      </MainLandmark>
     </section>
   );
 };

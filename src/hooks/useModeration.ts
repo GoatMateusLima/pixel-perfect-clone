@@ -1,18 +1,10 @@
 import { useAuth } from "../contexts/AuthContext";
+import { invokeApiProxy } from "@/lib/apiProxy";
 
 /**
- * useModeration.ts
- *
- * Hook de moderação via Groq API.
- * Analisa texto, imagens (base64) e GIFs antes de salvar no banco.
- *
- * ⚠️ SECURITY WARNING: Use of VITE_AI_KEY in the frontend is insecure.
- * These keys are exposed to the browser. For a production-ready application,
- * move these calls to a backend or Supabase Edge Functions.
+ * Moderação via Edge Function `api-proxy` (Groq no servidor — sem chave no bundle).
  */
 
-const GROQ_KEY = import.meta.env.VITE_AI_KEY ?? "";
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export interface ModerationResult {
   approved: boolean;
@@ -53,63 +45,21 @@ async function gifUrlToBase64(gifUrl: string): Promise<string | null> {
   }
 }
 
-// ─── Prompt de moderação ──────────────────────────────────────────────────────
-
-const SYSTEM_PROMPT = `Você é o moderador da comunidade UpJobs, uma plataforma sobre carreiras do futuro, mercado de trabalho, vagas de emprego, cursos, transição de carreira e desenvolvimento profissional.
-
-Sua tarefa é avaliar conteúdo enviado por usuários (texto e/ou imagem) e decidir se deve ser APROVADO ou REPROVADO.
-
-APROVE se o conteúdo:
-- For sobre carreiras, emprego, vagas, cursos, tecnologia, desenvolvimento profissional, conquistas, dicas de trabalho, networking
-- For uma opinião, experiência ou dúvida relevante ao ambiente profissional
-- For uma imagem, meme ou GIF divertido mas inofensivo (humor leve é permitido)
-- Não violar nenhuma das regras abaixo
-
-REPROVE se o conteúdo:
-- Contiver linguagem ofensiva, palavrões graves, xingamentos direcionados a pessoas
-- For spam, propaganda não relacionada, links suspeitos ou golpes
-- Contiver discurso de ódio, preconceito, racismo, sexismo ou qualquer discriminação
-- For completamente irrelevante e sem valor para uma comunidade profissional (ex: texto sem sentido, spam de caracteres)
-- Contiver conteúdo adulto, violento ou ilegal
-- For assédio ou ataque pessoal a outro usuário
-
-IMPORTANTE:
-- Humor leve e memes relacionados ao mundo do trabalho são PERMITIDOS
-- Seja tolerante com conteúdo levemente off-topic mas inofensivo
-- Só reprove se tiver certeza que viola as regras acima
-- Responda APENAS com JSON válido, sem texto adicional
-
-Formato de resposta obrigatório:
-{"approved": true} 
-OU
-{"approved": false, "reason": "Mensagem curta e amigável explicando o motivo em português"}`;
-
 // ─── Moderação de TEXTO ───────────────────────────────────────────────────────
 
 async function moderateText(text: string): Promise<ModerationResult> {
   if (!text.trim()) return { approved: true };
-  if (!GROQ_KEY)   return { approved: true }; // sem chave, aprova tudo
 
   try {
-    const res = await fetch(GROQ_URL, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_KEY}` },
-      body: JSON.stringify({
-        model:       "llama-3.1-8b-instant",
-        temperature: 0,
-        max_tokens:  80,
-        messages: [
-          { role: "system",  content: SYSTEM_PROMPT },
-          { role: "user",    content: `Avalie este comentário:\n\n"${text}"` },
-        ],
-      }),
-    });
-
-    const data = await res.json();
-    const raw  = data.choices?.[0]?.message?.content?.trim() ?? "{}";
-    return JSON.parse(raw) as ModerationResult;
+    const { data, error } = await invokeApiProxy<ModerationResult>("moderate_text", { text });
+    if (error) {
+      console.warn("[Moderation] moderate_text:", error);
+      return { approved: true };
+    }
+    if (data && typeof data.approved === "boolean") return data;
+    return { approved: true };
   } catch {
-    return { approved: true }; // em caso de erro na API, não bloqueia o usuário
+    return { approved: true };
   }
 }
 
@@ -120,42 +70,18 @@ async function moderateImage(
   mimeType: string = "image/jpeg",
   extraText?: string
 ): Promise<ModerationResult> {
-  if (!GROQ_KEY) return { approved: true };
-
   try {
-    const messages: any[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${base64}` },
-          },
-          {
-            type: "text",
-            text: extraText
-              ? `Avalie esta imagem/GIF junto com o texto:\n\n"${extraText}"`
-              : "Avalie esta imagem/GIF.",
-          },
-        ],
-      },
-    ];
-
-    const res = await fetch(GROQ_URL, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_KEY}` },
-      body: JSON.stringify({
-        model:       "meta-llama/llama-4-scout-17b-16e-instruct",
-        temperature: 0,
-        max_tokens:  80,
-        messages,
-      }),
+    const { data, error } = await invokeApiProxy<ModerationResult>("moderate_vision", {
+      base64,
+      mimeType,
+      ...(extraText ? { extraText } : {}),
     });
-
-    const data = await res.json();
-    const raw  = data.choices?.[0]?.message?.content?.trim() ?? "{}";
-    return JSON.parse(raw) as ModerationResult;
+    if (error) {
+      console.warn("[Moderation] moderate_vision:", error);
+      return { approved: true };
+    }
+    if (data && typeof data.approved === "boolean") return data;
+    return { approved: true };
   } catch {
     return { approved: true };
   }
@@ -182,12 +108,6 @@ export function useModeration() {
     // 1. Check if user is an admin - skip moderation for admins
     if (role === "admin") {
       console.log("[Moderation] Admin bypass active.");
-      return { approved: true };
-    }
-
-    // Se não tem chave configurada, aprova sem chamar a API e avisa no log
-    if (!GROQ_KEY) {
-      console.warn("[Security] GROQ_KEY not found. Content moderation is DISABLED.");
       return { approved: true };
     }
 

@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
 import PostMedia from "./PostMedia";
 
@@ -170,7 +170,7 @@ const PostCard = ({
 }: PostCardProps) => {
 
   const [fetchedPost, setFetchedPost] = useState<Post | null>(null);
-  const [loading,     setLoading]     = useState(false);
+  const [internalLoading, setLoading]     = useState(false);
   const [fetchError,  setFetchError]  = useState<string | null>(null);
   const [showMenu,    setShowMenu]    = useState(false);
   
@@ -223,14 +223,18 @@ const PostCard = ({
     fetchCommentCount();
   }, [post?.id]);
 
-  if (loading) return (
-    <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
-      <span className="text-xs text-muted-foreground font-body animate-pulse">Carregando…</span>
+  // Se estiver carregando por conta do publicationId
+  if (internalLoading) return (
+    <div className="glass-card mb-6 rounded-3xl border-white/5 shadow-2xl p-7 flex items-center justify-center min-h-[200px]">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        <span className="text-xs text-muted-foreground font-body animate-pulse">Buscando publicação…</span>
+      </div>
     </div>
   );
 
   if (fetchError || !post) return (
-    <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
+    <div className="glass-card mb-6 rounded-3xl border-white/5 shadow-2xl p-7 flex items-center justify-center min-h-[120px]">
       <span className="text-xs text-muted-foreground font-body">{fetchError ?? "Publicação não disponível."}</span>
     </div>
   );
@@ -248,9 +252,7 @@ const PostCard = ({
   };
 
   return (
-    <motion.div layout
-      initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
+    <motion.div
       className="glass-card relative mb-6 last:mb-0 group/card rounded-3xl border-white/5 shadow-2xl overflow-hidden">
 
       {/* ── Header ── */}
@@ -289,7 +291,8 @@ const PostCard = ({
           </button>
           <AnimatePresence>
             {showMenu && (
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              <motion.div initial={{ opacity: 1, scale: 0.98, y: -2 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">
                   Denunciar post
@@ -321,27 +324,82 @@ const PostCard = ({
       )}
 
       {/* ── Contadores ── */}
-      <div className="px-7 py-3 flex items-center justify-between text-[12px] text-white/40 font-body">
-        <span className="font-medium">{post.like_qnt ?? 0} curtidas</span>
-        <button onClick={() => post && onOpenModal?.(post)} className="hover:text-primary transition-colors duration-300 flex items-center gap-1">
-          <span className="w-1 h-1 rounded-full bg-white/20 mr-1" />
-          {commentCount} {commentCount === 1 ? "comentário" : "comentários"} · Ver todos
+      <div className="px-7 py-2.5 flex items-center justify-between text-[12px] text-muted-foreground font-body">
+        <span className="tabular-nums">{post.like_qnt ?? 0} curtidas</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            post && onOpenModal?.(post);
+          }}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {commentCount} {commentCount === 1 ? "comentário" : "comentários"}
         </button>
       </div>
 
-      {/* ── Ações ── */}
-      <div className="px-7 pb-6 flex items-center gap-3">
-        {[
-          { label: "Curtir",      el: <Heart size={18} className={post.liked ? "fill-primary text-primary" : ""} />,    active: post.liked,  color: "text-primary", fn: () => post.id && onLike?.(post.id) },
-          { label: "Comentar",    el: <MessageCircle size={18} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
-          { label: "Salvar",      el: <Bookmark size={18} className={post.saved ? "fill-primary text-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => post.id && onSave?.(post.id) },
-          { label: "Link",        el: <Share2 size={18} />,                                                 active: false,       color: "",             fn: copyLink },
-        ].map(({ label, el, active, color, fn }) => (
-          <button key={label} onClick={fn}
-            className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-2xl text-[10px] font-accent font-black uppercase tracking-[0.2em] transition-all duration-300 bg-white/[0.02] border border-white/[0.03] hover:bg-primary/5 hover:border-primary/20 active:scale-95 ${active ? "text-primary shadow-[0_0_15px_rgba(16,185,129,0.1)] border-primary/30" : "text-white/20 hover:text-white"}`}>
-            {el} <span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
+      {/* ── Ações (barra leve, legível) ── */}
+      <div className="px-7 pb-6">
+        <div className="flex items-center rounded-2xl border border-white/[0.08] bg-black/20 px-1 py-1 backdrop-blur-sm">
+          {[
+            {
+              label: "Curtir",
+              icon: (
+                <Heart
+                  size={18}
+                  strokeWidth={1.75}
+                  className={post.liked ? "fill-primary text-primary" : "text-current"}
+                />
+              ),
+              active: post.liked,
+              fn: () => post.id && onLike?.(post.id),
+            },
+            {
+              label: "Comentar",
+              icon: <MessageCircle size={18} strokeWidth={1.75} className="text-current" />,
+              active: false,
+              fn: () => post && onOpenModal?.(post),
+            },
+            {
+              label: "Salvar",
+              icon: (
+                <Bookmark
+                  size={18}
+                  strokeWidth={1.75}
+                  className={post.saved ? "fill-primary text-primary" : "text-current"}
+                />
+              ),
+              active: post.saved,
+              fn: () => post.id && onSave?.(post.id),
+            },
+            {
+              label: "Copiar link",
+              icon: <Share2 size={18} strokeWidth={1.75} className="text-current" />,
+              active: false,
+              fn: copyLink,
+            },
+          ].map(({ label, icon, active, fn }) => (
+            <button
+              key={label}
+              type="button"
+              title={label}
+              onClick={(e) => {
+                e.stopPropagation();
+                fn();
+              }}
+              className={
+                active
+                  ? "flex flex-1 flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-2 px-1 rounded-xl text-primary bg-primary/[0.12] transition-colors hover:bg-primary/[0.16]"
+                  : "flex flex-1 flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-2 px-1 rounded-xl text-foreground/70 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              }
+            >
+              {icon}
+              <span className="text-[10px] sm:text-[11px] font-body font-medium leading-none sm:leading-tight">
+                {label === "Copiar link" ? "Link" : label}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </motion.div>
   );

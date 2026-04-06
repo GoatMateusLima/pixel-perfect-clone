@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useParams } from "react-router-dom";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import QuizTab, { QuizQuestion } from "../components/Quiztab";
 import { useAuth } from "@/contexts/AuthContext";
+import { groqChatCompletion } from "@/lib/apiProxy";
 import supabase from "../../utils/supabase.ts";
 import PostModal from "../components/PostModal";
 import {
@@ -109,8 +111,9 @@ const AulaTab = ({
     <div className="space-y-4 max-w-3xl">
       <motion.div
         key={aula.id}
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 1, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm overflow-hidden"
       >
         {/* Video */}
@@ -165,9 +168,9 @@ const AulaTab = ({
 
       {/* Mini lista de aulas — mobile */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 1, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
+        transition={{ delay: 0.06, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-4 lg:hidden"
       >
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -295,7 +298,7 @@ const DuvidasTab = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="hologram-panel rounded-sm p-5">
+      <motion.div initial={{ opacity: 1, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-5">
         <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <MessageCircleQuestion size={14} className="text-primary" /> Enviar uma Dúvida
         </h3>
@@ -334,72 +337,93 @@ const DuvidasTab = () => {
         <span className="ml-auto text-xs text-muted-foreground/50 font-body">{doubts.length} {doubts.length === 1 ? "dúvida" : "dúvidas"}</span>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="hologram-panel rounded-sm p-4 animate-pulse">
-              <div className="flex gap-3">
-                <div className="w-9 h-9 rounded-full bg-secondary/60 shrink-0" />
-                <div className="flex-1 space-y-2 pt-1">
-                  <div className="h-3 bg-secondary/60 rounded w-1/4" />
-                  <div className="h-3 bg-secondary/50 rounded w-full" />
-                  <div className="h-3 bg-secondary/40 rounded w-4/5" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : sorted.length === 0 ? (
-        <div className="hologram-panel rounded-sm p-10 text-center">
-          <p className="text-sm text-muted-foreground font-body">Nenhuma dúvida ainda. Seja o primeiro!</p>
-        </div>
-      ) : (
-        <AnimatePresence mode="popLayout">
-          {sorted.map((doubt, i) => (
+      <div className="relative min-h-[400px]">
+        <AnimatePresence initial={false}>
+          {loading ? (
             <motion.div
-              key={doubt.id} layout
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ delay: i * 0.04 }}
-              className="hologram-panel rounded-sm p-4 cursor-pointer hover:border-primary/30 transition-all"
-              onClick={() => setOpenDoubt(doubt)}
+              key="loading-doubts"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 z-10 space-y-4 pointer-events-none"
             >
-              <div className="flex gap-3">
-                <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
-                  style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
-                  {doubt.profile?.avatar_url
-                    ? <img src={doubt.profile.avatar_url} alt={doubt.profile.name} className="w-full h-full object-cover" />
-                    : getInitialLetter(doubt.profile?.name)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-xs font-accent font-semibold text-foreground">{doubt.profile?.name ?? "Usuário"}</span>
-                    {doubt.profile?.role && <span className="text-[10px] text-muted-foreground font-body">{doubt.profile.role}</span>}
-                    <span className="text-[10px] text-muted-foreground/50 font-body ml-auto">
-                      {doubt.date ? new Date(doubt.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : ""}
-                    </span>
-                  </div>
-                  <p className="text-sm text-foreground/85 font-body leading-relaxed line-clamp-3 mb-3">{doubt.description}</p>
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleLike(doubt.id)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
-                      style={doubt.liked ? { color: "hsl(5 80% 60%)" } : { color: "hsl(215 15% 50%)" }}>
-                      <motion.span animate={doubt.liked ? { scale: [1, 1.5, 1] } : { scale: 1 }} transition={{ duration: 0.35 }} style={{ display: "flex" }}>
-                        <Heart size={13} style={doubt.liked ? { fill: "hsl(5 80% 60%)", color: "hsl(5 80% 60%)" } : {}} />
-                      </motion.span>
-                      <span>{doubt.like_qnt}</span>
-                    </button>
-                    <button onClick={() => setOpenDoubt(doubt)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent transition-all hover:bg-white/5"
-                      style={{ color: "hsl(215 15% 50%)" }}>
-                      <MessageCircle size={13} /><span>Responder</span>
-                    </button>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="hologram-panel rounded-sm p-5 animate-pulse">
+                  <div className="flex gap-4">
+                    <div className="w-9 h-9 rounded-full bg-white/5 shrink-0" />
+                    <div className="flex-1 space-y-3 pt-1">
+                      <div className="h-3.5 bg-white/10 rounded w-1/4" />
+                      <div className="h-3 bg-white/5 rounded w-full" />
+                      <div className="h-3 bg-white/5 rounded w-4/5" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </motion.div>
-          ))}
+          ) : sorted.length === 0 ? (
+            <motion.div
+              key="empty-doubts"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="hologram-panel rounded-sm p-12 text-center"
+            >
+              <p className="text-sm text-muted-foreground font-body">Nenhuma dúvida ainda. Seja o primeiro!</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="doubts-list"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              {sorted.map((doubt) => (
+                <div
+                  key={doubt.id}
+                  className="hologram-panel rounded-sm p-5 cursor-pointer hover:border-primary/30 transition-all border-white/5"
+                  onClick={() => setOpenDoubt(doubt)}
+                >
+                  <div className="flex gap-4">
+                    <div className="shrink-0 w-9 h-9 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center font-display text-xs font-bold"
+                      style={{ background: "hsl(215 28% 18%)", color: "hsl(155 60% 60%)" }}>
+                      {doubt.profile?.avatar_url
+                        ? <img src={doubt.profile.avatar_url} alt={doubt.profile.name} className="w-full h-full object-cover" />
+                        : getInitialLetter(doubt.profile?.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span className="text-xs font-accent font-bold text-foreground">{doubt.profile?.name ?? "Usuário"}</span>
+                        {doubt.profile?.role && <span className="text-[10px] text-muted-foreground font-body">{doubt.profile.role}</span>}
+                        <span className="text-[10px] text-muted-foreground/50 font-body ml-auto">
+                          {doubt.date ? new Date(doubt.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : ""}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-foreground/85 font-body leading-relaxed line-clamp-3 mb-4">{doubt.description}</p>
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => handleLike(doubt.id)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-accent font-bold transition-all bg-white/[0.03] hover:bg-white/10"
+                          style={doubt.liked ? { color: "hsl(5 80% 60%)", background: "hsl(5 80% 60% / 0.1)" } : { color: "hsl(215 15% 60%)" }}>
+                          <motion.span animate={doubt.liked ? { scale: [1, 1.4, 1] } : { scale: 1 }} transition={{ duration: 0.3 }}>
+                            <Heart size={14} style={doubt.liked ? { fill: "hsl(5 80% 60%)" } : {}} />
+                          </motion.span>
+                          <span>{doubt.like_qnt}</span>
+                        </button>
+                        <button onClick={() => setOpenDoubt(doubt)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-accent font-bold transition-all bg-white/[0.03] hover:bg-white/10 text-muted-foreground hover:text-foreground">
+                          <MessageCircle size={14} /><span>Responder</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
         </AnimatePresence>
-      )}
+      </div>
 
       {openDoubt && (
         <PostModal
@@ -431,11 +455,13 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const RoadmapPanel = ({
   aulas,
   activeIndex,
+  passedIndexes,
   courseName,
   onSelectIndex,
 }: {
   aulas: Aula[];
   activeIndex: number;
+  passedIndexes: Set<number>;
   courseName: string;
   onSelectIndex: (index: number) => void;
 }) => {
@@ -477,15 +503,6 @@ const RoadmapPanel = ({
     return d;
   })();
 
-  const vSegments = aulas.slice(1).map((_, i) => {
-    const p0 = vNodePos[i];
-    const p1 = vNodePos[i + 1];
-    const dy = (p1.y - p0.y) * 0.5;
-    const d = `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
-    const lit = i <= activeIndex;
-    return { d, lit, key: i + 1 };
-  });
-
   const PIN_COLORS = {
     done:   "hsl(155 60% 42%)",
     active: "hsl(25 90% 55%)",
@@ -493,11 +510,40 @@ const RoadmapPanel = ({
     last:   "hsl(45 90% 55%)",
   };
 
-  const getStatus = (i: number) =>
-    i < activeIndex ? "done" : i === activeIndex ? "active" : "locked";
+  // Lógica de status: 
+  // 1. Passou no quiz/aula? -> done (Verde)
+  // 2. É o índice que o usuário está visualizando? -> active (Laranja)
+  // 3. O anterior foi passado ou é o que o usuário parou? -> liberado
+  // 4. Caso contrário -> locked (Cinza)
+  // Lógica de status refinada: 
+  // 1. Passou no quiz/aula? -> done (Verde)
+  // 2. Disponível para clicar? -> active (Laranja) - Se for a primeira ou a anterior estiver feita
+  // 3. Caso contrário -> locked (Cinza)
+  const getStatus = (i: number) => {
+    if (passedIndexes.has(i)) return "done";
+    
+    // A aula está desbloqueada se for a primeira OU se a anterior foi concluída
+    const unlocked = i === 0 || passedIndexes.has(i - 1);
+    if (unlocked) return "active";
 
-  const doneCount = activeIndex;
-  const progressPct = aulas.length > 1 ? Math.round((doneCount / (aulas.length - 1)) * 100) : 0;
+    return "locked";
+  };
+
+  const vSegments = aulas.slice(1).map((_, i) => {
+    const p0 = vNodePos[i];
+    const p1 = vNodePos[i + 1];
+    const dy = (p1.y - p0.y) * 0.5;
+    const d = `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
+    
+    // Segmento aceso se a nota de destino estiver desbloqueada
+    const statusP1 = getStatus(i + 1);
+    const lit = statusP1 !== "locked"; 
+    
+    return { d, lit, key: i + 1 };
+  });
+
+  const doneCount = passedIndexes.size;
+  const progressPct = aulas.length > 0 ? Math.round((doneCount / aulas.length) * 100) : 0;
 
   return (
     <div ref={containerRef} className="relative flex flex-col overflow-hidden" style={{ height: "calc(100vh - 108px)" }}>
@@ -512,7 +558,7 @@ const RoadmapPanel = ({
         </h2>
         <div className="mt-2">
           <div className="flex justify-between text-xs font-accent text-muted-foreground mb-1">
-            <span>Progresso</span>
+            <span>Concluído</span>
             <span className="text-primary font-bold">{doneCount} / {aulas.length}</span>
           </div>
           <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
@@ -531,7 +577,7 @@ const RoadmapPanel = ({
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative"
         style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.3) transparent" }}>
         <div className="relative" style={{ height: totalH, width: "100%" }}>
-          <svg className="absolute inset-0 pointer-events-none" width="100%" height={totalH}>
+          <svg className="absolute inset-0" width="100%" height={totalH} style={{ pointerEvents: "none" }}>
             <defs>
               <filter id="vRoadGlow" x="-30%" y="-10%" width="160%" height="120%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -563,31 +609,52 @@ const RoadmapPanel = ({
               </circle>
             ))}
 
+            <AnimatePresence>
+              {vNodePos[activeIndex] && (
+                <motion.foreignObject
+                  key={`agent-obj-${activeIndex}`}
+                  initial={{ opacity: 0, scale: 0.5, x: vNodePos[activeIndex].x, y: vNodePos[activeIndex].y }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1,
+                    x: vNodePos[activeIndex].x + (vNodePos[activeIndex].x > midX ? 45 : -85), 
+                    y: vNodePos[activeIndex].y - 65
+                  }}
+                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                  width="40"
+                  height="50"
+                  className="pointer-events-none z-30"
+                >
+                  <img src="/agentMais.webp" className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" alt="Agent" />
+                </motion.foreignObject>
+              )}
+            </AnimatePresence>
+
             {aulas.map((aula, index) => {
               const { x, y } = vNodePos[index];
               const isLast = isLastNode(index);
               const status = getStatus(index);
-              const isDone   = status === "done";
-              const isActive = status === "active";
-              const isLocked = status === "locked";
               const isSelected = index === activeIndex;
               const isHovered  = hoveredId === index;
-              const pinColor = isLast ? PIN_COLORS.last : PIN_COLORS[status];
+              const isLocked = status === "locked";
+              const isDone = status === "done";
+              
+              const pinColor = isLast ? PIN_COLORS.last : (isSelected ? PIN_COLORS.active : (isDone ? PIN_COLORS.done : (status === "locked" ? PIN_COLORS.locked : PIN_COLORS.active)));
               const isOnRight = x > midX;
               const pinW = isLast ? 44 : 36;
               const pinH = isLast ? 54 : 46;
               const pinX = isOnRight ? x + 10 : x - 10;
               const pinTop = y - pinH - 2;
-              const icon = isLocked ? "🔒" : isDone ? "✅" : isActive ? "▶️" : "🏆";
+              const icon = isLocked ? "🔒" : isDone ? "✅" : "▶️";
 
               return (
                 <g key={aula.id}
                   onClick={() => !isLocked && onSelectIndex(index)}
                   onMouseEnter={() => setHoveredId(index)}
                   onMouseLeave={() => setHoveredId(null)}
-                  style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
+                  style={{ cursor: isLocked ? "not-allowed" : "pointer", pointerEvents: "auto" }}
                 >
-                  {(isActive || isSelected) && !isLast && (
+                  {(isSelected) && !isLast && (
                     <circle cx={x} cy={y} r="13" fill="none" stroke={pinColor} strokeWidth="2" opacity="0.5">
                       <animate attributeName="r" values="12;22;12" dur="1.8s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite" />
@@ -642,7 +709,7 @@ const RoadmapPanel = ({
             const isLast = isLastNode(index);
             const status = getStatus(index);
             const isDone   = status === "done";
-            const isActive = status === "active";
+            const isActive = status === "active" || index === activeIndex;
             const isSelected = index === activeIndex;
             const isOnRight = x > midX;
             const pinH = isLast ? 54 : 46;
@@ -679,7 +746,7 @@ const SUGGESTIONS = [
 
 // O Novo Prompt Dinâmico
 const generateSystemPrompt = (courseName: string, lessonName: string, lessonDescription: string) => `
-Você é um Professor Auxiliar Virtual de uma plataforma educacional. Sua função é ler o material didático da página em que foi acionado, compreender o assunto e ajudar os alunos a tirarem suas dúvidas sobre aquele tema específico de forma clara, paciente e didática.
+Você é ORION, o Professor e Tutor de Programação Oficial da plataforma UpJobs! Sua função é ser um assistente hiper-didático...
 
 Sua tarefa é analisar o [CONTEÚDO DA PÁGINA] e a [PERGUNTA DO ALUNO] e decidir como responder.
 
@@ -710,8 +777,6 @@ Aula atual: ${lessonName}
 Descrição do conteúdo: ${lessonDescription || "O aluno está assistindo a um vídeo sobre este tema."}
 `;
 
-const AI_KEY = import.meta.env.VITE_AI_KEY;
-
 interface AIChatPanelProps {
   courseName: string;
   aula: Aula | null;
@@ -720,7 +785,7 @@ interface AIChatPanelProps {
 const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: 0, role: "assistant",
-    text: "Olá! Sou seu tutor de programação. Pergunte qualquer coisa sobre o conteúdo da trilha 🚀",
+    text: "Olá estudante! Sou o ORION 🌌 seu tutor pessoal nesta jornada. Tem alguma dúvida sobre o conteúdo desta aula?",
     ts: "agora",
   }]);
   const [input, setInput] = useState("");
@@ -739,24 +804,19 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
     scrollToBottom();
     
     try {
-      // Injetando as variáveis aula.nome e aula.descricao direto do banco de dados
       const dynamicPrompt = generateSystemPrompt(
         courseName || "Curso não identificado",
         aula?.nome || "Aula não identificada",
         aula?.descricao || "Nenhuma descrição fornecida para esta aula."
       );
 
-      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role, content: m.text }));
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
-        body: JSON.stringify({
+      const history = messages.filter((m) => m.id !== 0).slice(-4).map((m) => ({ role: m.role as "user" | "assistant", content: m.text }));
+      const reply =
+        (await groqChatCompletion({
           model: "llama-3.1-8b-instant",
           messages: [{ role: "system", content: dynamicPrompt }, ...history, { role: "user", content: trimmed }],
-        }),
-      });
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || data.error?.message || "Desculpe, não consegui responder agora.";
+          temperature: 0.3,
+        })) ?? "Desculpe, não consegui responder agora.";
       setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: reply, ts: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }]);
     } catch {
       setMessages((prev) => [...prev, { id: Date.now() + 1, role: "assistant", text: "Erro ao conectar com a IA. Tente novamente.", ts: "agora" }]);
@@ -770,13 +830,13 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}>
         {messages.map((msg, i) => (
-          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0.2 : 0 }}
+          <motion.div key={msg.id} initial={{ opacity: 1, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i === 0 ? 0 : 0, duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={msg.role === "assistant"
                 ? { background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)", boxShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }
                 : { background: "hsl(215 25% 22%)", color: "hsl(215 50% 70%)", border: "1px solid hsl(215 25% 32%)" }}>
-              {msg.role === "assistant" ? "IA" : "EU"}
+              {msg.role === "assistant" ? "ORION" : "EU"}
             </div>
             <div className="max-w-[80%] px-3 py-2 rounded-sm text-xs font-body leading-relaxed"
               style={msg.role === "assistant"
@@ -788,7 +848,7 @@ const AIChatPanel = ({ courseName, aula }: AIChatPanelProps) => {
           </motion.div>
         ))}
         {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="flex gap-2">
             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold"
               style={{ background: "radial-gradient(circle at 35% 35%, hsl(155 60% 45%), hsl(155 60% 25%))", color: "hsl(155 60% 95%)" }}>IA</div>
             <div className="px-3 py-2.5 rounded-sm flex items-center gap-1.5" style={{ background: "hsl(215 25% 12%)", border: "1px solid hsl(155 60% 45% / 0.2)" }}>
@@ -865,49 +925,8 @@ const CoursesPage = () => {
             last_aula_id: aulaAtual.id,
           }, { onConflict: 'user_id,course_id' });
 
-        // Verifica se essa aula já foi concluída antes (para não duplicar XP)
-        const { data: existing } = await supabase
-          .from('lesson_progress')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('aula_id', aulaAtual.id)
-          .eq('completed', true)
-          .maybeSingle();
-
-        await supabase
-          .from('lesson_progress')
-          .upsert({
-            user_id: user.id,
-            aula_id: aulaAtual.id,
-            completed: true,
-            completed_at: new Date().toISOString()
-          }, { onConflict: 'user_id,aula_id' });
-
-        // Se é a primeira vez completando essa aula, incrementa o XP no perfil
-        if (!existing) {
-          const XP_MAP: Record<string, number> = {
-            "Iniciante": 1,
-            "Intermediário": 2.5,
-            "Avançado": 5,
-          };
-          const xpGanho = XP_MAP[courseInfo?.difficult ?? "Iniciante"] ?? 1;
-
-          // Busca XP atual e incrementa
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('total_xp')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          const novoXP = (Number(prof?.total_xp) || 0) + xpGanho;
-
-          await supabase
-            .from('profiles')
-            .upsert({
-              user_id: user.id,
-              total_xp: novoXP,
-            }, { onConflict: 'user_id' });
-        }
+        // Apenas salva que o usuário visualizou a aula (watch), sem marcar como completado ainda.
+        // A marcação de 'completed' e ganho de XP agora ocorre no handleQuizPass.
 
       } catch (err) {
         console.error("Erro ao processar progresso:", err);
@@ -1000,8 +1019,50 @@ const CoursesPage = () => {
     })();
   }, [aulas, activeIndex]);
 
-  const handleQuizPass = () => {
+  const handleQuizPass = async () => {
     setPassedIndexes(prev => new Set([...prev, activeIndex]));
+    
+    const aulaAtual = aulas[activeIndex];
+    if (!aulaAtual || !user) return;
+
+    try {
+      // 1. Verifica se já foi completado
+      const { data: existing } = await supabase
+        .from('lesson_progress')
+        .select('completed')
+        .eq('user_id', user.id)
+        .eq('aula_id', aulaAtual.id)
+        .maybeSingle();
+
+      if (!existing?.completed) {
+        // 2. Marca como completo
+        await supabase
+          .from('lesson_progress')
+          .upsert({
+            user_id: user.id,
+            aula_id: aulaAtual.id,
+            completed: true,
+            completed_at: new Date().toISOString()
+          }, { onConflict: 'user_id,aula_id' });
+
+        // 3. Atribui XP (Valores aumentados para uma experiência melhor)
+        const XP_MAP: Record<string, number> = {
+          "Iniciante": 10,
+          "Intermediário": 25,
+          "Avançado": 50,
+        };
+        const xpGanho = XP_MAP[courseInfo?.difficult ?? "Iniciante"] ?? 10;
+
+        const { data: prof } = await supabase.from('profiles').select('total_xp').eq('user_id', user.id).maybeSingle();
+        const novoXP = (Number(prof?.total_xp) || 0) + xpGanho;
+
+        await supabase.from('profiles').update({ total_xp: novoXP, pontuacao: novoXP }).eq('user_id', user.id);
+        
+        console.log(`[ORION] XP atribuído: +${xpGanho} pela aula ${aulaAtual.nome}`);
+      }
+    } catch (err) {
+      console.error("Erro ao salvar finalização da aula:", err);
+    }
   };
 
   const handleNext = () => {
@@ -1022,6 +1083,7 @@ const CoursesPage = () => {
     <div className="min-h-screen gradient-hero scanline flex flex-col" style={{ paddingTop: 64 }}>
       <Header />
 
+      <MainLandmark className="flex flex-col flex-1 min-h-0 min-w-0">
       <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border/50 bg-background/40 backdrop-blur-sm">
         <Link to="/roadmap" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary font-body transition">
           <ArrowLeft size={14} /> Voltar
@@ -1072,8 +1134,8 @@ const CoursesPage = () => {
             </div>
 
             <AnimatePresence mode="wait">
-              <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }} style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
+              <motion.div key={activeTab} initial={{ opacity: 1, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} style={{ width: "100%", maxWidth: showRoadmap ? "none" : 800 }}>
                 {activeTab === "aula" && (
                   loadingAulas ? (
                     <div className="flex items-center gap-2 py-12">
@@ -1123,7 +1185,7 @@ const CoursesPage = () => {
         <AnimatePresence initial={false}>
           {showRoadmap && (
             <motion.div key="roadmap-col"
-              initial={{ width: 0, opacity: 0 }} animate={{ width: "50%", opacity: 1 }} exit={{ width: 0, opacity: 0 }}
+              initial={{ width: 0, opacity: 1 }} animate={{ width: "50%", opacity: 1 }} exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
               className="relative flex flex-col bg-background/15 backdrop-blur-sm overflow-hidden shrink-0"
               style={{ minWidth: 0 }}>
@@ -1137,6 +1199,7 @@ const CoursesPage = () => {
                   <RoadmapPanel
                     aulas={aulas}
                     activeIndex={activeIndex}
+                    passedIndexes={passedIndexes}
                     courseName={courseName}
                     onSelectIndex={(i) => { setActiveIndex(i); setActiveTab("aula"); }}
                   />
@@ -1166,7 +1229,7 @@ const CoursesPage = () => {
       </motion.button>
 
       {/* Botão IA */}
-      <motion.button onClick={() => setShowChat((v) => !v)} title={showChat ? "Fechar Tutor IA" : "Abrir Tutor IA"}
+      <motion.button onClick={() => setShowChat((v) => !v)} title={showChat ? "Fechar ORION" : "Abrir ORION"}
         whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
         className="fixed z-50 cursor-pointer flex items-center justify-center rounded-full border-0"
         style={{
@@ -1186,14 +1249,14 @@ const CoursesPage = () => {
       <AnimatePresence>
         {showChat && (
           <motion.div key="chat-drawer"
-            initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+            initial={{ opacity: 1, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
             className="fixed z-40 flex flex-col overflow-hidden"
             style={{ bottom: 92, right: 28, width: 360, height: 480, background: "hsl(215 28% 9%)", border: "1px solid hsl(155 60% 45% / 0.3)", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 30px hsl(155 60% 45% / 0.12)" }}>
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/40" style={{ background: "hsl(215 28% 11%)" }}>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ boxShadow: "0 0 6px hsl(155 60% 45%)" }} />
-                <span className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">Tutor IA Online</span>
+                <span className="text-xs font-accent font-semibold text-primary tracking-widest uppercase">ORION · Tutor Online</span>
               </div>
               <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground transition text-base leading-none" style={{ lineHeight: 1 }}>✕</button>
             </div>
@@ -1206,6 +1269,7 @@ const CoursesPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </MainLandmark>
     </div>
   );
 };

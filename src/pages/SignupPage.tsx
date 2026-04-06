@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, UserPlus, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase";
+import { MainLandmark } from "@/components/MainLandmark";
 
 // ─── Validações ───────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center gap-16 gradient-hero scanline px-6 lg:px-20">
+    <MainLandmark className="min-h-screen flex items-center justify-center gap-16 gradient-hero scanline px-6 lg:px-20">
 
       {/* ── Card principal ── */}
       <motion.div
@@ -186,7 +187,7 @@ const SignupPage = () => {
           ))}
         </div>
       </motion.div>
-    </div>
+    </MainLandmark>
   );
 };
 

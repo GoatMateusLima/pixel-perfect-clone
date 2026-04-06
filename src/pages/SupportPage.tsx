@@ -8,6 +8,7 @@ import {
   LifeBuoy, Mail, ExternalLink,
 } from "lucide-react";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 
 // ─── FAQ Data ─────────────────────────────────────────────────────────────────
 const FAQ_CATEGORIES = [
@@ -183,6 +184,7 @@ const SupportPage = () => {
     <div className="min-h-screen gradient-hero scanline">
       <Header />
 
+      <MainLandmark>
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-20">
 
         {/* ── Hero ── */}
@@ -590,6 +592,7 @@ const SupportPage = () => {
           </motion.button>
         )}
       </AnimatePresence>
+      </MainLandmark>
     </div>
   );
 };

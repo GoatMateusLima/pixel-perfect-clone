@@ -106,6 +106,9 @@
     backdrop-filter: blur(14px);
     border-radius: 1.25rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    isolation: isolate;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   .hologram-panel:hover {
@@ -214,15 +217,6 @@
   }
 }
 
-@keyframes hologram-flicker {
-  0%, 100% { opacity: 1; }
-  92% { opacity: 1; }
-  93% { opacity: 0.8; }
-  94% { opacity: 1; }
-  96% { opacity: 0.9; }
-  97% { opacity: 1; }
-}
-
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
@@ -269,4 +263,61 @@
 
 ::-webkit-scrollbar-corner {
   background: hsl(200 30% 8%);
+}
+
+/* ── Preferências de acessibilidade (data-* aplicados em <html> pelo AccessibilityProvider) ── */
+
+html[data-a11y-text-scale="base"] {
+  font-size: clamp(16px, 1.5vw + 6px, 19px);
+}
+
+html[data-a11y-text-scale="lg"] {
+  font-size: clamp(18px, 1.65vw + 7px, 22px);
+}
+
+html[data-a11y-text-scale="xl"] {
+  font-size: clamp(20px, 1.85vw + 8px, 26px);
+}
+
+html[data-a11y-contrast="high"] {
+  --foreground: 180 10% 98%;
+  --muted-foreground: 200 12% 78%;
+  --border: 142 72% 52%;
+  --ring: 75 100% 48%;
+  --card-foreground: 180 10% 98%;
+  --popover-foreground: 180 10% 98%;
+  --secondary-foreground: 180 10% 96%;
+}
+
+html[data-a11y-contrast="high"] .hologram-panel,
+html[data-a11y-contrast="high"] .glass-card {
+  border-color: hsl(142 72% 50% / 0.45);
+}
+
+html[data-a11y-motion="reduce"] *,
+html[data-a11y-motion="reduce"] *::before,
+html[data-a11y-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+html[data-a11y-spacing="relaxed"] body {
+  line-height: 1.75;
+}
+
+html[data-a11y-spacing="relaxed"] p,
+html[data-a11y-spacing="relaxed"] li {
+  line-height: 1.85;
+}
+
+html[data-a11y-links="underline"] a[href]:where(:not([role="button"])) {
+  text-decoration: underline solid 0.1em;
+  text-underline-offset: 0.25em;
+}
+
+html[data-a11y-focus="strong"] *:focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 3px;
 }

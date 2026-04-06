@@ -37,12 +37,11 @@ const TestimonialsSection = () => {
             return (
               <motion.div
                 key={i}
-                className="hologram-panel rounded-sm p-6 text-center animate-hologram-flicker"
-                style={{ animationDelay: `${i * 1.5}s` }}
-                initial={{ opacity: 0, y: 20 }}
+                className="hologram-panel rounded-sm p-6 text-center"
+                initial={{ opacity: 1, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <Icon size={24} className="text-primary mx-auto mb-2" />
                 <div className="text-2xl font-display font-bold text-primary text-glow">{stat.value}</div>
@@ -55,9 +54,10 @@ const TestimonialsSection = () => {
         {/* Testimonials */}
         <motion.h2
           className="text-3xl sm:text-4xl font-display font-bold text-glow text-center mb-12"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
+          initial={{ opacity: 1, y: 8 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
           Vidas Transformadas
         </motion.h2>
@@ -67,10 +67,10 @@ const TestimonialsSection = () => {
             <motion.div
               key={i}
               className="hologram-panel rounded-sm p-6 relative"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 1, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.15 }}
+              transition={{ delay: i * 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
               <Quote size={20} className="text-primary/30 mb-3" />
               <p className="text-sm text-foreground/80 font-body mb-4 leading-relaxed">{t.text}</p>

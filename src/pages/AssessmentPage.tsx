@@ -7,6 +7,7 @@ import ProgressBar       from "@/components/assessment/ProgressBar";
 import MarciusCalculator from "@/components/assessment/MarciusCalculator";
 import AreaSelector      from "@/components/assessment/AreaSelector";
 import DiscTest          from "@/components/assessment/DiscTest";
+import { MainLandmark } from "@/components/MainLandmark";
 
 const STEPS = ["Valor da Hora", "Áreas", "Perfil DISC"];
 
@@ -113,7 +114,7 @@ const AssessmentPage = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-hero scanline px-4 pt-24 pb-12">
+    <MainLandmark className="min-h-screen gradient-hero scanline px-4 pt-24 pb-12">
       <ProgressBar currentStep={step} totalSteps={STEPS.length} labels={STEPS} />
 
       <div className="max-w-2xl mx-auto w-full flex justify-end mb-2 px-1">
@@ -150,7 +151,7 @@ const AssessmentPage = () => {
           />
         )}
       </AnimatePresence>
-    </div>
+    </MainLandmark>
   );
 };
 

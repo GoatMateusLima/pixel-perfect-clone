@@ -176,8 +176,8 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   ) : null);
 
   return (
-    <motion.div layout className="glass-card p-8 border-white/5 mb-8 shadow-2xl relative overflow-hidden rounded-3xl">
-      <div className="flex gap-5 items-start">
+    <motion.div className="glass-card w-full max-w-full min-w-0 box-border p-4 sm:p-6 border-white/5 mb-8 shadow-2xl relative rounded-3xl overflow-x-clip overflow-y-visible">
+      <div className="flex gap-3 sm:gap-4 items-start w-full min-w-0">
 
         {/* Sua Foto de Perfil na hora de criar */}
         <div className="flex-shrink-0 pt-1">
@@ -192,42 +192,49 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 w-0">
           {!expanded ? (
-            <button onClick={() => setExpanded(true)}
-              className="w-full text-left px-7 py-4 rounded-2xl bg-white/[0.02] border border-white/[0.03] text-[15px] font-body text-white/30 hover:border-white/10 hover:bg-white/[0.04] transition-all duration-300">
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="w-full min-w-0 text-left px-4 sm:px-6 py-3.5 sm:py-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-[15px] font-body text-muted-foreground hover:text-foreground/80 hover:border-white/15 hover:bg-white/[0.04] transition-all duration-300 break-words"
+            >
               Compartilhe algo com a comunidade...
             </button>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 w-full min-w-0">
 
-              <textarea autoFocus value={description}
+              <textarea
+                autoFocus
+                value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && e.ctrlKey && handleSubmit()}
                 placeholder="No que você está pensando? Compartilhe um insight, conquista ou dúvida..."
-                rows={4} disabled={uploading}
-                className="w-full px-6 py-5 rounded-2xl bg-white/[0.01] border border-white/[0.05] text-[16px] font-body text-white placeholder:text-white/10 focus:outline-none focus:border-primary/30 focus:bg-white/[0.03] transition-all resize-none disabled:opacity-50"
+                rows={4}
+                disabled={uploading}
+                className="w-full min-w-0 max-w-full min-h-[6rem] max-h-[min(18rem,45vh)] box-border px-4 sm:px-5 py-4 rounded-2xl bg-white/[0.02] border border-white/[0.08] text-[15px] sm:text-[16px] font-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/35 focus:ring-1 focus:ring-primary/20 focus:bg-white/[0.03] transition-all resize-y overflow-y-auto overflow-x-hidden break-words [overflow-wrap:anywhere] disabled:opacity-50"
               />
 
               {/* Preview da mídia selecionada */}
               <AnimatePresence>
                 {hasMedia && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative">
+                    initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+                    className="relative w-full min-w-0 max-w-full"
+                  >
                     {gifUrl && (
-                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl">
-                        <img src={gifUrl.slice(4)} alt="GIF" className="w-full max-h-64 object-contain bg-black/20" />
+                      <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl max-h-64 w-full min-w-0 bg-black/20">
+                        <img src={gifUrl.slice(4)} alt="GIF anexado" className="w-full h-full max-h-64 object-contain" />
                         <span className="absolute top-3 left-3 text-[10px] font-accent font-bold px-2 py-1 rounded-full"
                           style={{ background: "hsl(45 90% 55%)", color: "#000" }}>GIF</span>
                       </div>
                     )}
                     {previewUrl && !gifUrl && (
-                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                      <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl max-h-64 w-full min-w-0 bg-black/30">
                         {mediaFile?.type.startsWith("video/") ? (
-                          <video src={previewUrl} controls className="w-full max-h-64 object-contain bg-black/40" />
+                          <video src={previewUrl} controls className="w-full max-h-64 object-contain max-w-full" />
                         ) : (
-                          <img src={previewUrl} alt="Preview" className="w-full max-h-64 object-cover" />
+                          <img src={previewUrl} alt="Prévia" className="w-full max-h-64 object-contain max-w-full" />
                         )}
                         <span className="absolute top-3 left-3 text-[10px] font-accent font-bold px-2 py-1 rounded-full"
                           style={{ background: mediaFile?.type.startsWith("video/") ? "hsl(210 70% 55%)" : "hsl(155 60% 45%)", color: "#fff" }}>
@@ -267,14 +274,15 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
               {error && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  className="text-xs text-destructive font-body bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-sm">
+                  className="text-xs text-destructive font-body bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg break-words [overflow-wrap:anywhere] w-full min-w-0"
+                >
                   {error}
                 </motion.p>
               )}
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full min-w-0 pt-1">
                 {/* Botões de mídia */}
-                <div className="flex gap-1 relative">
+                <div className="flex flex-wrap items-center gap-1 min-w-0 relative">
                   <button
                     onClick={() => { if (fileRef.current) { fileRef.current.accept = ACCEPTED_IMAGE; fileRef.current.click(); } }}
                     disabled={uploading || hasMedia}
@@ -320,13 +328,21 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
 
                 <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
 
-                <div className="flex gap-5">
-                  <button onClick={handleCancel} disabled={uploading}
-                    className="px-6 py-3 text-[12px] font-accent font-black uppercase tracking-[0.2em] text-white/20 hover:text-white transition-all disabled:opacity-40">
+                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    disabled={uploading}
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 text-[12px] font-accent font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-all disabled:opacity-40"
+                  >
                     Cancelar
                   </button>
-                  <button onClick={handleSubmit} disabled={!description.trim() || uploading}
-                    className="px-8 py-3 text-[13px] font-accent font-black uppercase tracking-[0.2em] text-black bg-primary rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={!description.trim() || uploading}
+                    className="px-6 sm:px-8 py-2.5 sm:py-3 text-[13px] font-accent font-bold uppercase tracking-wide text-primary-foreground bg-primary rounded-xl transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_0_16px_rgba(16,185,129,0.15)]"
+                  >
                     {uploading ? <Loader2 size={18} className="animate-spin" /> : "Publicar"}
                   </button>
                 </div>

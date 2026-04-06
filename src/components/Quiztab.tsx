@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, CheckCircle2, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { invokeApiProxy } from "@/lib/apiProxy";
 
 export interface QuizQuestion {
   id: number;
@@ -23,7 +24,7 @@ interface QuizTabProps {
 const QUESTIONS_PER_QUIZ = 5;
 const PASS_THRESHOLD = 0.8;
 
-// ─── Geração de questões via Anthropic API ───────────────────────────────────
+// ─── Geração de questões (Groq via Edge api-proxy) ──────────────────────────
 
 async function generateQuestions(topic: string): Promise<QuizQuestion[]> {
   const prompt = `Você é um professor especialista. Gere ${QUESTIONS_PER_QUIZ} questões de múltipla escolha sobre o seguinte tópico:
@@ -53,30 +54,9 @@ Formato obrigatório:
 
 O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
-
-const AI_KEY = import.meta.env.VITE_AI_KEY;
-
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${AI_KEY}` },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [{ role: "system", content: prompt }],
-        }),
-      });
-
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
-
-  const data = await response.json();
-
-  console.log(data)
-  const text = data.choices?.[0]?.message?.content ?? "";
-
-  // Remove possíveis backticks/markdown caso o modelo adicione mesmo assim
-  const clean = text.replace(/```json|```/gi, "").trim();
-  const parsed: QuizQuestion[] = JSON.parse(clean);
-
-  // Validação básica
+  const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
+  if (error) throw new Error(error.message);
+  const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
 }
@@ -179,16 +159,17 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   if (isLoading) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-12 max-w-lg mx-auto flex flex-col items-center gap-4"
       >
         <div className="relative">
           <Loader2 size={32} className="animate-spin text-primary" style={{ filter: "drop-shadow(0 0 8px hsl(155 60% 45% / 0.6))" }} />
           <Sparkles size={14} className="absolute -top-1 -right-1 text-primary animate-pulse" />
         </div>
-        <p className="text-sm font-accent text-muted-foreground">
-          {generating ? "Gerando questões com IA..." : "Carregando quiz da aula..."}
+        <p className="text-sm font-accent text-muted-foreground uppercase tracking-widest">
+          {generating ? "Consultando ORION..." : "Carregando quiz da aula..."}
         </p>
         {generating && (
           <p className="text-xs text-muted-foreground/60 font-body text-center max-w-xs">
@@ -203,8 +184,9 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   if (genError) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-4 text-center"
       >
         <ClipboardList size={40} className="text-destructive" style={{ filter: "drop-shadow(0 0 12px hsl(0 80% 55% / 0.5))" }} />
@@ -223,8 +205,9 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   if (!topic && (!questions || questions.length === 0)) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-3 text-center"
       >
         <ClipboardList size={40} className="text-muted-foreground/40" />
@@ -247,14 +230,15 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
 
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 1, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center"
       >
         <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
+          initial={{ scale: 0.92, opacity: 1 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 18 }}
+          transition={{ type: "spring", stiffness: 320, damping: 22 }}
           className="mb-5"
         >
           {didPass ? (
@@ -283,7 +267,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         {attempt > 1 && !didPass && (
           <p className="text-xs text-muted-foreground font-body mb-1">
             Tentativa <span className="text-accent font-semibold">#{attempt}</span>
-            {topic ? " — Novas questões geradas pela IA." : " — As questões foram embaralhadas."}
+            {topic ? " — Novas questões geradas pelo ORION." : " — As questões foram embaralhadas."}
           </p>
         )}
 
@@ -307,7 +291,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
 
         {topic && (
           <p className="text-xs text-muted-foreground/50 font-accent mb-4 flex items-center justify-center gap-1">
-            <Sparkles size={10} /> Questões geradas por IA com base no tópico da aula
+            <Sparkles size={10} /> Questões criadas pelo ORION com base no tópico da aula
           </p>
         )}
 
@@ -349,7 +333,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         {!didPass && (
           <p className="text-xs text-muted-foreground font-body mt-4">
             {topic
-              ? "Novas questões serão geradas pela IA na próxima tentativa."
+              ? "Novas questões serão preparadas pelo ORION na próxima tentativa."
               : "As questões serão embaralhadas na próxima tentativa."}
           </p>
         )}
@@ -371,7 +355,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         <div className="flex items-center gap-3">
           {topic && (
             <span className="text-xs font-accent text-muted-foreground/50 flex items-center gap-1">
-              <Sparkles size={10} /> IA
+              <Sparkles size={10} /> ORION
             </span>
           )}
           <span className="text-xs font-accent text-muted-foreground">
@@ -392,9 +376,10 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 1, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="hologram-panel rounded-sm p-6 space-y-5"
         >
           <h3 className="font-display text-base font-bold text-foreground leading-snug">{q.text}</h3>

@@ -17,6 +17,7 @@ import estabilidadeImg from "@/assets/disc/Estabilidade.webp";
 import conformidadeImg from "@/assets/disc/Conformidade.webp";
 import ImageCropModal from "@/components/ImageCropModal";
 import Header from "@/components/Header";
+import { MainLandmark } from "@/components/MainLandmark";
 import Progress from "@/components/progress";
 import Vagas from "@/components/Vagas";
 import CursosEmAndamento from "@/components/CursosEmAndamento";
@@ -117,6 +118,72 @@ const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salar
 };
 
 // =============================================================================
+// SCAN RING — efeito de riscos orbitando ao redor da foto
+// =============================================================================
+const AvatarScanRings = ({ color }: { color: string }) => {
+  const dimColor = color.replace("hsl(", "hsla(").replace(")", " / 0.15)");
+  const brightColor = color;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none select-none" style={{ zIndex: 0 }}>
+      {/* Background Glow - Central soft glow */}
+      <div 
+        className="absolute inset-[15%] rounded-full opacity-30 blur-2xl transition-all duration-700"
+        style={{ background: brightColor }}
+      />
+      
+      {/* Glassy Halo - The "organic" soft ring from the image */}
+      <div 
+        className="absolute inset-[-12%] rounded-[42%] border border-white/5 backdrop-blur-[1px] opacity-40 rotate-[15deg]"
+        style={{ 
+          background: `radial-gradient(circle at 30% 30%, ${brightColor}20 0%, transparent 70%)`,
+          boxShadow: `inset 0 0 15px ${dimColor}, 0 0 20px ${dimColor}`
+        }}
+      />
+      
+      {/* Main Orbiting Ring */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-5%] rounded-full opacity-60"
+        style={{
+          border: "1.5px solid transparent",
+          borderTopColor: brightColor,
+          borderRightColor: dimColor,
+          filter: `drop-shadow(0 0 8px ${brightColor}80)`
+        }}
+      />
+
+      {/* Dotted Orbiting Ring - Inner */}
+      <motion.div
+        animate={{ rotate: -360 }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-10%] rounded-full opacity-20"
+        style={{
+          border: `1px dashed ${brightColor}`,
+        }}
+      />
+
+      {/* Orbiting Particle */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-5%]"
+      >
+        <div 
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+          style={{ 
+            background: brightColor,
+            boxShadow: `0 0 12px 3px ${brightColor}`,
+            border: "1.5px solid white"
+          }}
+        />
+      </motion.div>
+    </div>
+  );
+};
+
+// =============================================================================
 // UPLOAD HELPER
 // =============================================================================
 async function uploadCroppedImage(dataUrl: string, userId: string, slot: "photo" | "banner"): Promise<string> {
@@ -152,7 +219,8 @@ const AssessmentResultModal = ({
   const scoreEntries = Object.entries(assessment.discScores ?? {}).sort(([, a], [, b]) => (b as number) - (a as number));
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}>
       <motion.div initial={{ scale: 0.92, y: 24 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 24 }}
@@ -227,7 +295,7 @@ const ProfilePage = () => {
 
   const [vagasDinamicas, setVagasDinamicas] = useState<any[]>([]);
   const [loadingVagas, setLoadingVagas] = useState(false);
-  const [loading, setLoading] = useState(false); // Changed to false to avoid initial loader if user is already loaded
+  const [loading, setLoading] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -254,83 +322,133 @@ const ProfilePage = () => {
   const [hoverPhoto, setHoverPhoto] = useState(false);
   const [hoveredMedal, setHoveredMedal] = useState<number | null>(null);
 
-  // Progresso geral real do usuário
   const [overallProgress, setOverallProgress] = useState<OverallProgress>({
     totalCursos: 0, cursosConcluidos: 0, cursosEmAndamento: 0,
     progressoMedio: 0, totalAulasAssistidas: 0, courseProgressList: [],
   });
 
-  // Modal resultado avaliação — abre 1 vez após concluir
   const [showResultModal, setShowResultModal] = useState(() => sessionStorage.getItem("show_assessment_result") === "1");
   const handleCloseResultModal = () => { setShowResultModal(false); sessionStorage.removeItem("show_assessment_result"); };
 
-  // Carrega dados
+  // Carrega perfil + vagas (uma vez por usuário — depende de user.id, não do objeto user,
+  // para não refazer tudo a cada TOKEN_REFRESHED / novo objeto Session do Supabase)
   useEffect(() => {
-    if (!user) return;
+    const uid = user?.id;
+    if (!uid) return;
+    let cancelled = false;
+
     async function loadData() {
       setLoading(true);
+      setLoadingProfile(true);
       try {
-        const { data: prof } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
-        if (prof) setProfile(prof as Profile);
+        const { data, error } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
+        if (cancelled) return;
+        if (error || !data) {
+          setProfile({
+            user_id: uid,
+            name: user?.email?.split("@")[0] ?? "Usuário",
+            redes: {},
+            bordas: [],
+          });
+        } else {
+          setProfile(data as Profile);
+        }
 
         const { data: cursoInteresse } = await supabase
           .from("watch").select("course_id, courses(name)")
-          .eq("user_id", user.id).limit(1).maybeSingle();
+          .eq("user_id", uid).limit(1).maybeSingle();
+
+        if (cancelled) return;
 
         if (cursoInteresse) {
           const courseName = (cursoInteresse.courses as any)?.name;
           if (courseName) {
             setLoadingVagas(true);
             const jobs = await fetchVagasByInterest(courseName);
-            setVagasDinamicas(jobs.slice(0, 3));
+            if (!cancelled) setVagasDinamicas(jobs.slice(0, 3));
           }
         }
-      } catch (err) { console.error("Erro ao carregar dados:", err); }
-      finally { setLoadingVagas(false); setLoading(false); }
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+      } finally {
+        if (!cancelled) {
+          setLoadingVagas(false);
+          setLoading(false);
+          setLoadingProfile(false);
+        }
+      }
     }
-    loadData();
-  }, [user]);
 
-  // Busca dados reais para o Progresso Geral
+    loadData();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   useEffect(() => {
-    if (!user) return;
+    const uid = user?.id;
+    if (!uid) return;
     async function loadOverallProgress() {
       try {
         const { data: watchData } = await supabase
           .from("watch")
           .select("course_id, courses(id, name, difficult)")
-          .eq("user_id", user.id);
+          .eq("user_id", uid);
 
         if (!watchData || watchData.length === 0) return;
 
         const progressList: CourseProgress[] = [];
         let totalAssistidas = 0;
 
-        for (const w of watchData) {
-          const course = Array.isArray(w.courses) ? w.courses[0] : w.courses as any;
-          if (!course) continue;
+        const courseRows = watchData
+          .map((w) => {
+            const course = Array.isArray(w.courses) ? w.courses[0] : (w.courses as any);
+            return course ? { w, course } : null;
+          })
+          .filter(Boolean) as { w: (typeof watchData)[0]; course: { id: string; name: string; difficult?: string } }[];
 
-          const { count: totalAulas } = await supabase
-            .from("aulas")
-            .select("id", { count: "exact", head: true })
-            .eq("course_id", course.id);
+        const courseIds = [...new Set(courseRows.map(({ course }) => course.id))];
 
-          const { data: aulasCourse } = await supabase
-            .from("aulas")
-            .select("id")
-            .eq("course_id", course.id);
+        if (courseIds.length === 0) {
+          setOverallProgress({
+            totalCursos: 0,
+            cursosConcluidos: 0,
+            cursosEmAndamento: 0,
+            progressoMedio: 0,
+            totalAulasAssistidas: 0,
+            courseProgressList: [],
+          });
+          return;
+        }
 
-          const aulaIds = (aulasCourse ?? []).map(a => Number(a.id));
+        const { data: allAulas } = await supabase
+          .from("aulas")
+          .select("id, course_id")
+          .in("course_id", courseIds);
 
-          const { count: completedAulas } = await supabase
-            .from("lesson_progress")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .in("aula_id", aulaIds.length > 0 ? aulaIds : [-1])
-            .eq("completed", true);
+        const aulaIdsByCourse = new Map<string, number[]>();
+        for (const row of allAulas ?? []) {
+          const cid = String(row.course_id);
+          if (!aulaIdsByCourse.has(cid)) aulaIdsByCourse.set(cid, []);
+          aulaIdsByCourse.get(cid)!.push(Number(row.id));
+        }
 
-          const total = totalAulas ?? 0;
-          const completed = completedAulas ?? 0;
+        const allAulaIds = (allAulas ?? []).map((a) => Number(a.id));
+
+        const { data: progressRows } =
+          allAulaIds.length > 0
+            ? await supabase
+                .from("lesson_progress")
+                .select("aula_id")
+                .eq("user_id", uid)
+                .eq("completed", true)
+                .in("aula_id", allAulaIds)
+            : { data: [] as { aula_id: number }[] };
+
+        const completedAulaSet = new Set((progressRows ?? []).map((p) => Number(p.aula_id)));
+
+        for (const { course } of courseRows) {
+          const aulaIds = aulaIdsByCourse.get(String(course.id)) ?? [];
+          const total = aulaIds.length;
+          const completed = aulaIds.filter((id) => completedAulaSet.has(id)).length;
           const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
           totalAssistidas += completed;
@@ -365,28 +483,16 @@ const ProfilePage = () => {
       }
     }
     loadOverallProgress();
-  }, [user]);
-
-  useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user) return;
-    async function syncProfile() {
-      setLoadingProfile(true);
-      const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
-      if (error || !data) setProfile({ user_id: user.id, name: user.email?.split("@")[0] ?? "Usuário", redes: {}, bordas: [] });
-      else setProfile(data as Profile);
-      setLoadingProfile(false);
-    }
-    syncProfile();
-  }, [user]);
+    if (!user?.id) navigate("/login");
+  }, [user?.id, navigate]);
 
-  // XP e nível dinâmicos via ranking - Mover para cima para evitar violação de Hooks
   const { myRank, myXP } = useRanking(user?.id);
 
   if (!user) return null;
 
-  // Derivados
   const discProfile = assessment?.discProfile ?? "S";
   const ringColor = DISC_COLORS[discProfile] ?? "hsl(155 60% 45%)";
 
@@ -404,7 +510,6 @@ const ProfilePage = () => {
   const filledSocials = ALL_SOCIAL_KEYS.filter(k => displaySocial[k]);
   const emptySocials = ALL_SOCIAL_KEYS.filter(k => !displaySocial[k]);
 
-  // XP e nível dinâmicos calculados acima
   const currentXP = myXP;
   const currentLevel = xpToLevel(currentXP);
   const xpNextLevel = xpForNextLevel(currentLevel);
@@ -413,9 +518,8 @@ const ProfilePage = () => {
   const currentStreak = 12;
   const currentRank = myRank ?? "—";
 
-  // Handlers edição
   const handleStartEdit = () => {
-    setDraftName(profile.name ?? user.email?.split("@")[0] ?? "Usuário"); 
+    setDraftName(profile.name ?? user.email?.split("@")[0] ?? "Usuário");
     setDraftDescricao(profile.descricao ?? "");
     setDraftPhoto(null); setDraftBanner(null); setDraftSocial({}); setDraftBordas(null);
     setBorderPickerOpen(false); setDraftMedalhas(null); setSaveError(null); setIsEditing(true);
@@ -438,11 +542,11 @@ const ProfilePage = () => {
       const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
       setProfile(payload);
-      refreshPhoto(); // Sincroniza foto globalmente (Header, Sidebars, etc)
+      refreshPhoto();
       setIsEditing(false); setMedalPickerOpen(false); setBorderPickerOpen(false);
-    } catch (err: unknown) { 
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao salvar perfil.";
-      setSaveError(errorMessage); 
+      setSaveError(errorMessage);
     }
     finally { setSaving(false); }
   };
@@ -457,15 +561,17 @@ const ProfilePage = () => {
   const removeSocialLink = (key: SocialKey) => setDraftSocial(prev => ({ ...prev, [key]: "" }));
   const handleToggleMedal = (id: number) => { const base = draftMedalhas ?? profile.medalhas ?? []; setDraftMedalhas(toggleMedalAtiva(base, id)); };
 
-  if (loadingProfile) return <div className="min-h-screen gradient-hero scanline flex items-center justify-center"><Loader2 size={32} className="text-primary animate-spin" /></div>;
+  if (loadingProfile) return (
+    <MainLandmark className="min-h-screen gradient-hero scanline flex items-center justify-center">
+      <Loader2 size={32} className="text-primary animate-spin" />
+    </MainLandmark>
+  );
 
-  // =============================================================================
-  // RENDER
-  // =============================================================================
   return (
     <div className="min-h-screen gradient-hero scanline">
       <Header />
 
+      <MainLandmark>
       <AnimatePresence>
         {showResultModal && assessment?.completed && (
           <AssessmentResultModal assessment={assessment} onClose={handleCloseResultModal} />
@@ -477,7 +583,7 @@ const ProfilePage = () => {
 
           {/* COLUNA ESQUERDA */}
           <aside className="hidden lg:flex flex-col gap-4">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="hologram-panel rounded-sm p-4">
+            <motion.div initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2"><Star size={14} className="text-accent" /><span className="font-display text-sm font-bold text-foreground">Nível {currentLevel}</span></div>
                 <span className="text-[10px] font-accent text-muted-foreground">{currentXP} / {xpNextLevel} XP</span>
@@ -506,7 +612,7 @@ const ProfilePage = () => {
 
             <Vagas ringColor={ringColor} discProfile={assessment?.discProfile || "S"} recommendedJobs={vagasDinamicas} />
 
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="hologram-panel rounded-sm p-4">
+            <motion.div initial={{ opacity: 1, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-4">
               <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
               <Progress
                 totalCursos={overallProgress.totalCursos}
@@ -518,18 +624,16 @@ const ProfilePage = () => {
               />
             </motion.div>
 
-            {/* AMIGOS (CARD LATERAL) */}
             <div className="flex-1 min-h-[300px]">
               <FriendsListCard />
             </div>
-
           </aside>
 
           {/* COLUNA CENTRAL */}
           <main className="space-y-6 min-w-0">
 
             {/* Card perfil */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="hologram-panel rounded-sm overflow-hidden">
+            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm overflow-hidden">
               <div className="relative w-full" style={{ height: 130 }}>
                 {displayBanner
                   ? <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
@@ -548,38 +652,76 @@ const ProfilePage = () => {
 
               <div className="px-6 pb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -20 }}>
-                  {/* Avatar */}
-                  <div className="flex-shrink-0 relative" style={{ width: 112, height: 112 }}>
-                    {bordaAtiva
-                      ? <img src={bordaAtiva.img_url} alt={bordaAtiva.nome} className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-                      : DISC_IMGS[discProfile]
-                        ? <img src={DISC_IMGS[discProfile]} alt={DISC_LABELS[discProfile]} className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
-                        : null}
-                    <div onClick={() => isEditing && photoInputRef.current?.click()}
-                      onMouseEnter={() => isEditing && setHoverPhoto(true)} onMouseLeave={() => setHoverPhoto(false)}
-                      className="absolute rounded-full overflow-hidden bg-secondary flex items-center justify-center"
-                      style={{ width: 80, height: 80, top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 2, border: "3px solid hsl(var(--background))", cursor: isEditing ? "pointer" : "default" }}>
+
+                  {/* ── AVATAR com aura e scan rings ── */}
+                  <div className="flex-shrink-0 relative shrink-0" style={{ width: 112, height: 112, zIndex: 10 }}>
+                    
+                    <AvatarScanRings color={ringColor} />
+
+                    {/* Borda desbloqueável ou Borda DISC */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+                      {bordaAtiva ? (
+                        <img src={bordaAtiva.img_url} alt={bordaAtiva.nome} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        DISC_IMGS[discProfile] && (
+                          <img src={DISC_IMGS[discProfile]} alt={DISC_LABELS[discProfile]} className="w-full h-full rounded-full object-cover" />
+                        )
+                      )}
+                    </div>
+
+                    {/* Foto de perfil centrada */}
+                    <div
+                      onClick={() => isEditing && photoInputRef.current?.click()}
+                      onMouseEnter={() => isEditing && setHoverPhoto(true)}
+                      onMouseLeave={() => setHoverPhoto(false)}
+                      className="absolute rounded-full overflow-hidden bg-secondary/80 backdrop-blur-sm flex items-center justify-center transition-all duration-300"
+                      style={{
+                        width: 76, height: 76,
+                        top: "50%", left: "50%",
+                        transform: "translate(-50%,-50%)",
+                        zIndex: 2,
+                        border: `2px solid ${ringColor}40`,
+                        boxShadow: `0 0 20px ${ringColor}20`,
+                        cursor: isEditing ? "pointer" : "default",
+                      }}
+                    >
                       {displayPhoto ? <img src={displayPhoto} alt="Foto" className="w-full h-full object-cover" /> : <User size={28} className="text-muted-foreground" />}
                       <AnimatePresence>
                         {isEditing && hoverPhoto && (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
                             className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full"
                             style={{ background: "rgba(0,0,0,0.6)" }}>
-                            <Camera size={16} className="text-white" /><span className="text-[8px] text-white font-accent">Alterar</span>
-                            {displayPhoto && <button type="button" onClick={e => { e.stopPropagation(); setDraftPhoto(""); }} className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">remover</button>}
+                            <Camera size={16} className="text-white" />
+                            <span className="text-[8px] text-white font-accent">Alterar</span>
+                            {displayPhoto && (
+                              <button type="button" onClick={e => { e.stopPropagation(); setDraftPhoto(""); }}
+                                className="text-[7px] text-red-300 font-accent mt-0.5 hover:text-red-100">
+                                remover
+                              </button>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
+
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+
+                    {/* Botão de trocar borda */}
                     {isEditing && (
                       <button type="button" onClick={() => setBorderPickerOpen(p => !p)}
                         className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                        style={{ zIndex: 3, background: borderPickerOpen ? ringColor : "hsl(var(--secondary))", border: "2px solid hsl(var(--background))", boxShadow: borderPickerOpen ? `0 0 8px ${ringColor}60` : "none" }}>
+                        style={{
+                          zIndex: 3,
+                          background: borderPickerOpen ? ringColor : "hsl(var(--secondary))",
+                          border: "2px solid hsl(var(--background))",
+                          boxShadow: borderPickerOpen ? `0 0 8px ${ringColor}60` : "none",
+                        }}>
                         <Sparkles size={12} style={{ color: borderPickerOpen ? "white" : "hsl(var(--muted-foreground))" }} />
                       </button>
                     )}
                   </div>
+                  {/* ── fim AVATAR ── */}
 
                   {/* Nome + botões */}
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
@@ -622,7 +764,7 @@ const ProfilePage = () => {
                 {/* Border picker */}
                 <AnimatePresence>
                   {isEditing && borderPickerOpen && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
+                    <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
                       <div className="rounded-sm p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)" }}>
                         <div className="flex items-center justify-between mb-3">
                           <p className="text-[10px] font-accent text-muted-foreground flex items-center gap-1.5"><Sparkles size={10} /> Escolha sua borda</p>
@@ -674,7 +816,7 @@ const ProfilePage = () => {
                     </div>
                   )}
                   {isEditing && emptySocials.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-sm p-3 flex flex-wrap gap-2" style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
+                    <motion.div initial={{ opacity: 1, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="rounded-sm p-3 flex flex-wrap gap-2" style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
                       <span className="w-full text-[10px] text-muted-foreground font-accent mb-1">Adicionar redes sociais</span>
                       {emptySocials.map(key => {
                         const { Icon, label } = SOCIAL_META[key]; return (
@@ -694,7 +836,7 @@ const ProfilePage = () => {
             <CursosEmAndamento userId={user.id} />
 
             {/* ── MEDALHAS ── */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="hologram-panel rounded-sm p-6">
+            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Trophy size={18} className="text-accent" /> Conquistas</h2>
                 <div className="flex items-center gap-3">
@@ -710,7 +852,7 @@ const ProfilePage = () => {
               </div>
               <AnimatePresence>
                 {isEditing && medalPickerOpen && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-5">
+                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-5">
                     <div className="rounded-sm p-3 space-y-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}>
                       <p className="text-[9px] font-accent text-muted-foreground mb-2">Escolha até 3 medalhas para exibir ({ativasCount}/3)</p>
                       {medalhas.map(ms => {
@@ -740,7 +882,7 @@ const ProfilePage = () => {
                   const Icon = medal.icon;
                   const isHovered = hoveredMedal === medal.id;
                   return (
-                    <motion.div key={medal.id} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + i * 0.07 }}
+                    <motion.div key={medal.id} initial={{ opacity: 1, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.06 + i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                       onMouseEnter={() => setHoveredMedal(medal.id)} onMouseLeave={() => setHoveredMedal(null)}
                       className="relative rounded-sm p-4 flex flex-col items-center text-center transition-all duration-200"
                       style={{ background: isHovered ? medal.bg : `${medal.color}08`, border: `1px solid ${isHovered ? medal.border : medal.color + "20"}`, boxShadow: isHovered ? `0 0 18px ${medal.glow}` : "none" }}>
@@ -760,7 +902,7 @@ const ProfilePage = () => {
             </motion.div>
 
             {/* CERTIFICADOS */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="hologram-panel rounded-sm p-6">
+            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6">
               <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Shield size={18} className="text-primary" /> Certificados</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
@@ -800,7 +942,8 @@ const ProfilePage = () => {
       {/* Social Modal */}
       <AnimatePresence>
         {socialModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 flex items-center justify-center px-4"
             style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
             onClick={() => setSocialModal(null)}>
@@ -825,6 +968,7 @@ const ProfilePage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </MainLandmark>
     </div>
   );
 };
