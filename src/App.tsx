@@ -48,31 +48,6 @@ const App = () => (
       <Sonner />
 
       <BrowserRouter>
-<<<<<<< HEAD
-        <AuthProvider>
-          {/* ✅ O MessengerWidget DEVE ficar aqui dentro do AuthProvider, mas fora do <Routes> */}
-          <MessengerWidget />
-          
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
-            <Route path="/cadastro" element={<AuthRoute><SignupPage /></AuthRoute>} />
-            <Route path="/avaliacao" element={<AssessmentPage />} />
-            <Route path="/resultado" element={<ResultPage />} />
-            <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/courses" element={<ProtectedRoute><CoursesPage/></ProtectedRoute>}/>
-            <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
-            <Route path="/comunidade" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
-            <Route path="/suporte" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-            <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
-            <Route path="/u/:identifier" element={<PublicProfilePage />} />
-            
-            {/* A rota de NotFound (*) deve ser sempre a última */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-=======
         <AccessibilityProvider>
           <SkipToMainLink />
           <AuthProvider>
@@ -80,26 +55,25 @@ const App = () => (
               <Suspense fallback={routeFallback}>
                 <MessengerWidget />
                 <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
-                <Route path="/cadastro" element={<AuthRoute><SignupPage /></AuthRoute>} />
-                <Route path="/avaliacao" element={<AssessmentPage />} />
-                <Route path="/resultado" element={<ResultPage />} />
-                <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-                <Route path="/courses" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
-                <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
-                <Route path="/comunidade" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
-                <Route path="/suporte" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
-                <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
-                <Route path="/u/:identifier" element={<PublicProfilePage />} />
-                <Route path="*" element={<NotFound />} />
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
+                  <Route path="/cadastro" element={<AuthRoute><SignupPage /></AuthRoute>} />
+                  <Route path="/avaliacao" element={<AssessmentPage />} />
+                  <Route path="/resultado" element={<ResultPage />} />
+                  <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                  <Route path="/courses" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
+                  <Route path="/roadmap" element={<ProtectedRoute><RoadmapSection /></ProtectedRoute>} />
+                  <Route path="/comunidade" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+                  <Route path="/suporte" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+                  <Route path="/courses/:courseId" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
+                  <Route path="/u/:identifier" element={<PublicProfilePage />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </AppBootstrapShell>
           </AuthProvider>
         </AccessibilityProvider>
->>>>>>> 821eaec644e333baaf0fa26db3da1e84cc098566
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
