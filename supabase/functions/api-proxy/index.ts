@@ -1,12 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-auth",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+  };
+}
 
 const MODERATION_SYSTEM = `Você é o moderador da comunidade UpJobs, uma plataforma sobre carreiras do futuro, mercado de trabalho, vagas de emprego, cursos, transição de carreira e desenvolvimento profissional.
 
@@ -37,10 +42,10 @@ Formato de resposta obrigatório:
 OU
 {"approved": false, "reason": "Mensagem curta e amigável explicando o motivo em português"}`;
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, headers: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 }
 
@@ -69,11 +74,18 @@ function extractJsonArray(text: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  const corsHeaders = getCorsHeaders(req);
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, corsHeaders, 405);
+  }
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
+  if (!authHeader) return json({ error: "Unauthorized" }, corsHeaders, 401);
 
   const supabaseAnon = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -85,13 +97,13 @@ Deno.serve(async (req) => {
     data: { user },
     error: authErr,
   } = await supabaseAnon.auth.getUser();
-  if (authErr || !user) return json({ error: "Unauthorized" }, 401);
+  if (authErr || !user) return json({ error: "Unauthorized" }, corsHeaders, 401);
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return json({ error: "Invalid JSON" }, 400);
+    return json({ error: "Invalid JSON" }, corsHeaders, 400);
   }
 
   const action = String(body.action ?? "");
@@ -100,7 +112,7 @@ Deno.serve(async (req) => {
   try {
     switch (action) {
       case "chat": {
-        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, 500);
+        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, corsHeaders, 500);
         const model = (body.model as string) ?? "llama-3.1-8b-instant";
         const messages = body.messages as unknown[];
         const temperature = (body.temperature as number) ?? 0.3;
@@ -113,13 +125,13 @@ Deno.serve(async (req) => {
         });
         const reply =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
-        return json({ reply, raw: data });
+        return json({ reply, raw: data }, corsHeaders);
       }
 
       case "moderate_text": {
-        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, 500);
+        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, corsHeaders, 500);
         const text = String(body.text ?? "");
-        if (!text.trim()) return json({ approved: true });
+        if (!text.trim()) return json({ approved: true }, corsHeaders);
         const data = await groqPost(groqKey, {
           model: "llama-3.1-8b-instant",
           temperature: 0,
@@ -138,15 +150,15 @@ Deno.serve(async (req) => {
         } catch {
           parsed = { approved: true };
         }
-        return json(parsed);
+        return json(parsed, corsHeaders);
       }
 
       case "moderate_vision": {
-        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, 500);
+        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, corsHeaders, 500);
         const base64 = String(body.base64 ?? "");
         const mimeType = String(body.mimeType ?? "image/jpeg");
         const extraText = body.extraText ? String(body.extraText) : "";
-        if (!base64) return json({ approved: true });
+        if (!base64) return json({ approved: true }, corsHeaders);
         const data = await groqPost(groqKey, {
           model: "meta-llama/llama-4-scout-17b-16e-instruct",
           temperature: 0,
@@ -176,11 +188,11 @@ Deno.serve(async (req) => {
         } catch {
           parsed = { approved: true };
         }
-        return json(parsed);
+        return json(parsed, corsHeaders);
       }
 
       case "quiz_tab": {
-        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, 500);
+        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, corsHeaders, 500);
         const prompt = String(body.prompt ?? "");
         const data = await groqPost(groqKey, {
           model: "llama-3.1-8b-instant",
@@ -189,26 +201,32 @@ Deno.serve(async (req) => {
         });
         const text =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
+<<<<<<< HEAD
         try {
           const questions = extractJsonArray(text);
           return json({ questions });
         } catch (e) {
           return json({ error: "Failed to parse questions", details: String(e), raw: text }, 500);
         }
+=======
+        const clean = text.replace(/```json|```/gi, "").trim();
+        const questions = JSON.parse(clean);
+        return json({ questions }, corsHeaders);
+>>>>>>> 0cbbf6b2038c69ce5379db5fa1470c04142ed25a
       }
 
       case "admin_quiz_insert": {
         const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        if (!serviceKey) return json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, 500);
+        if (!serviceKey) return json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, corsHeaders, 500);
         const { data: prof } = await supabaseAnon
           .from("profiles")
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle();
         if ((prof as { role?: string } | null)?.role !== "admin") {
-          return json({ error: "Forbidden" }, 403);
+          return json({ error: "Forbidden" }, corsHeaders, 403);
         }
-        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, 500);
+        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, corsHeaders, 500);
 
         const aulaId = String(body.aulaId ?? "");
         const aulaNome = String(body.aulaNome ?? "");
@@ -231,6 +249,7 @@ Deno.serve(async (req) => {
         });
         const text =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
+<<<<<<< HEAD
         try {
           const questions = extractJsonArray(text);
           const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
@@ -240,11 +259,20 @@ Deno.serve(async (req) => {
         } catch (e) {
           return json({ error: "Failed to parse generated questions", details: String(e), raw: text }, 500);
         }
+=======
+        text = text.replace(/```json|```/g, "").trim();
+        const questions = JSON.parse(text);
+
+        const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+        const { error: insErr } = await admin.from("quizzes").insert({ aula_id: aulaId, questions });
+        if (insErr) return json({ error: insErr.message }, corsHeaders, 400);
+        return json({ ok: true }, corsHeaders);
+>>>>>>> 0cbbf6b2038c69ce5379db5fa1470c04142ed25a
       }
 
       case "youtube_playlist": {
         const key = Deno.env.get("YOUTUBE_API_KEY");
-        if (!key) return json({ error: "YOUTUBE_API_KEY not configured" }, 500);
+        if (!key) return json({ error: "YOUTUBE_API_KEY not configured" }, corsHeaders, 500);
         const playlistId = String(body.playlistId ?? "");
         const pageToken = body.pageToken ? String(body.pageToken) : "";
         const params = new URLSearchParams({
@@ -256,7 +284,7 @@ Deno.serve(async (req) => {
         if (pageToken) params.set("pageToken", pageToken);
         const r = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?${params}`);
         const data = await r.json();
-        if (data.error) return json({ error: data.error.message }, 400);
+        if (data.error) return json({ error: data.error.message }, corsHeaders, 400);
         const videos: Array<{
           id: string;
           nome: string;
@@ -274,12 +302,12 @@ Deno.serve(async (req) => {
             descricao: item.snippet.description ?? "",
           });
         }
-        return json({ videos, nextPageToken: data.nextPageToken ?? null });
+        return json({ videos, nextPageToken: data.nextPageToken ?? null }, corsHeaders);
       }
 
       case "klipy_gifs": {
         const key = Deno.env.get("KLIPY_API_KEY");
-        if (!key) return json({ error: "KLIPY_API_KEY not configured" }, 500);
+        if (!key) return json({ error: "KLIPY_API_KEY not configured" }, corsHeaders, 500);
         const q = String(body.q ?? "");
         const pos = body.pos ? String(body.pos) : "";
         const featured = Boolean(body.featured);
@@ -292,13 +320,13 @@ Deno.serve(async (req) => {
         if (pos) params.set("pos", pos);
         const r = await fetch(`https://api.klipy.com/v2/${endpoint}?${params}`);
         const data = await r.json();
-        return json({ results: data.results ?? [], next: data.next ?? null });
+        return json({ results: data.results ?? [], next: data.next ?? null }, corsHeaders);
       }
 
       default:
-        return json({ error: `Unknown action: ${action}` }, 400);
+        return json({ error: `Unknown action: ${action}` }, corsHeaders, 400);
     }
   } catch (e) {
-    return json({ error: String(e) }, 500);
+    return json({ error: String(e) }, corsHeaders, 500);
   }
 });

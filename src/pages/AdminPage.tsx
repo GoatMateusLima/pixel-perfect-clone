@@ -342,12 +342,16 @@ const AdminPage = () => {
 
           if (aulasError) throw new Error("Curso criado, mas erro ao salvar aulas: " + aulasError.message);
 
-          // 3. Gera quizzes via ORION para cada aula
+          // 3. Gera quizzes via ORION para cada aula (Sequencialmente para evitar Rate Limit 429)
           if (savedAulas && savedAulas.length > 0) {
-            setSaveStatus(`ORION gerando quizzes para ${savedAulas.length} aulas...`);
-            await Promise.allSettled(
-              savedAulas.map(a => generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? ""))
-            );
+            let count = 1;
+            for (const a of savedAulas) {
+              setSaveStatus(`ORION gerando quiz (${count}/${savedAulas.length}): ${a.nome}...`);
+              await generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? "");
+              count++;
+              // Delay de 1s conforme solicitado
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
           }
         }
       }
