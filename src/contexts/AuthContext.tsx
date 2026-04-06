@@ -21,7 +21,8 @@ type AuthContextType = {
   loading:            boolean;
   assessment:         AssessmentData;
   profilePhoto:       string | null;
-  role:               "user" | "admin" | null; // Added role support
+  role:               "user" | "admin" | null;
+  type:               string | null;
   updateAssessment:   (partial: Partial<AssessmentData>) => void;
   saveAssessmentToDb: (data: AssessmentData) => Promise<void>;
   refreshPhoto:       () => void;
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading,      setLoading]      = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [role,         setRole]         = useState<"user" | "admin" | null>(null);
+  const [type,         setType]         = useState<string | null>(null);
 
   const [assessment, setAssessment] = useState<AssessmentData>(() => {
     try { return JSON.parse(localStorage.getItem(ASSESSMENT_KEY) ?? "{}"); }
@@ -63,44 +65,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Busca todos os dados iniciais do usuário numa única requisição ─────────
-  const fetchUserData = useCallback((currentUser: User): Promise<void> => {
-    return supabase
+  const fetchUserData = useCallback(async (currentUser: User): Promise<void> => {
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", currentUser.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        // Foto de perfil e Role com fallbacks inteligentes usando o objeto passado
-        const finalPhoto = data?.perfil || 
-                           currentUser.user_metadata?.avatar_url || 
+      .maybeSingle();
+
+    if (error || !data) {
+      // Mesmo sem dados no profile, ainda pegamos a foto do metadata
+      const fallbackPhoto = currentUser.user_metadata?.avatar_url || 
                            currentUser.user_metadata?.picture || 
-                           currentUser.user_metadata?.photoURL ||
-                           currentUser.user_metadata?.photo ||
+                           currentUser.user_metadata?.photoURL || 
+                           currentUser.user_metadata?.photo || 
                            null;
-        setProfilePhoto(finalPhoto);
-        
-        if (data?.role) setRole(data.role as "user" | "admin");
+      setProfilePhoto(fallbackPhoto);
+      return;
+    }
 
-        if (error || !data) return;
+    const finalPhoto = data?.perfil || 
+                       currentUser.user_metadata?.avatar_url || 
+                       currentUser.user_metadata?.picture || 
+                       currentUser.user_metadata?.photoURL ||
+                       currentUser.user_metadata?.photo ||
+                       null;
+    
+    setProfilePhoto(finalPhoto);
+    if (data?.role) setRole(data.role as "user" | "admin");
+    if (data?.type) setType(data.type);
 
-        // Assessment
-        const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
-        if (hasDbData) {
-          const fromDb: AssessmentData = {
-            ...(data.calculo_marcius as AssessmentData ?? {}),
-            ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
-            ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
-            ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
-            completed: data.assessment_completed ?? false,
-          };
+    // Assessment
+    const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
+    if (hasDbData) {
+      const fromDb: AssessmentData = {
+        ...(data.calculo_marcius as AssessmentData ?? {}),
+        ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
+        ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
+        ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
+        completed: data.assessment_completed ?? false,
+      };
 
-          setAssessment((prev) => {
-            const merged = { ...prev, ...fromDb };
-            localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
-            return merged;
-          });
-        }
+      setAssessment((prev) => {
+        const merged = { ...prev, ...fromDb };
+        localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
+        return merged;
       });
+    }
   }, []);
 
   const refreshPhoto = () => {
@@ -144,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfilePhoto(null);
         setRole(null);
+        setType(null);
         setAssessment({});
         localStorage.removeItem(ASSESSMENT_KEY);
       }
@@ -264,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      session, user, loading, role,
+      session, user, loading, role, type,
       assessment, updateAssessment, saveAssessmentToDb,
       profilePhoto, refreshPhoto,
       signOutUser,

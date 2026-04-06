@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "@/components/Header";
 import { MainLandmark } from "@/components/MainLandmark";
@@ -431,155 +431,166 @@ const RoadmapSection = () => {
 
             {/* Popup / Modal de Sugestão */}
             {isSubmitModalOpen && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8">
                 <motion.div 
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }} 
                   exit={{ opacity: 0 }}
                   onClick={() => setIsSubmitModalOpen(false)}
-                  className="absolute inset-0 bg-background/80 backdrop-blur-md"
+                  className="absolute inset-0 bg-background/90 backdrop-blur-xl"
                 />
                 
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="relative z-10 w-full max-w-2xl bg-secondary/95 border border-white/10 p-6 sm:p-10 rounded-[2rem] shadow-2xl backdrop-blur-2xl max-h-[92vh] overflow-y-auto scrollbar-hide"
+                  className="relative z-10 w-full max-w-xl bg-secondary/95 border border-white/10 p-6 sm:p-10 rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] backdrop-blur-2xl max-h-[82vh] flex flex-col overflow-hidden"
                 >
-                  <div className="mb-6 sm:mb-10 text-center sm:text-left">
-                    <h2 className="text-xl sm:text-3xl font-display font-bold text-foreground mb-2">Envie seu conteúdo</h2>
-                    <p className="text-xs sm:text-sm text-muted-foreground font-body">Preencha os detalhes do tema e curso que deseja sugerir para a comunidade.</p>
-                  </div>
+                  <button 
+                    onClick={() => setIsSubmitModalOpen(false)}
+                    className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all z-20"
+                    aria-label="Fechar"
+                  >
+                    <X size={20} />
+                  </button>
 
-                  <form onSubmit={handleSubmitRequest} className="space-y-5 sm:space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
-                      <div className="space-y-2.5">
-                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Nome do Tema</label>
-                        <input
-                          required
-                          value={formData.temaNome}
-                          onChange={e => setFormData({...formData, temaNome: e.target.value})}
-                          placeholder="Ex: Desenvolvimento Web"
-                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Nome do Curso</label>
-                        <input
-                          required
-                          value={formData.cursoNome}
-                          onChange={e => setFormData({...formData, cursoNome: e.target.value})}
-                          placeholder="Ex: React para Iniciantes"
-                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
-                        />
-                      </div>
+                  <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide">
+                    <div className="mb-6 sm:mb-10 text-center sm:text-left pr-10 sm:pr-0">
+                      <h2 className="text-2xl sm:text-4xl font-display font-bold text-foreground mb-3 tracking-tight">Envie seu conteúdo</h2>
+                      <p className="text-sm sm:text-base text-muted-foreground font-body leading-relaxed max-w-md">Contribua com a biblioteca da comunidade sugerindo novos temas e cursos.</p>
                     </div>
 
-                    <div className="space-y-2.5">
-                      <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Link da Playlist do YouTube</label>
-                      <input
-                        required
-                        type="url"
-                        value={formData.playlistUrl}
-                        onChange={e => setFormData({...formData, playlistUrl: e.target.value})}
-                        placeholder="https://youtube.com/playlist?list=..."
-                        className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
-                      <div className="space-y-2.5">
-                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Descrição do Curso</label>
-                        <textarea
-                          required
-                          rows={3}
-                          value={formData.cursoDesc}
-                          onChange={e => setFormData({...formData, cursoDesc: e.target.value})}
-                          placeholder="O que os alunos aprenderão?"
-                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/30"
-                        />
-                      </div>
-                      <div className="space-y-2.5">
-                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Descrição do Tema</label>
-                        <textarea
-                          required
-                          rows={3}
-                          value={formData.temaDesc}
-                          onChange={e => setFormData({...formData, temaDesc: e.target.value})}
-                          placeholder="Fale um pouco sobre a área..."
-                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/30"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
-                      <div className="space-y-2.5">
-                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Dificuldade</label>
-                        <div className="relative">
-                          <select
-                            value={formData.dificuldade}
-                            onChange={e => setFormData({...formData, dificuldade: e.target.value})}
-                            className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all appearance-none cursor-pointer"
-                          >
-                            <option value="Iniciante">Iniciante</option>
-                            <option value="Intermediário">Intermediário</option>
-                            <option value="Avançado">Avançado</option>
-                          </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
-                            <ChevronRight size={14} className="rotate-90" />
+                    <form onSubmit={handleSubmitRequest} className="space-y-5 sm:space-y-8">
+                      <div className="space-y-5 sm:space-y-8">
+                        <div className="grid grid-cols-1 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Nome do Tema</label>
+                            <input
+                              required
+                              value={formData.temaNome}
+                              onChange={e => setFormData({...formData, temaNome: e.target.value})}
+                              placeholder="Ex: Desenvolvimento Web"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Nome do Curso</label>
+                            <input
+                              required
+                              value={formData.cursoNome}
+                              onChange={e => setFormData({...formData, cursoNome: e.target.value})}
+                              placeholder="Ex: React para Iniciantes"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Playlist do YouTube</label>
+                            <input
+                              required
+                              type="url"
+                              value={formData.playlistUrl}
+                              onChange={e => setFormData({...formData, playlistUrl: e.target.value})}
+                              placeholder="https://youtube.com/playlist?list=..."
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
                           </div>
                         </div>
-                      </div>
-                      <div className="md:col-span-2 space-y-2.5">
-                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Nome do Responsável</label>
-                        <input
-                          required
-                          value={formData.responsavelNome}
-                          onChange={e => setFormData({...formData, responsavelNome: e.target.value})}
-                          placeholder="Seu nome completo"
-                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
-                        />
-                      </div>
-                    </div>
 
-                    <div className="space-y-2.5">
-                      <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Email do Responsável</label>
-                      <input
-                        required
-                        type="email"
-                        value={formData.responsavelEmail}
-                        onChange={e => setFormData({...formData, responsavelEmail: e.target.value})}
-                        placeholder="seu@contato.com"
-                        className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
-                      />
-                    </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Descrição do Curso</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={formData.cursoDesc}
+                              onChange={e => setFormData({...formData, cursoDesc: e.target.value})}
+                              placeholder="O que aprenderão?"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Descrição do Tema</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={formData.temaDesc}
+                              onChange={e => setFormData({...formData, temaDesc: e.target.value})}
+                              placeholder="Sobre a área..."
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
 
-                    <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-4 pt-8 border-t border-white/5">
-                      <button
-                        type="button"
-                        onClick={() => setIsSubmitModalOpen(false)}
-                        className="w-full sm:w-auto px-8 py-3 rounded-2xl hover:bg-white/5 text-sm font-bold transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Enviando...
-                          </>
-                        ) : (
-                          <>
-                            Enviar Sugestão
-                            <ChevronRight size={14} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Dificuldade</label>
+                            <div className="relative">
+                              <select
+                                value={formData.dificuldade}
+                                onChange={e => setFormData({...formData, dificuldade: e.target.value})}
+                                className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                              >
+                                <option value="Iniciante">Iniciante</option>
+                                <option value="Intermediário">Intermediário</option>
+                                <option value="Avançado">Avançado</option>
+                              </select>
+                              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
+                                <ChevronRight size={18} className="rotate-90" />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-widest uppercase ml-1 opacity-70">Seu Nome</label>
+                            <input
+                              required
+                              value={formData.responsavelNome}
+                              onChange={e => setFormData({...formData, responsavelNome: e.target.value})}
+                              placeholder="Nome completo"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 pb-2">
+                          <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-widest uppercase ml-1 opacity-70">Email de Contato</label>
+                          <input
+                            required
+                            type="email"
+                            value={formData.responsavelEmail}
+                            onChange={e => setFormData({...formData, responsavelEmail: e.target.value})}
+                            placeholder="seu@email.com"
+                            className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-8 border-t border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => setIsSubmitModalOpen(false)}
+                          className="w-full sm:w-auto px-10 py-4 rounded-2xl hover:bg-white/5 text-sm sm:text-base font-body font-bold transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full sm:w-auto px-12 py-5 rounded-2xl bg-primary text-primary-foreground text-sm sm:text-base font-body font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              Enviar Sugestão
+                              <ChevronRight size={18} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </motion.div>
               </div>
             )}
