@@ -443,130 +443,140 @@ const RoadmapSection = () => {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="relative z-10 w-full max-w-2xl bg-secondary/90 border border-white/10 p-8 rounded-3xl shadow-2xl backdrop-blur-xl max-h-[90vh] overflow-y-auto"
+                  className="relative z-10 w-full max-w-2xl bg-secondary/95 border border-white/10 p-6 sm:p-10 rounded-[2rem] shadow-2xl backdrop-blur-2xl max-h-[92vh] overflow-y-auto scrollbar-hide"
                 >
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-display font-bold text-foreground mb-2">Envie seu conteúdo</h2>
-                    <p className="text-sm text-muted-foreground">Preencha os detalhes do tema e curso que deseja sugerir.</p>
+                  <div className="mb-6 sm:mb-10 text-center sm:text-left">
+                    <h2 className="text-xl sm:text-3xl font-display font-bold text-foreground mb-2">Envie seu conteúdo</h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground font-body">Preencha os detalhes do tema e curso que deseja sugerir para a comunidade.</p>
                   </div>
 
-                  <form onSubmit={handleSubmitRequest} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Nome do Tema</label>
+                  <form onSubmit={handleSubmitRequest} className="space-y-5 sm:space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
+                      <div className="space-y-2.5">
+                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Nome do Tema</label>
                         <input
                           required
                           value={formData.temaNome}
                           onChange={e => setFormData({...formData, temaNome: e.target.value})}
                           placeholder="Ex: Desenvolvimento Web"
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Nome do Curso</label>
+                      <div className="space-y-2.5">
+                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Nome do Curso</label>
                         <input
                           required
                           value={formData.cursoNome}
                           onChange={e => setFormData({...formData, cursoNome: e.target.value})}
                           placeholder="Ex: React para Iniciantes"
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Link da Playlist do YouTube</label>
+                    <div className="space-y-2.5">
+                      <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Link da Playlist do YouTube</label>
                       <input
                         required
                         type="url"
                         value={formData.playlistUrl}
                         onChange={e => setFormData({...formData, playlistUrl: e.target.value})}
                         placeholder="https://youtube.com/playlist?list=..."
-                        className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                        className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Descrição do Curso</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
+                      <div className="space-y-2.5">
+                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Descrição do Curso</label>
                         <textarea
                           required
                           rows={3}
                           value={formData.cursoDesc}
                           onChange={e => setFormData({...formData, cursoDesc: e.target.value})}
                           placeholder="O que os alunos aprenderão?"
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all resize-none"
+                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/30"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Descrição do Tema</label>
+                      <div className="space-y-2.5">
+                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Descrição do Tema</label>
                         <textarea
                           required
                           rows={3}
                           value={formData.temaDesc}
                           onChange={e => setFormData({...formData, temaDesc: e.target.value})}
                           placeholder="Fale um pouco sobre a área..."
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all resize-none"
+                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/30"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Dificuldade</label>
-                        <select
-                          value={formData.dificuldade}
-                          onChange={e => setFormData({...formData, dificuldade: e.target.value})}
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all appearance-none"
-                        >
-                          <option value="Iniciante">Iniciante</option>
-                          <option value="Intermediário">Intermediário</option>
-                          <option value="Avançado">Avançado</option>
-                        </select>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
+                      <div className="space-y-2.5">
+                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Dificuldade</label>
+                        <div className="relative">
+                          <select
+                            value={formData.dificuldade}
+                            onChange={e => setFormData({...formData, dificuldade: e.target.value})}
+                            className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="Iniciante">Iniciante</option>
+                            <option value="Intermediário">Intermediário</option>
+                            <option value="Avançado">Avançado</option>
+                          </select>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
+                            <ChevronRight size={14} className="rotate-90" />
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Nome do Responsável</label>
+                      <div className="md:col-span-2 space-y-2.5">
+                        <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Nome do Responsável</label>
                         <input
                           required
                           value={formData.responsavelNome}
                           onChange={e => setFormData({...formData, responsavelNome: e.target.value})}
                           placeholder="Seu nome completo"
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                          className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-accent font-bold text-primary tracking-widest uppercase">Email do Responsável</label>
+                    <div className="space-y-2.5">
+                      <label className="text-[9px] sm:text-[10px] font-accent font-bold text-primary tracking-widest uppercase ml-1">Email do Responsável</label>
                       <input
                         required
                         type="email"
                         value={formData.responsavelEmail}
                         onChange={e => setFormData({...formData, responsavelEmail: e.target.value})}
                         placeholder="seu@contato.com"
-                        className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                        className="w-full bg-background/50 border border-white/5 rounded-2xl px-4 py-3 sm:py-4 text-sm focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/30"
                       />
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-6 border-t border-white/5">
+                    <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-4 pt-8 border-t border-white/5">
                       <button
                         type="button"
                         onClick={() => setIsSubmitModalOpen(false)}
-                        className="px-6 py-3 rounded-xl hover:bg-white/5 text-sm font-bold transition-colors"
+                        className="w-full sm:w-auto px-8 py-3 rounded-2xl hover:bg-white/5 text-sm font-bold transition-colors"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="px-8 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 disabled:opacity-50 transition-all flex items-center gap-2"
+                        className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                       >
                         {isSubmitting ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Enviando...
                           </>
-                        ) : "Enviar Sugestão"}
+                        ) : (
+                          <>
+                            Enviar Sugestão
+                            <ChevronRight size={14} />
+                          </>
+                        )}
                       </button>
                     </div>
                   </form>
