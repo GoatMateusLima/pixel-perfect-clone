@@ -579,32 +579,48 @@ const ProfilePage = () => {
       </AnimatePresence>
 
       <div className="max-w-7xl mx-auto px-4 pt-24 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 items-start">
 
           {/* COLUNA ESQUERDA */}
           <aside className="hidden lg:flex flex-col gap-4">
-            <motion.div initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2"><Star size={14} className="text-accent" /><span className="font-display text-sm font-bold text-foreground">Nível {currentLevel}</span></div>
-                <span className="text-[10px] font-accent text-muted-foreground">{currentXP} / {xpNextLevel} XP</span>
+            <motion.div
+              initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-2xl p-5 overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, hsl(230 30% 10%) 0%, hsl(270 40% 8%) 100%)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Star size={13} className="text-yellow-400/80" />
+                  <span className="text-sm font-bold text-white/90">Nível {currentLevel}</span>
+                </div>
+                <span className="text-[10px] text-white/30 font-mono">{currentXP} / {xpNextLevel} XP</span>
               </div>
-              <div className="h-2 rounded-full bg-secondary overflow-hidden mb-2">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${xpProgress}%` }} transition={{ delay: 0.5, duration: 1.2, ease: "easeOut" }}
-                  className="h-full rounded-full" style={{ background: "linear-gradient(90deg, hsl(45 90% 45%), hsl(45 90% 65%))" }} />
+              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden mb-2" style={{ border: "1px solid rgba(255,255,255,0.04)" }}>
+                <motion.div
+                  initial={{ width: 0 }} animate={{ width: `${xpProgress}%` }}
+                  transition={{ delay: 0.5, duration: 1.2, ease: "easeOut" }}
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg, hsl(45 90% 45%), hsl(45 90% 70%))", boxShadow: "0 0 12px hsl(45 90% 55% / 0.5)" }}
+                />
               </div>
-              <p className="text-[10px] text-muted-foreground font-body">
+              <p className="text-[10px] text-white/25 font-body mb-5">
                 {xpNextLevel - currentXP > 0 ? `${xpNextLevel - currentXP} XP para o nível ${currentLevel + 1}` : "Nível máximo!"}
               </p>
-              <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { icon: Flame, label: "Streak", value: `${currentStreak}d`, color: "hsl(25 90% 55%)" },
-                  { icon: Trophy, label: "Ranking", value: `#${currentRank}`, color: "hsl(45 90% 55%)" },
-                  { icon: Zap, label: "Medalhas", value: `${profile.medalhas?.length || 0}`, color: "hsl(155 60% 45%)" },
-                ].map(({ icon: Icon, label, value, color }) => (
-                  <div key={label} className="rounded-sm p-2 text-center" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
-                    <Icon size={12} style={{ color, margin: "0 auto 2px" }} />
-                    <p className="font-display text-xs font-bold" style={{ color }}>{value}</p>
-                    <p className="text-[8px] text-muted-foreground font-accent">{label}</p>
+                  { icon: Flame,  label: "Streak",   value: `${currentStreak}d`, color: "hsl(25 90% 55%)",   glow: "hsl(25 90% 55% / 0.25)"  },
+                  { icon: Trophy, label: "Ranking",  value: `#${currentRank}`,   color: "hsl(45 90% 55%)",   glow: "hsl(45 90% 55% / 0.25)"  },
+                  { icon: Zap,    label: "Medalhas", value: `${profile.medalhas?.length || 0}`, color: "hsl(155 60% 45%)", glow: "hsl(155 60% 45% / 0.25)" },
+                ].map(({ icon: Icon, label, value, color, glow }) => (
+                  <div key={label} className="rounded-xl p-2.5 text-center flex flex-col items-center gap-1"
+                    style={{ background: `${color}0d`, border: `1px solid ${color}20`, boxShadow: `0 0 20px ${glow}` }}>
+                    <Icon size={13} style={{ color }} />
+                    <p className="font-bold text-xs leading-none" style={{ color }}>{value}</p>
+                    <p className="text-[8px] text-white/30 uppercase tracking-widest font-medium">{label}</p>
                   </div>
                 ))}
               </div>
@@ -612,8 +628,18 @@ const ProfilePage = () => {
 
             <Vagas ringColor={ringColor} discProfile={assessment?.discProfile || "S"} recommendedJobs={vagasDinamicas} />
 
-            <motion.div initial={{ opacity: 1, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-4">
-              <h3 className="font-display text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Zap size={14} className="text-primary" /> Progresso Geral</h3>
+            <motion.div
+              initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-2xl p-5"
+              style={{
+                background: "linear-gradient(135deg, hsl(230 30% 10%) 0%, hsl(270 40% 8%) 100%)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 24px 48px rgba(0,0,0,0.3)",
+              }}
+            >
+              <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.18em] mb-4 flex items-center gap-2">
+                <Zap size={12} className="text-primary/70" /> Progresso Geral
+              </h3>
               <Progress
                 totalCursos={overallProgress.totalCursos}
                 cursosConcluidos={overallProgress.cursosConcluidos}
@@ -632,29 +658,44 @@ const ProfilePage = () => {
           {/* COLUNA CENTRAL */}
           <main className="space-y-6 min-w-0">
 
-            {/* Card perfil */}
-            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm overflow-hidden">
-              <div className="relative w-full" style={{ height: 130 }}>
+            {/* ─── HERO card do perfil ─── */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: "linear-gradient(160deg, hsl(230 30% 9%) 0%, hsl(270 40% 7%) 100%)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)",
+              }}
+            >
+              {/* Banner */}
+              <div className="relative w-full" style={{ height: 200 }}>
                 {displayBanner
                   ? <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${ringColor}44 0%, ${ringColor}11 60%, hsl(210 40% 10% / 0.2) 100%)` }}>
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 24px,hsl(155 60% 45%)1px),repeating-linear-gradient(90deg,transparent,transparent 24px,hsl(155 60% 45%)1px)" }} />
-                  </div>}
+                  : <div
+                      className="w-full h-full relative overflow-hidden"
+                      style={{ background: `linear-gradient(135deg, ${ringColor}33 0%, ${ringColor}0a 50%, hsl(270 40% 5%) 100%)` }}
+                    >
+                      <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 32px,rgba(255,255,255,1)1px),repeating-linear-gradient(90deg,transparent,transparent 32px,rgba(255,255,255,1)1px)" }} />
+                      <div className="absolute bottom-0 left-0 right-0 h-24" style={{ background: "linear-gradient(transparent, hsl(230 30% 9%))" }} />
+                    </div>
+                }
                 {isEditing && (
                   <button type="button" onClick={() => bannerInputRef.current?.click()}
-                    className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-white"
-                    style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(4px)" }}>
+                    className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white/80 hover:text-white transition-all"
+                    style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}>
                     <ImageIcon size={12} /> Alterar banner
                   </button>
                 )}
                 <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFile} />
               </div>
 
-              <div className="px-6 pb-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4" style={{ marginTop: -20 }}>
+              <div className="px-7 pb-7">
+                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5" style={{ marginTop: -36 }}>
 
                   {/* ── AVATAR com aura e scan rings ── */}
-                  <div className="flex-shrink-0 relative shrink-0" style={{ width: 112, height: 112, zIndex: 10 }}>
+                  <div className="flex-shrink-0 relative shrink-0" style={{ width: 128, height: 128, zIndex: 10 }}>
                     
                     <AvatarScanRings color={ringColor} />
 
@@ -674,14 +715,15 @@ const ProfilePage = () => {
                       onClick={() => isEditing && photoInputRef.current?.click()}
                       onMouseEnter={() => isEditing && setHoverPhoto(true)}
                       onMouseLeave={() => setHoverPhoto(false)}
-                      className="absolute rounded-full overflow-hidden bg-secondary/80 backdrop-blur-sm flex items-center justify-center transition-all duration-300"
+                      className="absolute rounded-full overflow-hidden backdrop-blur-sm flex items-center justify-center transition-all duration-300"
                       style={{
-                        width: 76, height: 76,
+                        width: 90, height: 90,
                         top: "50%", left: "50%",
                         transform: "translate(-50%,-50%)",
                         zIndex: 2,
-                        border: `2px solid ${ringColor}40`,
-                        boxShadow: `0 0 20px ${ringColor}20`,
+                        background: "hsl(230 30% 12%)",
+                        border: `2.5px solid ${ringColor}50`,
+                        boxShadow: `0 0 30px ${ringColor}25, inset 0 0 20px rgba(0,0,0,0.4)`,
                         cursor: isEditing ? "pointer" : "default",
                       }}
                     >
@@ -724,39 +766,52 @@ const ProfilePage = () => {
                   {/* ── fim AVATAR ── */}
 
                   {/* Nome + botões */}
-                  <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
+                  <div className="flex-1 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-2">
                     <div className="flex-1 min-w-0 z-50">
                       {isEditing
                         ? <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Seu nome"
-                          className="font-display text-xl font-bold text-foreground bg-transparent border-b border-primary/50 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
-                        : <h1 className="font-display text-xl font-bold text-foreground truncate">{profile.name ?? user.email?.split("@")[0] ?? "Usuário"}</h1>}
-                      <p className="text-sm text-muted-foreground font-body">{user.email}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-[10px] font-accent font-bold px-2 py-0.5 rounded-full text-primary-foreground" style={{ backgroundColor: ringColor }}>{DISC_LABELS[discProfile]}</span>
-                        <span className="text-[10px] font-accent text-accent">Nível {currentLevel}</span>
-                        <span className="text-[10px] font-accent text-muted-foreground flex items-center gap-0.5"><Flame size={10} className="text-orange-400" /> {currentStreak} dias seguidos</span>
+                          className="font-display text-2xl font-bold text-foreground bg-transparent border-b border-primary/40 focus:outline-none focus:border-primary w-full pb-0.5 mb-1" />
+                        : <h1 className="font-display text-2xl font-bold text-white/95 truncate leading-tight">{profile.name ?? user.email?.split("@")[0] ?? "Usuário"}</h1>
+                      }
+                      <p className="text-sm text-white/30 font-body mt-0.5">{user.email}</p>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full text-white/90"
+                          style={{ background: `${ringColor}25`, border: `1px solid ${ringColor}40`, color: ringColor }}>
+                          {DISC_LABELS[discProfile]}
+                        </span>
+                        <span className="text-[10px] text-white/40 font-medium">Nível {currentLevel}</span>
+                        <span className="text-[10px] text-white/30 flex items-center gap-1">
+                          <Flame size={10} className="text-orange-400/80" /> {currentStreak} dias seguidos
+                        </span>
                       </div>
                       {!assessment?.completed && (
-                        <Link to="/avaliacao" className="block mt-1 text-xs text-accent hover:underline font-accent">Completar Avaliação →</Link>
+                        <Link to="/avaliacao" className="block mt-1.5 text-xs text-primary/70 hover:text-primary transition-colors font-medium">Completar Avaliação →</Link>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <div className="flex items-center gap-2">
                         {!isEditing
-                          ? <button onClick={handleStartEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-foreground border border-border hover:border-primary hover:text-primary transition-colors"><Pencil size={12} /> Editar Perfil</button>
+                          ? <button onClick={handleStartEdit}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}
+                            >
+                              <Pencil size={12} /> Editar Perfil
+                            </button>
                           : <>
-                            <button onClick={handleConfirmEdit} disabled={saving}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-primary-foreground disabled:opacity-60"
-                              style={{ background: "hsl(155 60% 40%)" }}>
-                              {saving ? <><Loader2 size={12} className="animate-spin" /> Salvando…</> : <><Check size={12} /> Confirmar</>}
-                            </button>
-                            <button onClick={handleCancelEdit} disabled={saving}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors disabled:opacity-60">
-                              <X size={12} /> Cancelar
-                            </button>
-                          </>}
+                              <button onClick={handleConfirmEdit} disabled={saving}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-60 transition-all"
+                                style={{ background: "hsl(155 60% 35%)", border: "1px solid hsl(155 60% 45% / 0.5)", boxShadow: "0 0 20px hsl(155 60% 45% / 0.2)" }}>
+                                {saving ? <><Loader2 size={12} className="animate-spin" /> Salvando…</> : <><Check size={12} /> Confirmar</>}
+                              </button>
+                              <button onClick={handleCancelEdit} disabled={saving}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
+                                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>
+                                <X size={12} /> Cancelar
+                              </button>
+                            </>
+                        }
                       </div>
-                      {saveError && <p className="text-[10px] text-red-400 font-accent text-right max-w-[200px]">{saveError}</p>}
+                      {saveError && <p className="text-[10px] text-red-400/80 font-medium text-right max-w-[200px]">{saveError}</p>}
                     </div>
                   </div>
                 </div>
@@ -794,15 +849,19 @@ const ProfilePage = () => {
                 </AnimatePresence>
 
                 {/* Descrição */}
-                <div className="mt-4">
+                <div className="mt-5">
                   {isEditing
                     ? <textarea value={draftDescricao} onChange={e => setDraftDescricao(e.target.value)} placeholder="Escreva uma bio curta sobre você…" rows={3}
-                      className="w-full bg-secondary border border-border rounded-sm px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none" />
-                    : profile.descricao ? <p className="text-sm font-body text-muted-foreground leading-relaxed">{profile.descricao}</p> : null}
+                        className="w-full text-sm leading-relaxed resize-none focus:outline-none rounded-xl px-4 py-3"
+                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", caretColor: "hsl(155 60% 50%)" }} />
+                    : profile.descricao
+                      ? <p className="text-sm text-white/50 leading-relaxed">{profile.descricao}</p>
+                      : null
+                  }
                 </div>
 
                 {/* Redes sociais */}
-                <div className="mt-4">
+                <div className="mt-5">
                   {filledSocials.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {filledSocials.map(key => {
@@ -810,24 +869,36 @@ const ProfilePage = () => {
                         const href = displaySocial[key]!;
                         const fullHref = sanitizeUrl(href, prefix);
                         return isEditing
-                          ? <div key={key} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-primary/30 text-muted-foreground"><Icon size={13} /><span>{label}</span><button onClick={() => removeSocialLink(key)} className="ml-1 text-red-400 hover:text-red-300"><X size={10} /></button></div>
-                          : <a key={key} href={fullHref} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-transparent hover:border-primary/50 hover:text-primary text-muted-foreground transition-all"><Icon size={13} /><span>{label}</span></a>;
+                          ? <div key={key} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border text-white/40"
+                              style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}>
+                              <Icon size={12} /><span>{label}</span>
+                              <button onClick={() => removeSocialLink(key)} className="ml-1 text-red-400/70 hover:text-red-300"><X size={9} /></button>
+                            </div>
+                          : <a key={key} href={fullHref} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all text-white/40 hover:text-white/80"
+                              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                              <Icon size={12} /><span>{label}</span>
+                            </a>;
                       })}
                     </div>
                   )}
                   {isEditing && emptySocials.length > 0 && (
-                    <motion.div initial={{ opacity: 1, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="rounded-sm p-3 flex flex-wrap gap-2" style={{ border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)" }}>
-                      <span className="w-full text-[10px] text-muted-foreground font-accent mb-1">Adicionar redes sociais</span>
+                    <div className="rounded-xl p-4 flex flex-wrap gap-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}>
+                      <span className="w-full text-[10px] text-white/25 uppercase tracking-widest font-medium mb-1">Adicionar redes</span>
                       {emptySocials.map(key => {
                         const { Icon, label } = SOCIAL_META[key]; return (
-                          <button key={key} onClick={() => openSocialModal(key)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-accent border border-dashed border-border hover:border-primary hover:text-primary text-muted-foreground transition-all">
-                            <Plus size={10} /><Icon size={12} /><span>{label}</span>
+                          <button key={key} onClick={() => openSocialModal(key)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all text-white/30 hover:text-white/70"
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}>
+                            <Plus size={9} /><Icon size={11} /><span>{label}</span>
                           </button>
                         );
                       })}
-                    </motion.div>
+                    </div>
                   )}
-                  {!isEditing && filledSocials.length === 0 && <p className="text-xs text-muted-foreground font-accent italic">Nenhuma rede social adicionada.</p>}
+                  {!isEditing && filledSocials.length === 0 && (
+                    <p className="text-xs text-white/20 italic">Nenhuma rede social adicionada.</p>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -835,41 +906,57 @@ const ProfilePage = () => {
             {/* ── CURSOS EM ANDAMENTO ── */}
             <CursosEmAndamento userId={user.id} />
 
-            {/* ── MEDALHAS ── */}
-            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Trophy size={18} className="text-accent" /> Conquistas</h2>
+            {/* ── CONQUISTAS ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-2xl p-7"
+              style={{
+                background: "linear-gradient(160deg, hsl(230 30% 9%) 0%, hsl(270 40% 7%) 100%)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-[10px] text-white/30 uppercase tracking-[0.18em] font-medium mb-1">Suas conquistas</p>
+                  <h2 className="text-lg font-bold text-white/90 flex items-center gap-2.5">
+                    <Trophy size={18} style={{ color: "hsl(45 90% 55%)" }} /> Conquistas
+                  </h2>
+                </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-accent text-muted-foreground">{ALL_MEDALS.length} medalhas</span>
+                  <span className="text-[10px] text-white/20">{ALL_MEDALS.length} medalhas</span>
                   {isEditing && (
                     <button onClick={() => setMedalPickerOpen(p => !p)}
-                      className="flex items-center gap-1.5 text-[10px] font-accent px-2 py-1 rounded-sm border transition-all"
-                      style={medalPickerOpen ? { background: `${ringColor}20`, color: ringColor, border: `1px solid ${ringColor}50` } : { color: "hsl(var(--muted-foreground))", borderColor: "hsl(var(--border))" }}>
-                      <Pencil size={9} /> Editar medalhas
+                      className="flex items-center gap-1.5 text-[10px] font-medium px-3 py-1.5 rounded-xl transition-all"
+                      style={medalPickerOpen
+                        ? { background: `${ringColor}18`, color: ringColor, border: `1px solid ${ringColor}40` }
+                        : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.08)" }
+                      }>
+                      <Pencil size={9} /> Editar
                     </button>
                   )}
                 </div>
               </div>
               <AnimatePresence>
                 {isEditing && medalPickerOpen && (
-                  <motion.div initial={{ opacity: 1, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-5">
-                    <div className="rounded-sm p-3 space-y-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}>
-                      <p className="text-[9px] font-accent text-muted-foreground mb-2">Escolha até 3 medalhas para exibir ({ativasCount}/3)</p>
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-6">
+                    <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.08)" }}>
+                      <p className="text-[9px] text-white/25 uppercase tracking-widest font-medium mb-3">Escolha até 3 para exibir ({ativasCount}/3)</p>
                       {medalhas.map(ms => {
                         const medal = ALL_MEDALS.find(a => a.id === ms.id); if (!medal) return null;
                         const Icon = medal.icon;
                         return (
                           <button key={medal.id} onClick={() => handleToggleMedal(medal.id)} disabled={!ms.ativa && ativasCount >= 3}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-left transition-all disabled:opacity-40"
-                            style={{ background: ms.ativa ? `${medal.color}14` : "transparent", border: `1px solid ${ms.ativa ? medal.color + "40" : "transparent"}` }}>
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: medal.bg, border: `1px solid ${medal.border}` }}>
-                              <Icon size={12} style={{ color: medal.color }} />
+                            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-all disabled:opacity-30"
+                            style={{ background: ms.ativa ? `${medal.color}10` : "transparent", border: `1px solid ${ms.ativa ? medal.color + "30" : "transparent"}` }}>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: medal.bg, border: `1px solid ${medal.border}` }}>
+                              <Icon size={13} style={{ color: medal.color }} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-accent font-semibold text-foreground truncate">{medal.title}</p>
-                              <p className="text-[9px] text-muted-foreground font-body truncate">{medal.desc}</p>
+                              <p className="text-xs font-semibold text-white/80 truncate">{medal.title}</p>
+                              <p className="text-[9px] text-white/30 truncate">{medal.desc}</p>
                             </div>
-                            {ms.ativa && <CheckCircle2 size={13} style={{ color: medal.color, flexShrink: 0 }} />}
+                            {ms.ativa && <CheckCircle2 size={14} style={{ color: medal.color, flexShrink: 0 }} />}
                           </button>
                         );
                       })}
@@ -877,23 +964,30 @@ const ProfilePage = () => {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {featuredMedals.map((medal, i) => {
                   const Icon = medal.icon;
-                  const isHovered = hoveredMedal === medal.id;
+                  const isHov = hoveredMedal === medal.id;
                   return (
-                    <motion.div key={medal.id} initial={{ opacity: 1, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.06 + i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    <motion.div key={medal.id}
+                      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06, duration: 0.35 }}
                       onMouseEnter={() => setHoveredMedal(medal.id)} onMouseLeave={() => setHoveredMedal(null)}
-                      className="relative rounded-sm p-4 flex flex-col items-center text-center transition-all duration-200"
-                      style={{ background: isHovered ? medal.bg : `${medal.color}08`, border: `1px solid ${isHovered ? medal.border : medal.color + "20"}`, boxShadow: isHovered ? `0 0 18px ${medal.glow}` : "none" }}>
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2" style={{ background: medal.bg, border: `2px solid ${medal.border}`, boxShadow: `0 0 12px ${medal.glow}` }}>
-                        <Icon size={22} style={{ color: medal.color }} />
+                      className="relative rounded-2xl p-5 flex flex-col items-center text-center transition-all duration-250 cursor-default"
+                      style={{
+                        background: isHov ? medal.bg : `${medal.color}06`,
+                        border: `1px solid ${isHov ? medal.border : medal.color + "18"}`,
+                        boxShadow: isHov ? `0 0 32px ${medal.glow}, 0 8px 24px rgba(0,0,0,0.3)` : "0 4px 12px rgba(0,0,0,0.2)",
+                        transform: isHov ? "translateY(-2px)" : "none",
+                      }}>
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+                        style={{ background: medal.bg, border: `2px solid ${medal.border}`, boxShadow: `0 0 20px ${medal.glow}` }}>
+                        <Icon size={26} style={{ color: medal.color }} />
                       </div>
-                      <p className="text-[11px] font-accent font-semibold text-foreground leading-tight mb-0.5">{medal.title}</p>
-                      <p className="text-[9px] text-muted-foreground font-body leading-tight mb-2">{medal.desc}</p>
+                      <p className="text-xs font-bold text-white/85 leading-snug mb-1">{medal.title}</p>
+                      <p className="text-[9px] text-white/30 leading-snug mb-3">{medal.desc}</p>
                       <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                        <span className="text-[8px] font-accent font-bold px-1.5 py-0.5 rounded-sm" style={{ color: RARITY_COLOR[medal.rarity], background: `${RARITY_COLOR[medal.rarity]}15`, border: `1px solid ${RARITY_COLOR[medal.rarity]}30` }}>{medal.rarity}</span>
-                        <span className="text-[8px] text-muted-foreground font-body flex items-center gap-0.5"><Clock size={7} /> {medal.date}</span>
+                        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full" style={{ color: RARITY_COLOR[medal.rarity], background: `${RARITY_COLOR[medal.rarity]}12`, border: `1px solid ${RARITY_COLOR[medal.rarity]}25` }}>{medal.rarity}</span>
+                        <span className="text-[8px] text-white/20 flex items-center gap-0.5"><Clock size={7} /> {medal.date}</span>
                       </div>
                     </motion.div>
                   );
@@ -901,27 +995,42 @@ const ProfilePage = () => {
               </div>
             </motion.div>
 
-            {/* CERTIFICADOS */}
-            <motion.div initial={{ opacity: 1, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="hologram-panel rounded-sm p-6">
-              <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Shield size={18} className="text-primary" /> Certificados</h2>
+            {/* ── CERTIFICADOS ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-2xl p-7"
+              style={{
+                background: "linear-gradient(160deg, hsl(230 30% 9%) 0%, hsl(155 40% 6%) 100%)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div className="mb-6">
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.18em] font-medium mb-1">Credenciais</p>
+                <h2 className="text-lg font-bold text-white/90 flex items-center gap-2.5">
+                  <Shield size={17} className="text-primary/70" /> Certificados
+                </h2>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { title: "Fundamentos de IA", date: "Jan 2025", provider: "UpJobs Academy" },
-                  { title: "Python para Data Science", date: "Mar 2025", provider: "UpJobs Academy" },
+                  { title: "Fundamentos de IA",          date: "Jan 2025", provider: "UpJobs Academy" },
+                  { title: "Python para Data Science",   date: "Mar 2025", provider: "UpJobs Academy" },
                   { title: "Introdução a Cibersegurança", date: "Mai 2025", provider: "UpJobs Academy" },
-                  { title: "Fundamentos de SQL", date: "Ago 2025", provider: "UpJobs Academy" },
+                  { title: "Fundamentos de SQL",          date: "Ago 2025", provider: "UpJobs Academy" },
                 ].map((cert, i) => (
-                  <motion.div key={i} whileHover={{ scale: 1.02 }}
-                    className="flex items-start gap-3 p-4 rounded-sm border border-primary/15 hover:border-primary/35 transition-colors"
-                    style={{ background: "hsl(155 60% 45% / 0.05)" }}>
-                    <div className="w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0" style={{ background: "hsl(155 60% 45% / 0.15)", border: "1px solid hsl(155 60% 45% / 0.3)" }}>
-                      <Shield size={14} className="text-primary" />
+                  <motion.div key={i}
+                    whileHover={{ y: -2, boxShadow: "0 8px 24px rgba(0,0,0,0.3), 0 0 20px hsl(155 60% 45% / 0.1)" }}
+                    className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "hsl(155 60% 45% / 0.1)", border: "1px solid hsl(155 60% 45% / 0.25)" }}>
+                      <Shield size={15} className="text-primary/70" />
                     </div>
-                    <div>
-                      <p className="font-accent font-semibold text-sm text-foreground leading-tight">{cert.title}</p>
-                      <p className="text-[10px] text-muted-foreground font-body mt-0.5">{cert.provider} · {cert.date}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white/80 leading-snug truncate">{cert.title}</p>
+                      <p className="text-[10px] text-white/25 mt-0.5">{cert.provider} · {cert.date}</p>
                     </div>
-                    <ArrowUpRight size={12} className="text-muted-foreground/40 ml-auto flex-shrink-0 mt-0.5" />
+                    <ArrowUpRight size={13} className="text-white/15 flex-shrink-0" />
                   </motion.div>
                 ))}
               </div>

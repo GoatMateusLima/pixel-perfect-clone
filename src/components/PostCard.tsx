@@ -205,22 +205,35 @@ const PostCard = ({
 
   const post = postProp ?? fetchedPost;
 
-  // NOVO: Busca apenas a quantidade de comentários desse post (super leve e rápido)
+  // Busca count inicial e escuta novos comentários em realtime
   useEffect(() => {
     if (!post?.id) return;
 
-    const fetchCommentCount = async () => {
-      const { count, error } = await supabase
-        .from("comments")
-        .select("*", { count: "exact", head: true }) // head: true evita baixar os dados, pega só o número
-        .eq("publication_id", post.id);
+    // 1. Busca count inicial
+    supabase
+      .from("comments")
+      .select("*", { count: "exact", head: true })
+      .eq("publication_id", post.id)
+      .then(({ count, error }) => {
+        if (!error && count !== null) setCommentCount(count);
+      });
 
-      if (!error && count !== null) {
-        setCommentCount(count);
-      }
-    };
+    // 2. Realtime — escuta INSERT e DELETE na tabela comments para este post
+    const channel = supabase
+      .channel(`comments-count-${post.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments", filter: `publication_id=eq.${post.id}` },
+        () => setCommentCount((prev) => prev + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments", filter: `publication_id=eq.${post.id}` },
+        () => setCommentCount((prev) => Math.max(0, prev - 1))
+      )
+      .subscribe();
 
-    fetchCommentCount();
+    return () => { supabase.removeChannel(channel); };
   }, [post?.id]);
 
   // Se estiver carregando por conta do publicationId
