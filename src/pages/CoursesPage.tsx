@@ -510,19 +510,9 @@ const RoadmapPanel = ({
     last:   "hsl(45 90% 55%)",
   };
 
-  // Lógica de status: 
-  // 1. Passou no quiz/aula? -> done (Verde)
-  // 2. É o índice que o usuário está visualizando? -> active (Laranja)
-  // 3. O anterior foi passado ou é o que o usuário parou? -> liberado
-  // 4. Caso contrário -> locked (Cinza)
-  // Lógica de status refinada: 
-  // 1. Passou no quiz/aula? -> done (Verde)
-  // 2. Disponível para clicar? -> active (Laranja) - Se for a primeira ou a anterior estiver feita
-  // 3. Caso contrário -> locked (Cinza)
   const getStatus = (i: number) => {
     if (passedIndexes.has(i)) return "done";
     
-    // A aula está desbloqueada se for a primeira OU se a anterior foi concluída
     const unlocked = i === 0 || passedIndexes.has(i - 1);
     if (unlocked) return "active";
 
@@ -535,7 +525,6 @@ const RoadmapPanel = ({
     const dy = (p1.y - p0.y) * 0.5;
     const d = `M ${p0.x} ${p0.y} C ${p0.x} ${p0.y + dy}, ${p1.x} ${p1.y - dy}, ${p1.x} ${p1.y}`;
     
-    // Segmento aceso se a nota de destino estiver desbloqueada
     const statusP1 = getStatus(i + 1);
     const lit = statusP1 !== "locked"; 
     
@@ -744,7 +733,6 @@ const SUGGESTIONS = [
   "Como funciona async/await?", "O que é Docker e por que usar?",
 ];
 
-// O Novo Prompt Dinâmico
 const generateSystemPrompt = (courseName: string, lessonName: string, lessonDescription: string) => `
 Você é ORION, o Professor e Tutor de Programação Oficial da plataforma UpJobs! Sua função é ser um assistente hiper-didático...
 
@@ -916,7 +904,6 @@ const CoursesPage = () => {
       if (!user || !aulaAtual) return;
 
       try {
-        // Salva a aula atual em last_aula_id para poder retomar exatamente de onde parou
         await supabase
           .from('watch')
           .upsert({
@@ -924,9 +911,6 @@ const CoursesPage = () => {
             course_id: courseId,
             last_aula_id: aulaAtual.id,
           }, { onConflict: 'user_id,course_id' });
-
-        // Apenas salva que o usuário visualizou a aula (watch), sem marcar como completado ainda.
-        // A marcação de 'completed' e ganho de XP agora ocorre no handleQuizPass.
 
       } catch (err) {
         console.error("Erro ao processar progresso:", err);
@@ -941,7 +925,6 @@ const CoursesPage = () => {
     async function load() {
       setLoading(true);
 
-      // 1. Busca dados do curso
       const { data: course } = await supabase
         .from("courses").select("id, name, difficult").eq("id", courseId).single();
       if (course) {
@@ -1015,7 +998,6 @@ const CoursesPage = () => {
         setQuizQuestions([]);
       }
       setQuizLoading(false);
-      console.log(quizQuestions)
     })();
   }, [aulas, activeIndex]);
 
@@ -1157,6 +1139,7 @@ const CoursesPage = () => {
                 )}
                 {activeTab === "quiz" && (
                   <QuizTab
+                    key={`quiz-${activeIndex}`}
                     topic={
                       aulaAtiva
                         ? [
@@ -1173,6 +1156,7 @@ const CoursesPage = () => {
                     onNext={handleNext}
                     isLast={activeIndex === aulas.length - 1}
                     loading={quizLoading}
+                    alreadyPassed={quizPassed}
                   />
                 )}
                 {activeTab === "duvidas" && <DuvidasTab />}

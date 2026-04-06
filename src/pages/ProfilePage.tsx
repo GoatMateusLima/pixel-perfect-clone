@@ -381,7 +381,7 @@ const ProfilePage = () => {
 
     loadData();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     const uid = user?.id;

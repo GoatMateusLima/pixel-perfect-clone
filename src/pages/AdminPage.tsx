@@ -263,7 +263,7 @@ const AdminPage = () => {
     setCourses(data || []); setLoadingCourses(false);
   }, []);
 
-  useEffect(() => { loadTemas(); loadCourses(); }, []);
+  useEffect(() => { loadTemas(); loadCourses(); }, [loadTemas, loadCourses]);
 
   // ── Form tema ──
   const [temaForm, setTemaForm] = useState({ name: "", description: "", type: "" });

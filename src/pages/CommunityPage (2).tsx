@@ -126,7 +126,7 @@ const CommunityPage = () => {
     }
 
     loadProfileAndProgress();
-  }, [user?.id]);
+  }, [user?.id, user?.email, user?.user_metadata?.full_name, user?.user_metadata?.name]);
 
   // ── Carrega IDs salvos — aplica nos posts já carregados para não piscar ─────
   useEffect(() => {
@@ -490,7 +490,7 @@ const CommunityPage = () => {
         if (error) { console.error("Erro ao buscar post:", error.message); return; }
         if (data)  setOpenPost(rowToPost(data, myCreatorId));
       });
-  }, [myCreatorId]);
+  }, [myCreatorId, rowToPost]);
 
   const sortedPosts = filter === "populares"
     ? [...posts].sort((a, b) => (b.like_qnt ?? 0) - (a.like_qnt ?? 0))

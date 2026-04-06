@@ -214,7 +214,7 @@ const RoadmapSection = () => {
       aiAttemptedRef.current = true;
       fetchAiRecommendations();
     }
-  }, [temasBrutos, assessment, isAILoading, loading]);
+  }, [temasBrutos, assessment, isAILoading, loading, user?.id]);
 
   useEffect(() => {
     async function loadData() {
