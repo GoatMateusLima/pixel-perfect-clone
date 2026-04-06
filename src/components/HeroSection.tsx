@@ -18,7 +18,6 @@ const HeroSection = () => {
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center gradient-hero scanline overflow-hidden pt-24">
-      <AccessibilityTrigger variant="hero" />
       <div className="absolute inset-0 opacity-5" style={{
         backgroundImage: `linear-gradient(hsl(155 60% 45% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(155 60% 45% / 0.3) 1px, transparent 1px)`,
         backgroundSize: '60px 60px'

@@ -7,10 +7,12 @@ import RoadmapSection from "@/components/RoadmapSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import FAQSection from "@/components/FAQSection";
 import Footer from "@/components/Footer";
+import AnimatedBackground from "@/components/AnimatedBackground";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen">
+      <AnimatedBackground />
       <Header />
       <MainLandmark>
         <HeroSection />

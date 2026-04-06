@@ -9,10 +9,10 @@
     font-size: clamp(19px, 1.5vw + 6px, 16px);
   }
   :root {
-    --background: 200 30% 8%;
+    --background: 220 35% 10%;
     --foreground: 180 10% 90%;
 
-    --card: 200 30% 6%;
+    --card: 220 35% 12%;
     --card-foreground: 180 10% 90%;
 
     --popover: 200 25% 12%;
@@ -43,7 +43,7 @@
     --glow-accent: 25 90% 55%;
     --cyber-blue: 200 70% 50%;
 
-    --sidebar-background: 200 30% 8%;
+    --sidebar-background: 220 35% 10%;
     --sidebar-foreground: 180 10% 90%;
     --sidebar-primary: 155 60% 35%;
     --sidebar-primary-foreground: 200 30% 8%;
@@ -207,14 +207,52 @@
   }
 
   .gradient-hero {
-    background: 
-      radial-gradient(circle at 0% 0%, hsl(142 72% 50% / 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 100% 100%, hsl(142 72% 50% / 0.1) 0%, transparent 50%),
-      hsl(200 30% 4%);
     min-height: 100vh;
     position: relative;
     overflow: hidden;
+    background: transparent;
   }
+
+  .bg-aurora {
+    position: absolute;
+    width: 60%;
+    height: 60%;
+    filter: blur(80px);
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 100%;
+  }
+
+  .aurora-1 {
+    background: radial-gradient(circle, hsl(142 72% 50%) 0%, transparent 70%);
+    animation: aurora-move-1 25s infinite linear alternate;
+  }
+
+  .aurora-2 {
+    background: radial-gradient(circle, hsl(200 70% 50%) 0%, transparent 70%);
+    animation: aurora-move-2 30s infinite linear alternate-reverse;
+  }
+
+  .aurora-3 {
+    background: radial-gradient(circle, hsl(25 90% 55%) 0%, transparent 70%);
+    animation: aurora-move-3 22s infinite linear alternate;
+  }
+}
+
+@keyframes aurora-move-1 {
+  from { transform: translate(-30%, -30%) scale(1); }
+  to { transform: translate(30%, 30%) scale(1.2); }
+}
+
+@keyframes aurora-move-2 {
+  from { transform: translate(60%, -10%) scale(1.1); }
+  to { transform: translate(-20%, 60%) scale(0.9); }
+}
+
+@keyframes aurora-move-3 {
+  from { transform: translate(-10%, 60%) scale(0.9); }
+  to { transform: translate(60%, -30%) scale(1.3); }
 }
 
 @keyframes float {

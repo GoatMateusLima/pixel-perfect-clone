@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
 import NotificationBell from "./NotificationBell";
 import { AccessibilityTrigger } from "@/components/AccessibilityPanel";
+import logoUrl from "@/assets/logo/logo.png";
 
 const NAV_ITEMS = [
   { label: "Início",     href: "/roadmap",    icon: Home     },
@@ -86,9 +87,11 @@ const Header = () => {
           
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 group-hover:bg-primary/30 transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-              <span className="font-display text-lg font-black text-primary">U</span>
-            </div>
+            <img 
+              src={logoUrl} 
+              alt="Logo UpJobs" 
+              className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform duration-300" 
+            />
             <span className="font-display text-xl font-bold tracking-[0.2em] text-white group-hover:text-primary transition-colors">UPJOBS</span>
           </Link>
 
@@ -109,7 +112,7 @@ const Header = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
-                <AccessibilityTrigger variant="header" />
+                {location.pathname !== "/" && <AccessibilityTrigger variant="header" />}
                 <NotificationBell />
                 <Link to="/perfil"
                   className="flex-shrink-0 w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] bg-primary/5"
@@ -145,7 +148,7 @@ const Header = () => {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <AccessibilityTrigger variant="header" />
+                {location.pathname !== "/" && <AccessibilityTrigger variant="header" />}
                 <Link to="/login" className="text-[11px] font-accent font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
                   Entrar
                 </Link>
@@ -158,7 +161,7 @@ const Header = () => {
 
           {/* Mobile Right (Título apenas, navegação foi para baixo) */}
           <div className="flex md:hidden items-center gap-2">
-            <AccessibilityTrigger variant="header" className="h-9 w-9" />
+            {location.pathname !== "/" && <AccessibilityTrigger variant="header" className="h-9 w-9" />}
             <span className="text-[10px] font-accent font-black text-primary uppercase tracking-[0.2em]">UpJobs Hub</span>
           </div>
         </div>
