@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "@/components/Header";
 import { MainLandmark } from "@/components/MainLandmark";
@@ -102,7 +102,63 @@ const RoadmapSection = () => {
   
   const [aiRecommendedIds, setAiRecommendedIds] = useState<string[]>([]);
   const [isAILoading, setIsAILoading] = useState(false);
+  const aiAttemptedRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Estados para o formulário de sugestão
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    temaNome: "",
+    cursoNome: "",
+    playlistUrl: "",
+    cursoDesc: "",
+    temaDesc: "",
+    dificuldade: "Iniciante",
+    responsavelNome: "",
+    responsavelEmail: ""
+  });
+
+  const handleSubmitRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('course_requests')
+        .insert({
+          tema_nome: formData.temaNome,
+          curso_nome: formData.cursoNome,
+          playlist_url: formData.playlistUrl,
+          curso_descricao: formData.cursoDesc,
+          tema_descricao: formData.temaDesc,
+          dificuldade: formData.dificuldade,
+          responsavel_nome: formData.responsavelNome,
+          responsavel_email: formData.responsavelEmail,
+          user_id: user?.id
+        });
+
+      if (error) throw error;
+
+      alert("Sugestão enviada com sucesso! Nossa equipe entrará em contato.");
+      setIsSubmitModalOpen(false);
+      setFormData({
+        temaNome: "",
+        cursoNome: "",
+        playlistUrl: "",
+        cursoDesc: "",
+        temaDesc: "",
+        dificuldade: "Iniciante",
+        responsavelNome: "",
+        responsavelEmail: ""
+      });
+    } catch (err: any) {
+      console.error("Erro ao enviar sugestão:", err.message);
+      alert("Houve um erro ao enviar. Tente novamente mais tarde.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -154,10 +210,11 @@ const RoadmapSection = () => {
       }
     }
 
-    if (aiRecommendedIds.length === 0 && !isAILoading && !loading && temasBrutos.length > 0) {
+    if (!aiAttemptedRef.current && !isAILoading && !loading && temasBrutos.length > 0) {
+      aiAttemptedRef.current = true;
       fetchAiRecommendations();
     }
-  }, [temasBrutos, assessment, aiRecommendedIds, isAILoading, loading]);
+  }, [temasBrutos, assessment, isAILoading, loading, user?.id]);
 
   useEffect(() => {
     async function loadData() {
@@ -345,9 +402,198 @@ const RoadmapSection = () => {
                       onClick={() => setSelectedTema(tema)} 
                     />
                   ))}
+
+                  {/* Card de Sugestão - Sempre ao final da grid filtrada */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    onClick={() => setIsSubmitModalOpen(true)}
+                    className="group relative h-full min-h-[320px] rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 hover:border-primary transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative z-10">
+                      <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform">
+                        <Search className="text-primary w-8 h-8" />
+                      </div>
+                      <h3 className="text-xl font-display font-bold text-foreground mb-4">Quer ver seu curso aqui?</h3>
+                      <p className="text-sm text-muted-foreground font-body leading-relaxed max-w-[240px] mb-8">
+                        Colabore com a plataforma e ajude a expandir nossa base de conhecimento.
+                      </p>
+                      <button className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-accent font-bold text-xs shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all">
+                        Enviar Sugestão
+                      </button>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </div>
+
+            {/* Popup / Modal de Sugestão */}
+            {isSubmitModalOpen && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8">
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSubmitModalOpen(false)}
+                  className="absolute inset-0 bg-background/90 backdrop-blur-xl"
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="relative z-10 w-full max-w-xl bg-secondary/95 border border-white/10 p-6 sm:p-10 rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] backdrop-blur-2xl max-h-[82vh] flex flex-col overflow-hidden"
+                >
+                  <button 
+                    onClick={() => setIsSubmitModalOpen(false)}
+                    className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all z-20"
+                    aria-label="Fechar"
+                  >
+                    <X size={20} />
+                  </button>
+
+                  <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide">
+                    <div className="mb-6 sm:mb-10 text-center sm:text-left pr-10 sm:pr-0">
+                      <h2 className="text-2xl sm:text-4xl font-display font-bold text-foreground mb-3 tracking-tight">Envie seu conteúdo</h2>
+                      <p className="text-sm sm:text-base text-muted-foreground font-body leading-relaxed max-w-md">Contribua com a biblioteca da comunidade sugerindo novos temas e cursos.</p>
+                    </div>
+
+                    <form onSubmit={handleSubmitRequest} className="space-y-5 sm:space-y-8">
+                      <div className="space-y-5 sm:space-y-8">
+                        <div className="grid grid-cols-1 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Nome do Tema</label>
+                            <input
+                              required
+                              value={formData.temaNome}
+                              onChange={e => setFormData({...formData, temaNome: e.target.value})}
+                              placeholder="Ex: Desenvolvimento Web"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Nome do Curso</label>
+                            <input
+                              required
+                              value={formData.cursoNome}
+                              onChange={e => setFormData({...formData, cursoNome: e.target.value})}
+                              placeholder="Ex: React para Iniciantes"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Playlist do YouTube</label>
+                            <input
+                              required
+                              type="url"
+                              value={formData.playlistUrl}
+                              onChange={e => setFormData({...formData, playlistUrl: e.target.value})}
+                              placeholder="https://youtube.com/playlist?list=..."
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Descrição do Curso</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={formData.cursoDesc}
+                              onChange={e => setFormData({...formData, cursoDesc: e.target.value})}
+                              placeholder="O que aprenderão?"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Descrição do Tema</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={formData.temaDesc}
+                              onChange={e => setFormData({...formData, temaDesc: e.target.value})}
+                              placeholder="Sobre a área..."
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Dificuldade</label>
+                            <div className="relative">
+                              <select
+                                value={formData.dificuldade}
+                                onChange={e => setFormData({...formData, dificuldade: e.target.value})}
+                                className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                              >
+                                <option value="Iniciante">Iniciante</option>
+                                <option value="Intermediário">Intermediário</option>
+                                <option value="Avançado">Avançado</option>
+                              </select>
+                              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
+                                <ChevronRight size={18} className="rotate-90" />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-widest uppercase ml-1 opacity-70">Seu Nome</label>
+                            <input
+                              required
+                              value={formData.responsavelNome}
+                              onChange={e => setFormData({...formData, responsavelNome: e.target.value})}
+                              placeholder="Nome completo"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 pb-2">
+                          <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-widest uppercase ml-1 opacity-70">Email de Contato</label>
+                          <input
+                            required
+                            type="email"
+                            value={formData.responsavelEmail}
+                            onChange={e => setFormData({...formData, responsavelEmail: e.target.value})}
+                            placeholder="seu@email.com"
+                            className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-8 border-t border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => setIsSubmitModalOpen(false)}
+                          className="w-full sm:w-auto px-10 py-4 rounded-2xl hover:bg-white/5 text-sm sm:text-base font-body font-bold transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full sm:w-auto px-12 py-5 rounded-2xl bg-primary text-primary-foreground text-sm sm:text-base font-body font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              Enviar Sugestão
+                              <ChevronRight size={18} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </motion.div>
+              </div>
+            )}
           </motion.div>
         ) : (
           <TemaCoursesView 

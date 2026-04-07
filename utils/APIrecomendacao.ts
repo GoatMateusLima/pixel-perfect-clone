@@ -37,12 +37,9 @@ REGRAS ESTABELECIDAS:
       })) ?? "";
 
     let trimmed = content.trim();
-    if (trimmed.startsWith("```json")) {
-      trimmed = trimmed.replace(/```json/g, "").replace(/```/g, "").trim();
-    } else if (trimmed.startsWith("```")) {
-      trimmed = trimmed.replace(/```/g, "").trim();
-    }
-
+    if (!trimmed) return [];
+    
+    // Tenta extrair array caso venha sujo
     const match = trimmed.match(/\[.*\]/s);
     if (match) trimmed = match[0];
 

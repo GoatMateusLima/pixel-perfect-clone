@@ -89,7 +89,7 @@ const CommunityPage = () => {
       // 2. Busca curso mais recente na tabela watch
       const { data: watchData } = await supabase
         .from("watch")
-        .select("course_id, courses(id, name)")
+        .select("course_id, courses!course_id(id, name)")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -131,7 +131,7 @@ const CommunityPage = () => {
     }
 
     loadProfileAndProgress();
-  }, [user?.id]);
+  }, [user?.id, user?.email, user?.user_metadata?.full_name, user?.user_metadata?.name]);
 
   // ── Carrega IDs salvos — aplica nos posts já carregados para não piscar ─────
   useEffect(() => {
@@ -584,7 +584,7 @@ const CommunityPage = () => {
         if (error) { console.error("Erro ao buscar post:", error.message); return; }
         if (data)  setOpenPost(rowToPost(data, myCreatorId));
       });
-  }, [myCreatorId]);
+  }, [myCreatorId, rowToPost]);
 
   const sortedPosts = filter === "populares"
     ? [...posts].sort((a, b) => (b.like_qnt ?? 0) - (a.like_qnt ?? 0))
