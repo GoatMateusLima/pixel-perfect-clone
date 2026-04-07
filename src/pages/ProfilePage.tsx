@@ -855,7 +855,7 @@ const ProfilePage = () => {
                         className="w-full text-sm leading-relaxed resize-none focus:outline-none rounded-xl px-4 py-3"
                         style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", caretColor: "hsl(155 60% 50%)" }} />
                     : profile.descricao
-                      ? <p className="text-sm text-white/50 leading-relaxed">{profile.descricao}</p>
+                      ? <p className="text-sm text-white/50 leading-relaxed whitespace-pre-wrap">{profile.descricao}</p>
                       : null
                   }
                 </div>
