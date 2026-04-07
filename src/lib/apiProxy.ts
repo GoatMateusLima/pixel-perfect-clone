@@ -80,6 +80,7 @@ export async function invokeApiProxy<T = unknown>(
           content: `Curso: "${courseName}". Aulas:\n${aulas.map(a => `- ${a.nome}`).join("\n")}` 
         });
       }
+
       // LÓGICA DE RETRY (3 tentativas)
       let lastError: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -112,16 +113,10 @@ export async function invokeApiProxy<T = unknown>(
 
         if (action === "quiz_tab") {
           try {
-<<<<<<< HEAD
-            const parsed = JSON.parse(text || "[]");
-            const questions = parsed.questions || parsed; // Handles both { questions: [] } and straight []
-            const valid = Array.isArray(questions) ? questions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
-=======
-            const questions = JSON.parse(text || "[]");
-            const parsedQuestions = Array.isArray(questions) ? questions : (questions.questions || []);
-            // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
-            const valid = Array.isArray(parsedQuestions) ? parsedQuestions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
->>>>>>> 2aafc0dddb3a05d5676c2e67046abe3255e9a82d
+            const rawParsed = JSON.parse(text || "{\n  \"questions\": []\n}");
+            // Handle both { questions: [...] } and direct array [...] responses just in case
+            const questionsArray = Array.isArray(rawParsed) ? rawParsed : (Array.isArray(rawParsed.questions) ? rawParsed.questions : []);
+            const valid = questionsArray.filter((q: any) => q && q.text && Array.isArray(q.options));
             return { data: { questions: valid } as any as T, error: null };
           } catch (e) {
             console.error("[apiProxy] Erro parse JSON quiz:", e, text);
@@ -131,19 +126,15 @@ export async function invokeApiProxy<T = unknown>(
 
         if (action === "admin_bulk_quiz") {
           try {
-            const quizzes = JSON.parse(text || "{}");
-            return { data: { quizzes } as any as T, error: null };
+             const quizzes = JSON.parse(text);
+             return { data: { quizzes } as any as T, error: null };
           } catch (e) {
-            console.error("[apiProxy] Erro parse JSON bulk quiz:", e, text);
-<<<<<<< HEAD
-            throw new Error("Resposta da IA formatada incorretamente.");
-=======
-            return { data: null, error: new Error("Erro no JSON no admin bulk quiz") };
->>>>>>> 2aafc0dddb3a05d5676c2e67046abe3255e9a82d
+             console.error("[apiProxy] Erro parse JSON bulk_quiz:", e, text);
+             throw new Error("Resposta da IA para geração em lote formatada incorretamente.");
           }
         }
 
-        return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
+        return { data: { reply: text || (res.choices?.[0]?.message?.content || ""), raw: res } as any as T, error: null };
       }
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
     }
