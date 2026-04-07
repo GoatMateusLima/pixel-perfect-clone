@@ -14,8 +14,9 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ArrowUp, Bookmark, Heart } from "lucide-react";
+import { Loader2, ArrowUp, Bookmark, Heart, Search } from "lucide-react";
 
 import Header          from "@/components/Header";
 import { MainLandmark } from "@/components/MainLandmark";
@@ -39,6 +40,10 @@ type FilterType = "recentes" | "populares" | "curtidos" | "salvos";
 
 const CommunityPage = () => {
   const { user, profilePhoto, assessment } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const tagFilter = searchParams.get("tag");
 
   const [filter,      setFilter]      = useState<FilterType>("recentes");
   const [openPost,    setOpenPost]    = useState<Post | null>(null);
@@ -198,6 +203,7 @@ const CommunityPage = () => {
       liked:    userId ? (row.liked_by ?? []).includes(userId) : false,
       saved:    savedPostIdsRef.current.has(row.id),  // ref é sempre atual sem deps
       comments: [],
+      isCommentHit: row.isCommentHit,
     };
   }, []);
 
@@ -205,11 +211,73 @@ const CommunityPage = () => {
   const fetchPosts = useCallback(async () => {
     setLoadingPosts(true);
 
-    const { data, error } = await supabase
+    let pubQuery = supabase
       .from("publications")
       .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
       .order("date", { ascending: false })
       .range(0, PAGE_SIZE - 1);
+
+    if (tagFilter) {
+      pubQuery = pubQuery.ilike("description", `%${tagFilter}%`);
+      
+      const commQuery = supabase
+        .from("comments")
+        .select("*")
+        .ilike("comment", `%${tagFilter}%`)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+        
+      const [pubRes, commRes] = await Promise.all([pubQuery, commQuery]);
+      
+      if (pubRes.error || commRes.error) {
+        console.error("[CommunityPage] Erro ao buscar busca mista.", pubRes.error, commRes.error);
+        setLoadingPosts(false);
+        return;
+      }
+      
+      const mixedRows: any[] = [];
+      if (pubRes.data) mixedRows.push(...pubRes.data);
+      if (commRes.data && commRes.data.length > 0) {
+        const userIds = [...new Set(commRes.data.map((c: any) => c.user_id).filter(Boolean))];
+        let profilesMap: Record<string, any> = {};
+
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("user_id, name, perfil, descricao, bordas")
+            .in("user_id", userIds);
+
+          if (profilesData) {
+            profilesMap = Object.fromEntries(profilesData.map((p: any) => [p.user_id, p]));
+          }
+        }
+
+        mixedRows.push(
+          ...commRes.data.map((c: any) => ({
+            id: c.publication_id,
+            created_at: c.created_at,
+            description: `↳ Resposta:\n\n${c.comment}`,
+            date: c.created_at,
+            midia: c.midia,
+            creator_id: c.user_id,
+            liked_by: [],
+            profiles: profilesMap[c.user_id] ?? null,
+            isCommentHit: true
+          }))
+        );
+      }
+      
+      mixedRows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setPosts(mixedRows.map(row => rowToPost(row, myCreatorId)));
+      setPage(1);
+      setHasMore(false); // Desabilitamos "ver mais" simples numa busca mista local
+      setLoadingPosts(false);
+      setNewPostsCount(0);
+      return;
+    }
+
+    const { data, error } = await pubQuery;
 
     if (error) {
       console.error("[CommunityPage] Erro ao carregar posts:", error.message);
@@ -228,7 +296,7 @@ const CommunityPage = () => {
     setHasMore(data.length === PAGE_SIZE);
     setLoadingPosts(false);
     setNewPostsCount(0);
-  }, [myCreatorId, rowToPost]);
+  }, [myCreatorId, rowToPost, tagFilter]);
 
   useEffect(() => {
     fetchPosts();
@@ -306,11 +374,17 @@ const CommunityPage = () => {
     setLoadingMore(true);
     
     const from = page * PAGE_SIZE;
-    const { data, error } = await supabase
+    let query = supabase
       .from("publications")
       .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
       .order("date", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
+      
+    if (tagFilter) {
+      query = query.ilike("description", `%${tagFilter}%`);
+    }
+
+    const { data, error } = await query;
       
     if (error) { console.error("Carregar mais:", error.message); setLoadingMore(false); return; }
     if (!data || data.length === 0) { setHasMore(false); setLoadingMore(false); return; }
@@ -326,7 +400,7 @@ const CommunityPage = () => {
     setPage((p) => p + 1);
     setHasMore(data.length === PAGE_SIZE);
     setLoadingMore(false);
-  }, [loadingMore, hasMore, page, myCreatorId, posts.length, rowToPost]);
+  }, [loadingMore, hasMore, page, myCreatorId, posts.length, rowToPost, tagFilter]);
 
   // ── Observador do Infinite Scroll ────────────────────────────────────────────
   const observer = useRef<IntersectionObserver | null>(null);
@@ -399,6 +473,26 @@ const CommunityPage = () => {
 
     // Atualiza aba curtidos se estava aberta
     if (filter === "curtidos") fetchLikedPosts();
+  };
+
+  const handleDeleteSuccess = (postId: string) => {
+    setPosts(prev => prev.filter(p => p.id !== postId));
+  };
+
+  const handleOpenPost = async (post: any) => {
+    if (post.isCommentHit) {
+      // É um comentário mascarado; buscar o Post original para abrir o modal correto
+      const { data, error } = await supabase
+        .from("publications")
+        .select("*, profiles!creator_id(user_id, name, perfil, descricao, bordas)")
+        .eq("id", post.id)
+        .single();
+      if (!error && data) {
+        setOpenPost(rowToPost(data, myCreatorId));
+      }
+    } else {
+      setOpenPost(post);
+    }
   };
 
   // ── handleSave — persiste no banco ───────────────────────────────────────
@@ -549,28 +643,45 @@ const CommunityPage = () => {
             {/* Feed central — largura máxima fixa como Twitter (~600px) */}
             <div className="w-full max-w-[620px] flex-shrink-0 space-y-4 min-w-0 relative">
 
-              {/* Filtro Estilo Pill Flutuante */}
-              <div className="sticky top-20 z-40 py-4 flex justify-center pointer-events-none">
-                <div className="glass-card p-1.5 flex gap-1 pointer-events-auto border-white/10 shadow-2xl backdrop-blur-2xl">
-                  {feedTabs.map((tab) => {
-                    // No subfeed (curtidos/salvos), o pill fica neutro mas "Recentes" ganha borda sutil
-                    const isActive = tab.id === filter;
-                    const isReturnHint = isSubfeed && tab.id === "recentes";
-                    return (
-                      <button key={tab.id} onClick={() => setFilter(tab.id)}
-                        className={`px-4 py-2 rounded-full text-xs font-accent font-bold transition-all duration-300 flex items-center gap-1.5
-                          ${isActive
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
-                            : isReturnHint
-                            ? "text-muted-foreground border border-white/10 hover:text-foreground hover:bg-white/5"
-                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}>
-                        <span>{tab.emoji}</span>
-                        <span className="hidden sm:inline">{tab.label}</span>
-                      </button>
-                    );
-                  })}
+              {/* Aba Estilo Twitter (Clean & Bonita) */}
+              <div className="sticky top-[86px] sm:top-[94px] z-40 glass-card backdrop-blur-xl border-b border-white/5 rounded-t-3xl shadow-lg mb-4 overflow-hidden">
+                <div className="flex relative">
+                  {[
+                    { id: "recentes", label: "Para você" },
+                    { id: "populares", label: "Populares" }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setFilter(tab.id as FilterType)}
+                      className="flex-1 flex justify-center pt-5 pb-4 hover:bg-white/[0.04] transition-colors relative cursor-pointer group"
+                    >
+                      <span className={`text-[15px] font-display font-bold tracking-wide transition-colors ${filter === tab.id ? "text-white" : "text-white/40 group-hover:text-white/70"}`}>
+                        {tab.label}
+                      </span>
+                      {filter === tab.id && (
+                        <motion.div
+                          layoutId="activeTabUnderline"
+                          className="absolute bottom-0 h-1 w-16 shadow-[0_0_8px_rgba(var(--primary),0.8)]"
+                          style={{ background: "hsl(155 60% 45%)", borderRadius: "4px 4px 0 0" }}
+                          transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* Se tiver tagFilter, mostra um banner para limpar o filtro */}
+              {tagFilter && (
+                <div className="flex items-center justify-between glass-card p-4 rounded-2xl border border-primary/30 mb-4 bg-primary/5">
+                  <p className="text-sm text-primary font-bold">
+                    Buscando: {tagFilter}
+                  </p>
+                  <button onClick={() => navigate("/comunidade")} className="text-xs text-muted-foreground hover:text-white bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 transition-colors">
+                    Limpar Filtro
+                  </button>
+                </div>
+              )}
 
               {/* Botão Flutuante de Novas Postagens */}
               <AnimatePresence>
@@ -688,13 +799,14 @@ const CommunityPage = () => {
                       transition={{ duration: 0.2 }}
                       className="space-y-6"
                     >
-                      {displayPosts.map((post) => (
+                      {displayPosts.map((post, i) => (
                         <PostCard
-                          key={post.id}
+                          key={`${post.id}-${i}`}
                           post={post}
                           onLike={handleLike}
                           onSave={handleSave}
-                          onOpenModal={openModal}
+                          onOpenModal={() => handleOpenPost(post)}
+                          onDeleteSuccess={handleDeleteSuccess}
                           myName={myName}
                           myDisc={myDisc as any}
                           myDiscRingImg={myDiscRingImg}

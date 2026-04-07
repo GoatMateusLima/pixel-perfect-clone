@@ -356,7 +356,15 @@ const PostModal = ({
           {/* ── Descrição e Mídia ── */}
           <div className="px-6 py-4 flex-shrink-0">
             <p className="text-[15px] font-body text-foreground/90 leading-relaxed whitespace-pre-line mb-4">
-              {post.description}
+              {post.description?.split(/(#\w+)/g).map((part, i) => 
+                part.startsWith('#') ? (
+                  <span key={i} className="text-primary font-bold underline cursor-pointer hover:text-green-400" onClick={(e) => { e.stopPropagation(); onClose(); navigate(`?tag=${encodeURIComponent(part)}`); }}>
+                    {part}
+                  </span>
+                ) : (
+                  part
+                )
+              )}
             </p>
             {post.midia && post.midia !== "EMPTY" && (
               <div className="rounded-2xl overflow-hidden border border-white/5">
@@ -407,6 +415,7 @@ const PostModal = ({
                     myDiscRingImg={myDiscRingImg}
                     onReply={handleReply}
                     onDelete={handleDelete}
+                    onCloseModal={onClose}
                   />
                 ))}
                 <div ref={commentsEndRef} />

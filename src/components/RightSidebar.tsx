@@ -4,9 +4,12 @@
  * Sidebar direita da CommunityPage — notícias tech do Canaltech.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, ExternalLink, Clock, ChevronRight, Flame } from "lucide-react";
+import { TrendingUp, ExternalLink, Clock, ChevronRight, Flame, Search } from "lucide-react";
+import supabase from "../../utils/supabase.ts";
+import { useLocation } from "react-router-dom";
 
 interface NewsItem {
   id:            number;
@@ -38,10 +41,55 @@ const TRENDING = [
 
 const RightSidebar = () => {
   const [expanded, setExpanded] = useState(false);
+  const [trendingTags, setTrendingTags] = useState<{ tag: string; posts: number }[]>([]);
   const visible = expanded ? MOCK_NEWS : MOCK_NEWS.slice(0, 4);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const tagFilter = searchParams.get("tag");
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      const { data, error } = await supabase
+        .from("hashtags")
+        .select("tag, posts_count")
+        .order("posts_count", { ascending: false })
+        .limit(5);
+
+      if (!error && data) {
+        setTrendingTags(data.map((t) => ({ tag: t.tag, posts: t.posts_count })));
+      }
+    };
+    fetchTags();
+  }, []);
+
+  // Use as tags do DB, ou fallback visual se vazio ainda
+  const displayTrending = trendingTags.length > 0 ? trendingTags : TRENDING;
 
   return (
     <div className="space-y-6">
+
+      {/* ── Barra de Pesquisa ── */}
+      <div className="glass-card rounded-full border border-white/10 bg-white/[0.02] px-4 py-3 flex items-center shadow-lg backdrop-blur-md transition-all focus-within:border-primary/50 focus-within:bg-white/[0.05]">
+         <Search size={16} className="text-muted-foreground mr-3"/>
+         <input 
+           type="text" 
+           placeholder="Buscar..." 
+           className="bg-transparent border-none outline-none text-[14px] font-body w-full text-foreground placeholder:text-muted-foreground/50"
+           onKeyDown={(e) => {
+             if (e.key === 'Enter') {
+               const val = e.currentTarget.value.trim();
+               if (val) {
+                 const v = val.startsWith('#') || val.includes(' ') ? val : `#${val}`;
+                 navigate(`?tag=${encodeURIComponent(v)}`);
+               } else {
+                 navigate("/comunidade");
+               }
+             }
+           }}
+           defaultValue={tagFilter ?? ""}
+         />
+      </div>
 
       {/* ── Tópicos em Alta ── */}
       <motion.div
@@ -51,8 +99,8 @@ const RightSidebar = () => {
           <Flame size={16} className="text-primary/60" /> Tópicos em Alta
         </h3>
         <div className="space-y-5">
-          {TRENDING.map((t, i) => (
-            <motion.button key={t.tag} whileHover={{ x: 4 }} className="w-full flex items-center justify-between text-left group">
+          {displayTrending.map((t, i) => (
+            <motion.button key={t.tag} whileHover={{ x: 4 }} className="w-full flex items-center justify-between text-left group" onClick={() => navigate(`?tag=${encodeURIComponent(t.tag)}`)}>
               <div className="flex items-center gap-4">
                 <span className="text-[10px] text-white/10 font-black w-4">{String(i + 1).padStart(2, '0')}</span>
                 <span className="text-[14px] font-body font-bold text-white/80 group-hover:text-primary transition-colors duration-300 tracking-tight">{t.tag}</span>
