@@ -201,18 +201,49 @@ Deno.serve(async (req) => {
         });
         const text =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
-<<<<<<< HEAD
         try {
-          const questions = extractJsonArray(text);
-          return json({ questions });
+          const clean = text.replace(/```json|```/gi, "").trim();
+          const questions = JSON.parse(clean);
+          return json({ questions }, corsHeaders);
         } catch (e) {
-          return json({ error: "Failed to parse questions", details: String(e), raw: text }, 500);
+          return json({ error: "Failed to parse questions", details: String(e), raw: text }, corsHeaders, 500);
         }
-=======
-        const clean = text.replace(/```json|```/gi, "").trim();
-        const questions = JSON.parse(clean);
-        return json({ questions }, corsHeaders);
->>>>>>> 0cbbf6b2038c69ce5379db5fa1470c04142ed25a
+      }
+
+      case "admin_bulk_quiz": {
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (!serviceKey) return json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, corsHeaders, 500);
+        if (!groqKey) return json({ error: "GROQ_API_KEY not configured" }, corsHeaders, 500);
+
+        const courseName = String(body.courseName ?? "");
+        const aulas = body.aulas as { nome: string; descricao: string }[];
+        
+        const data = await groqPost(groqKey, {
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content: `Você é um gerador de quizzes para cursos. Sua tarefa é gerar 3 questões para CADA aula fornecida. 
+              Retorne APENAS um objeto JSON onde a CHAVE é o nome da aula e o VALOR é o array de questões.
+              Formato de cada questão: {"id": number, "text": "...", "options": ["a", "b", "c", "d"], "correct": number}
+              Não inclua markdown, não dê explicações.`
+            },
+            {
+              role: "user",
+              content: `Curso: "${courseName}". Aulas:\n${aulas.map(a => `- ${a.nome}`).join("\n")}`
+            },
+          ],
+        });
+
+        const text = (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
+        try {
+          const cleanText = text.replace(/```json|```/g, "").trim();
+          const quizzesMap = JSON.parse(cleanText);
+          return json({ quizzes: quizzesMap }, corsHeaders);
+        } catch (e) {
+          return json({ error: "Failed to parse bulk quiz JSON", raw: text }, corsHeaders, 500);
+        }
       }
 
       case "admin_quiz_insert": {
@@ -249,25 +280,16 @@ Deno.serve(async (req) => {
         });
         const text =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
-<<<<<<< HEAD
         try {
-          const questions = extractJsonArray(text);
+          const cleanText = text.replace(/```json|```/g, "").trim();
+          const questions = JSON.parse(cleanText);
           const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
           const { error: insErr } = await admin.from("quizzes").insert({ aula_id: aulaId, questions });
-          if (insErr) return json({ error: insErr.message }, 400);
-          return json({ ok: true });
+          if (insErr) return json({ error: insErr.message }, corsHeaders, 400);
+          return json({ ok: true }, corsHeaders);
         } catch (e) {
-          return json({ error: "Failed to parse generated questions", details: String(e), raw: text }, 500);
+          return json({ error: "Failed to parse generated questions", details: String(e), raw: text }, corsHeaders, 500);
         }
-=======
-        text = text.replace(/```json|```/g, "").trim();
-        const questions = JSON.parse(text);
-
-        const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
-        const { error: insErr } = await admin.from("quizzes").insert({ aula_id: aulaId, questions });
-        if (insErr) return json({ error: insErr.message }, corsHeaders, 400);
-        return json({ ok: true }, corsHeaders);
->>>>>>> 0cbbf6b2038c69ce5379db5fa1470c04142ed25a
       }
 
       case "youtube_playlist": {

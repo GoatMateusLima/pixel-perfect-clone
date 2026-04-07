@@ -1,7 +1,5 @@
-/** 
- * Proxy de chamadas para APIs externas.
- * Agora realizando requisições DIRETAS do cliente com lógica de RETRY para o Groq.
- */
+import { invokeApiProxy as invokeRemoteProxy } from "@/lib/apiProxy";
+import supabase from "../../utils/supabase";
 
 export type ApiProxyChatMessage = {
   role: "system" | "user" | "assistant";
@@ -93,19 +91,26 @@ export async function invokeApiProxy<T = unknown>(
           continue;
         }
         
-        if (action === "admin_quiz_insert") {
-          const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "[]";
-          const questions = JSON.parse(text);
-          const { default: supabase } = await import("../../utils/supabase");
-          const { error: insErr } = await supabase.from("quizzes").insert({ aula_id: payload.aulaId, questions });
-          if (insErr) throw insErr;
-          return { data: { ok: true } as any as T, error: null };
-        }
+          if (action === "admin_quiz_insert") {
+            const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "[]";
+            const questions = JSON.parse(text);
+            const { error: insErr } = await supabase.from("quizzes").insert({ aula_id: payload.aulaId, questions });
+            if (insErr) throw insErr;
+            return { data: { ok: true } as any as T, error: null };
+          }
 
         return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
       }
       
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
+    }
+
+    if (action === "quiz_tab" || action === "moderate_text" || action === "moderate_vision" || action === "admin_bulk_quiz") {
+      const { data, error } = await supabase.functions.invoke("api-proxy", {
+        body: { action, ...payload },
+      });
+      if (error) throw error;
+      return { data: data as T, error: null };
     }
 
     return { data: null, error: new Error(`Unknown action: ${action}`) };

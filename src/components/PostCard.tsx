@@ -162,6 +162,7 @@ interface PostCardProps {
   myName?:        string;
   myDisc?:        string;
   myDiscRingImg?: string;
+  onDeleteSuccess?: (postId: string) => void;
 }
 
 const PostCard = ({
@@ -172,6 +173,7 @@ const PostCard = ({
   onOpenModal,
   myName    = "",
   myDiscRingImg,
+  onDeleteSuccess,
 }: PostCardProps) => {
 
   const [fetchedPost, setFetchedPost] = useState<Post | null>(null);
@@ -272,6 +274,22 @@ const PostCard = ({
     setShowMenu(false);
   };
 
+  const handleDelete = async () => {
+    if (!post?.id) return;
+    if (!confirm("Tem certeza que deseja excluir esta publicação?")) return;
+    
+    try {
+      const { error } = await supabase.from("publications").delete().eq("id", post.id);
+      if (error) throw error;
+      onDeleteSuccess?.(post.id);
+    } catch (err) {
+      console.error("Erro ao excluir post:", err);
+      alert("Não foi possível excluir a publicação.");
+    } finally {
+      setShowMenu(false);
+    }
+  };
+
   return (
     <motion.div
       className="glass-card relative mb-6 last:mb-0 group/card rounded-3xl border-white/5 shadow-2xl overflow-hidden">
@@ -321,6 +339,11 @@ const PostCard = ({
                 <button onClick={copyLink} className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">
                   Copiar link
                 </button>
+                {isMe && (
+                  <button onClick={handleDelete} className="w-full text-left px-3 py-1.5 text-red-500/70 hover:text-red-400 hover:bg-red-500/10 transition font-bold">
+                    Excluir post
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
