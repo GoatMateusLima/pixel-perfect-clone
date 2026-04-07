@@ -55,6 +55,9 @@ Formato obrigatório:
 
 O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
+  // Aguarda 2 segundos para dar tempo de gerar o prompt e as questões com maior confiabilidade
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
   if (error) throw new Error(error.message);
   const parsed = data?.questions;
