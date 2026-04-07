@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CornerDownRight, Send, Trash2, ImageIcon, Video, Smile, X } from "lucide-react";
 import { UserAvatar, toInitials, DISC_COLOR } from "./PostCard";
@@ -73,6 +74,7 @@ interface CommentItemProps {
   // NOVO: A função de reply agora aceita arquivo e gif
   onReply:      (parentId: string, text: string, mediaFile: File | null, gifUrl: string | null) => Promise<void>;
   onDelete:     (commentId: string) => Promise<void>;
+  onCloseModal?: () => void;
 }
 
 const ACCEPTED_IMAGE = "image/jpeg,image/png,image/webp";
@@ -80,9 +82,10 @@ const ACCEPTED_VIDEO = "video/mp4,video/webm,video/ogg,video/quicktime";
 
 const CommentItem = ({
   comment, myUserId, myName, myAvatarUrl, myDisc, myDiscRingImg,
-  depth = 0, onReply, onDelete,
+  depth = 0, onReply, onDelete, onCloseModal
 }: CommentItemProps) => {
   const [showReplyInput, setShowReplyInput] = useState(false);
+  const navigate = useNavigate();
   const [replyText,      setReplyText]      = useState("");
   const [submitting,     setSubmitting]     = useState(false);
   const [showReplies,    setShowReplies]    = useState(true);
@@ -165,8 +168,20 @@ const CommentItem = ({
             
             {/* Texto do comentário */}
             {comment.comment && (
-              <p className="text-[14px] font-body text-foreground/80 leading-relaxed">
-                {comment.comment}
+              <p className="text-[14px] font-body text-foreground/80 leading-relaxed whitespace-pre-line">
+                {comment.comment?.split(/(#\w+)/g).map((part, i) => 
+                  part.startsWith('#') ? (
+                    <span key={i} className="text-primary font-bold underline cursor-pointer hover:text-green-400" onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (onCloseModal) onCloseModal(); 
+                      navigate(`?tag=${encodeURIComponent(part)}`); 
+                    }}>
+                      {part}
+                    </span>
+                  ) : (
+                    part
+                  )
+                )}
               </p>
             )}
 
@@ -307,6 +322,7 @@ const CommentItem = ({
                     depth={1}
                     onReply={onReply}
                     onDelete={onDelete}
+                    onCloseModal={onCloseModal}
                   />
                 ))}
               </div>
