@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, CheckCircle2, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { invokeApiProxy } from "@/lib/apiProxy";
+import supabase from "../../utils/supabase";
 
 export interface QuizQuestion {
   id: number;
@@ -13,6 +14,8 @@ export interface QuizQuestion {
 interface QuizTabProps {
   /** Tópico ou conteúdo da aula para gerar as questões */
   topic?: string;
+  /** ID da aula no banco de dados para persistência */
+  aulaId?: number | string;
   /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
@@ -68,7 +71,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false, aulaId }: QuizTabProps) => {
+const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -99,7 +102,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
         const { data, error } = await supabase
           .from("quizzes")
           .select("questions")
-          .eq("aula_id", Number(aulaId))
+          .eq("aula_id", aulaId)
           .maybeSingle();
 
         if (data?.questions && Array.isArray(data.questions)) {
@@ -132,7 +135,7 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
     } finally {
       setGenerating(false);
     }
-  }, [topic, questions]);
+  }, [topic, aulaId, questions]);
 
   // Resetar tudo quando a aula mudar para evitar lixo da aula anterior
   useEffect(() => {

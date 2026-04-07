@@ -113,9 +113,13 @@ export async function invokeApiProxy<T = unknown>(
         if (action === "quiz_tab") {
           try {
             const questions = JSON.parse(text || "[]");
+<<<<<<< HEAD
             const parsedQuestions = Array.isArray(questions) ? questions : (questions.questions || []);
             // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
             const valid = Array.isArray(parsedQuestions) ? parsedQuestions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
+=======
+            const valid = Array.isArray(questions) ? questions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
+>>>>>>> aecfd93ce1bdfded17d313e547e4b0552fcb3548
             return { data: { questions: valid } as any as T, error: null };
           } catch (e) {
             console.error("[apiProxy] Erro parse JSON quiz:", e, text);
@@ -128,8 +132,12 @@ export async function invokeApiProxy<T = unknown>(
             const quizzes = JSON.parse(text || "{}");
             return { data: { quizzes } as any as T, error: null };
           } catch (e) {
+<<<<<<< HEAD
             console.error("[apiProxy] Erro parse JSON bulk quiz:", e, text);
             throw new Error("Resposta da IA formatada incorretamente.");
+=======
+            return { data: null, error: new Error("Erro no JSON no admin bulk quiz") };
+>>>>>>> aecfd93ce1bdfded17d313e547e4b0552fcb3548
           }
         }
 
