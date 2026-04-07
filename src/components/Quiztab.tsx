@@ -19,6 +19,7 @@ interface QuizTabProps {
   onNext?: () => void;
   isLast?: boolean;
   loading?: boolean;
+  alreadyPassed?: boolean;
 }
 
 const QUESTIONS_PER_QUIZ = 5;
@@ -54,6 +55,9 @@ Formato obrigatório:
 
 O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
+  // Aguarda 2 segundos para dar tempo de gerar o prompt e as questões com maior confiabilidade
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
   if (error) throw new Error(error.message);
   const parsed = data?.questions;
@@ -63,7 +67,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false }: QuizTabProps) => {
+const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -74,9 +78,12 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   const [passed, setPassed] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
 
   // Gera ou carrega questões
   const loadQuestions = useCallback(async () => {
+    resetState(); // Sempre reseta o estado ao carregar novas questões (ex: troca de aula)
+
     // Se vieram questões fixas por prop, usa elas
     if (questions && questions.length > 0) {
       const shuffled = [...questions].sort(() => Math.random() - 0.5);
@@ -95,17 +102,19 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
       const shuffled = [...generated].sort(() => Math.random() - 0.5);
       setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
-      setGenError("Não foi possível gerar as questões. Tente novamente.");
-      //console.error(Response.ok);
+      setGenError("Não foi possível gerar as questões. O ORION pode estar sobrecarregado ou a função não foi implantada.");
+      console.error("[QuizTab] Error generating questions:", err);
     } finally {
       setGenerating(false);
     }
   }, [topic, questions]);
 
-  // Carrega na montagem
+  // Carrega na montagem apenas se o usuario iniciar
   useEffect(() => {
-    loadQuestions();
-  }, [loadQuestions]);
+    if (started && !alreadyPassed && queue.length === 0 && !genError) {
+      loadQuestions();
+    }
+  }, [started, loadQuestions, alreadyPassed, queue.length, genError]);
 
   const resetState = () => {
     setCurrent(0);
@@ -154,6 +163,67 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
   };
 
   const isLoading = externalLoading || generating;
+
+  // ── Intro Screen (Not started yet) ──
+  if (!started && !alreadyPassed) {
+    return (
+      <motion.div
+        initial={{ opacity: 1, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-4 text-center"
+      >
+        <ClipboardList size={48} className="text-primary mb-2" style={{ filter: "drop-shadow(0 0 12px hsl(155 60% 45% / 0.5))" }} />
+        <h2 className="font-display text-xl font-bold text-foreground">Pronto para o Quiz?</h2>
+        <p className="text-sm font-body text-muted-foreground mb-4">
+          {!questions || questions.length === 0
+            ? "As questões serão geradas pela IA sob medida para esta aula."
+            : "Teste seus conhecimentos com as questões preparadas para esta aula."}
+        </p>
+        <button
+          onClick={() => setStarted(true)}
+          className="flex items-center gap-2 px-8 py-3 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+          style={{ boxShadow: "0 0 16px hsl(155 60% 45% / 0.4)" }}
+        >
+          Iniciar Quiz <ChevronRight size={14} />
+        </button>
+      </motion.div>
+    );
+  }
+
+  // ── Se já passou ──
+  if (alreadyPassed && !finished && queue.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 1, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="hologram-panel rounded-sm p-8 max-w-lg mx-auto text-center"
+      >
+        <CheckCircle2 size={56} className="mx-auto mb-5" style={{ color: "hsl(155 60% 45%)", filter: "drop-shadow(0 0 16px hsl(155 60% 45% / 0.7))" }} />
+        <h2 className="font-display text-xl font-bold text-foreground mb-2">Quiz Concluído!</h2>
+        <p className="text-muted-foreground font-body text-sm mb-6">
+          Você já completou o quiz desta aula. Suas questões não são mais exibidas.
+        </p>
+        <div className="flex justify-center gap-3">
+          {!isLast && (
+            <button
+              onClick={onNext}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+              style={{ boxShadow: "0 0 14px hsl(155 60% 45% / 0.5)" }}
+            >
+              Próxima Aula <ChevronRight size={14} />
+            </button>
+          )}
+          {isLast && (
+            <span className="flex items-center gap-2 px-6 py-2.5 rounded-sm border border-primary/40 text-primary text-sm font-accent font-bold">
+              🏆 Curso Concluído!
+            </span>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
 
   // ── Loading ──
   if (isLoading) {

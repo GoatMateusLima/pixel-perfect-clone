@@ -266,27 +266,7 @@ const LeftSidebar = ({
         </div>
       </motion.div>
 
-      {/* ── Comunidade Hoje ── */}
-      <motion.div
-        initial={{ opacity: 1, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-card p-7 border border-white/5 rounded-3xl shadow-xl">
-        <h3 className="font-display text-[10px] font-black text-white/30 mb-6 flex items-center gap-3 uppercase tracking-[0.2em]">
-          <Zap size={16} className="text-primary/60" /> Atividade
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          {[
-            { label: "Membros", value: "2.4k" },
-            { label: "Insights", value: "138"  },
-            { label: "Online",  value: "94"   },
-            { label: "Vagas",   value: "412"  },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-2xl p-4 bg-white/[0.02] border border-white/[0.05] group/stat hover:bg-white/[0.04] transition-all duration-300">
-              <p className="font-display text-lg font-black text-white group-hover/stat:text-primary transition-colors">{value}</p>
-              <p className="text-[9px] text-white/20 font-black uppercase tracking-[0.1em] mt-1">{label}</p>
-            </div>
-          ))}
-        </div>
-      </motion.div>
+
     </div>
   );
 };

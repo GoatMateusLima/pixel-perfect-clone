@@ -58,6 +58,21 @@ async function groqPost(groqKey: string, body: Record<string, unknown>) {
   return r.json();
 }
 
+function extractJsonArray(text: string) {
+  try {
+    const start = text.indexOf("[");
+    const end = text.lastIndexOf("]");
+    if (start === -1 || end === -1 || end < start) {
+      throw new Error("No JSON array found in response");
+    }
+    const clean = text.substring(start, end + 1).trim();
+    return JSON.parse(clean);
+  } catch (e) {
+    console.error("[extractJsonArray] Error:", String(e), "Raw text:", text);
+    throw e;
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -186,9 +201,18 @@ Deno.serve(async (req) => {
         });
         const text =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
+<<<<<<< HEAD
+        try {
+          const questions = extractJsonArray(text);
+          return json({ questions });
+        } catch (e) {
+          return json({ error: "Failed to parse questions", details: String(e), raw: text }, 500);
+        }
+=======
         const clean = text.replace(/```json|```/gi, "").trim();
         const questions = JSON.parse(clean);
         return json({ questions }, corsHeaders);
+>>>>>>> 0cbbf6b2038c69ce5379db5fa1470c04142ed25a
       }
 
       case "admin_quiz_insert": {
@@ -223,8 +247,19 @@ Deno.serve(async (req) => {
             },
           ],
         });
-        let text =
+        const text =
           (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ?? "";
+<<<<<<< HEAD
+        try {
+          const questions = extractJsonArray(text);
+          const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+          const { error: insErr } = await admin.from("quizzes").insert({ aula_id: aulaId, questions });
+          if (insErr) return json({ error: insErr.message }, 400);
+          return json({ ok: true });
+        } catch (e) {
+          return json({ error: "Failed to parse generated questions", details: String(e), raw: text }, 500);
+        }
+=======
         text = text.replace(/```json|```/g, "").trim();
         const questions = JSON.parse(text);
 
@@ -232,6 +267,7 @@ Deno.serve(async (req) => {
         const { error: insErr } = await admin.from("quizzes").insert({ aula_id: aulaId, questions });
         if (insErr) return json({ error: insErr.message }, corsHeaders, 400);
         return json({ ok: true }, corsHeaders);
+>>>>>>> 0cbbf6b2038c69ce5379db5fa1470c04142ed25a
       }
 
       case "youtube_playlist": {
