@@ -10,9 +10,13 @@ export interface QuizQuestion {
   correct: number;
 }
 
+import supabase from "../../utils/supabase";
+
 interface QuizTabProps {
   /** Tópico ou conteúdo da aula para gerar as questões */
   topic?: string;
+  /** ID da aula no banco de dados para persistência */
+  aulaId?: number | string;
   /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
@@ -55,8 +59,11 @@ Formato obrigatório:
 
 O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
+  // Aguarda 2 segundos para dar tempo de gerar o prompt e as questões com maior confiabilidade
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
@@ -64,7 +71,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
+const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -88,30 +95,55 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
       return;
     }
 
-    // Sem tópico e sem questões fixas: nada a fazer
-    if (!topic) return;
+    // Tenta carregar do banco de dados antes de gerar via IA
+    if (aulaId) {
+      setGenerating(true);
+      try {
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select("questions")
+          .eq("aula_id", aulaId)
+          .maybeSingle();
 
-    // Gera via IA
-    setGenerating(true);
-    setGenError(null);
-    try {
-      const generated = await generateQuestions(topic);
-      const shuffled = [...generated].sort(() => Math.random() - 0.5);
-      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
-    } catch (err) {
-      setGenError("Não foi possível gerar as questões. O ORION pode estar sobrecarregado ou a função não foi implantada.");
-      console.error("[QuizTab] Error generating questions:", err);
-    } finally {
+        if (data?.questions && Array.isArray(data.questions)) {
+          const loadedQuestions = data.questions as QuizQuestion[];
+          const shuffled = [...loadedQuestions].sort(() => Math.random() - 0.5);
+          setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
+          setGenerating(false);
+          return;
+        }
+        if (error) console.error("[Quiz] Erro ao carregar do banco:", error);
+      } catch (err) {
+        console.error("[Quiz] Falha na consulta ao banco:", err);
+      }
       setGenerating(false);
     }
-  }, [topic, questions]);
+
+    if (!topic) return;
+
+    // A geração via IA foi desativada aqui (o Admin é responsável por gerar)
+    setGenError("Este quiz ainda não foi preparado. Por favor, aguarde o instrutor ou entre em contato com o suporte.");
+    setGenerating(false);
+  }, [topic, aulaId, questions]);
+
+  // Resetar tudo quando a aula mudar para evitar lixo da aula anterior
+  useEffect(() => {
+    setQueue([]);
+    setStarted(false);
+    setGenError(null);
+    setFinished(false);
+    setScore(0);
+    setCurrent(0);
+    setSelected(null);
+    setConfirmed(false);
+  }, [aulaId]);
 
   // Carrega na montagem apenas se o usuario iniciar
   useEffect(() => {
-    if (started && !alreadyPassed && queue.length === 0 && !genError) {
+    if (started && !alreadyPassed && queue.length === 0 && !genError && !generating) {
       loadQuestions();
     }
-  }, [started, loadQuestions, alreadyPassed, queue.length, genError]);
+  }, [started, loadQuestions, alreadyPassed, queue.length, genError, generating]);
 
   const resetState = () => {
     setCurrent(0);
@@ -119,6 +151,8 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
     setConfirmed(false);
     setScore(0);
     setFinished(false);
+    setQueue([]);
+    setGenError(null);
   };
 
   const handleSelect = (idx: number) => { if (!confirmed) setSelected(idx); };

@@ -89,7 +89,7 @@ const CommunityPage = () => {
       // 2. Busca curso mais recente na tabela watch
       const { data: watchData } = await supabase
         .from("watch")
-        .select("course_id, courses!course_id(id, name)")
+        .select("course_id, courses(id, name)")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
         .limit(1)

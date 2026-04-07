@@ -342,15 +342,35 @@ const AdminPage = () => {
 
           if (aulasError) throw new Error("Curso criado, mas erro ao salvar aulas: " + aulasError.message);
 
-          // 3. Gera quizzes via ORION para cada aula (Sequencialmente para evitar Rate Limit 429)
+          // 3. Gera quizzes via ORION para TODAS as aulas de uma só vez (Bulk)
           if (savedAulas && savedAulas.length > 0) {
-            let count = 1;
-            for (const a of savedAulas) {
-              setSaveStatus(`ORION gerando quiz (${count}/${savedAulas.length}): ${a.nome}...`);
-              await generateQuizForAula(String(a.id), a.nome ?? "", a.descricao ?? "");
-              count++;
-              // Delay de 1s conforme solicitado
-              await new Promise(resolve => setTimeout(resolve, 1000));
+            setSaveStatus(`ORION gerando quizzes para ${savedAulas.length} aulas (Bulk)...`);
+            
+            const { data: bulkData, error: bulkError } = await invokeApiProxy<{ quizzes: Record<string, any[]> }>("admin_bulk_quiz", {
+              courseName: courseForm.name,
+              aulas: videos.map(v => ({ nome: v.nome, descricao: v.descricao }))
+            });
+
+            if (bulkError || !bulkData?.quizzes) {
+              console.error("[Bulk Quiz Error]:", bulkError);
+              notify("error", "Curso e aulas criados, mas houve um erro ao gerar os quizzes em massa.");
+            } else {
+              setSaveStatus("Processando e salvando quizzes no banco...");
+              
+              // Mapeia o nome da aula salva para o seu ID e as questões geradas
+              const quizzesParaInserir = savedAulas.map(a => {
+                const questions = bulkData.quizzes[a.nome ?? ""] || bulkData.quizzes[Object.keys(bulkData.quizzes).find(k => k.includes(a.nome ?? "")) || ""];
+                if (questions) {
+                  return { aula_id: a.id, questions };
+                }
+                return null;
+              }).filter(q => q !== null);
+
+              if (quizzesParaInserir.length > 0) {
+                const { error: finalError } = await supabase.from("quizzes").insert(quizzesParaInserir);
+                if (finalError) console.error("[Quizzes Insert Error]:", finalError);
+                else console.log(`[Quiz] ${quizzesParaInserir.length} quizzes salvos com sucesso!`);
+              }
             }
           }
         }
