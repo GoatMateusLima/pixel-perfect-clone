@@ -10,13 +10,9 @@ export interface QuizQuestion {
   correct: number;
 }
 
-import supabase from "../../utils/supabase";
-
 interface QuizTabProps {
   /** Tópico ou conteúdo da aula para gerar as questões */
   topic?: string;
-  /** ID da aula no banco de dados para persistência */
-  aulaId?: number | string;
   /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
@@ -63,7 +59,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
@@ -71,7 +67,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
+const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -95,30 +91,7 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
       return;
     }
 
-    // Tenta carregar do banco de dados antes de gerar via IA
-    if (aulaId) {
-      setGenerating(true);
-      try {
-        const { data, error } = await supabase
-          .from("quizzes")
-          .select("questions")
-          .eq("aula_id", aulaId)
-          .maybeSingle();
-
-        if (data?.questions && Array.isArray(data.questions)) {
-          const loadedQuestions = data.questions as QuizQuestion[];
-          const shuffled = [...loadedQuestions].sort(() => Math.random() - 0.5);
-          setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
-          setGenerating(false);
-          return;
-        }
-        if (error) console.error("[Quiz] Erro ao carregar do banco:", error);
-      } catch (err) {
-        console.error("[Quiz] Falha na consulta ao banco:", err);
-      }
-      setGenerating(false);
-    }
-
+    // Sem tópico e sem questões fixas: nada a fazer
     if (!topic) return;
 
     // Gera via IA
@@ -126,27 +99,15 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
     setGenError(null);
     try {
       const generated = await generateQuestions(topic);
-      if (generated.length > 0) {
-        const shuffled = [...generated].sort(() => Math.random() - 0.5);
-        setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
-
-        // Salva as questões geradas no banco para uso futuro
-        if (aulaId) {
-          await supabase.from("quizzes")
-            .upsert({ 
-              aula_id: aulaId, 
-              questions: generated 
-            }, { onConflict: "aula_id" });
-          console.log("[Quiz] Questões geradas e salvas no banco.");
-        }
-      }
+      const shuffled = [...generated].sort(() => Math.random() - 0.5);
+      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
       setGenError("Não foi possível gerar as questões. O ORION pode estar sobrecarregado ou a função não foi implantada.");
       console.error("[QuizTab] Error generating questions:", err);
     } finally {
       setGenerating(false);
     }
-  }, [topic, aulaId, questions]);
+  }, [topic, questions]);
 
   // Carrega na montagem apenas se o usuario iniciar
   useEffect(() => {
