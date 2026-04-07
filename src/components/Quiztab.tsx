@@ -102,7 +102,7 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
         const { data, error } = await supabase
           .from("quizzes")
           .select("questions")
-          .eq("aula_id", aulaId)
+          .eq("aula_id", Number(aulaId))
           .maybeSingle();
 
         if (data?.questions && Array.isArray(data.questions)) {
@@ -116,20 +116,21 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
       } catch (err) {
         console.error("[Quiz] Falha na consulta ao banco:", err);
       }
-      setGenerating(false);
     }
 
-    if (!topic) return;
+    if (!topic) {
+      setGenError("Conteúdo da aula não identificado para gerar o quiz.");
+      setGenerating(false);
+      return;
+    }
 
-    // Regera via IA se não achou no banco
-    setGenerating(true);
-    setGenError(null);
+    // Se não encontrou no banco, gera via IA (Plano B)
     try {
       const generated = await generateQuestions(topic);
       setQueue(generated);
     } catch (err) {
-      console.error("[Quiz] Falha ao gerar via IA:", err);
-      setGenError("Este quiz ainda não está pronto e houve um erro ao gerá-lo por Inteligência Artificial. Tente novamente mais tarde.");
+      setGenError("Não foi possível carregar ou gerar o quiz. Tente novamente.");
+      console.error("[Quiz Gen Error]:", err);
     } finally {
       setGenerating(false);
     }
@@ -149,10 +150,10 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
 
   // Carrega na montagem apenas se o usuario iniciar
   useEffect(() => {
-    if (started && !alreadyPassed && queue.length === 0 && !genError && !generating) {
+    if (started && queue.length === 0 && !genError && !generating) {
       loadQuestions();
     }
-  }, [started, loadQuestions, alreadyPassed, queue.length, genError, generating]);
+  }, [started, aulaId, queue.length, genError, generating, loadQuestions]);
 
   const resetState = () => {
     setCurrent(0);
