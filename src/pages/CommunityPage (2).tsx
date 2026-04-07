@@ -806,7 +806,6 @@ const CommunityPage = () => {
                           onLike={handleLike}
                           onSave={handleSave}
                           onOpenModal={() => handleOpenPost(post)}
-                          onDeleteSuccess={handleDeleteSuccess}
                           myName={myName}
                           myDisc={myDisc as any}
                           myDiscRingImg={myDiscRingImg}
