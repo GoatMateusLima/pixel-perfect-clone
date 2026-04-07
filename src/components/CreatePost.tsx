@@ -4,7 +4,6 @@ import { ImageIcon, X, MessageSquarePlus, Video, Loader2, Smile } from "lucide-r
 import supabase from "../../utils/supabase.ts";
 import PostMedia from "./PostMedia";
 import GifPicker from "./GifPicker";
-import { useModeration } from "../hooks/useModeration.ts";
 import { useAuth } from "../contexts/AuthContext";
 
 const BUCKET        = "ComunityPost";
@@ -31,7 +30,6 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
   const [error,     setError]     = useState<string | null>(null);
 
   const fileRef    = useRef<HTMLInputElement>(null);
-  const { moderate } = useModeration();
   const { user, profilePhoto } = useAuth();
   
   // O creator_id REAL vem sempre do AuthContext, nunca de props para evitar IDOR no frontend
@@ -78,15 +76,6 @@ const CreatePost = ({ onPost, myCreatorId, myAvatarUrl }: CreatePostProps) => {
     setUploadPct(10);
 
     try {
-      // 0. Moderação via Groq antes de publicar
-      const modResult = await moderate(description, mediaFile, gifUrl);
-      if (!modResult.approved) {
-        setError(modResult.reason ?? "Conteúdo não permitido na comunidade UpJobs.");
-        setUploading(false);
-        return;
-      }
-
-      // 1. Insere o post
       const postData = {
         description: description.trim(),
         midia:       "EMPTY",
