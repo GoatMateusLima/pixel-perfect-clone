@@ -102,7 +102,7 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
         const { data, error } = await supabase
           .from("quizzes")
           .select("questions")
-          .eq("aula_id", Number(aulaId))
+          .eq("aula_id", aulaId)
           .maybeSingle();
 
         if (data?.questions && Array.isArray(data.questions)) {
@@ -312,19 +312,26 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
     );
   }
 
-  // ── Sem tópico e sem questões ──
-  if (!topic && (!questions || questions.length === 0)) {
+  // ─── Sem questões encontradas ───
+  if (!isLoading && !genError && queue.length === 0 && (started || alreadyPassed)) {
     return (
       <motion.div
         initial={{ opacity: 1, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-3 text-center"
+        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-4 text-center"
       >
         <ClipboardList size={40} className="text-muted-foreground/40" />
+        <h3 className="text-lg font-display font-bold text-foreground">Quiz indisponível</h3>
         <p className="text-sm font-body text-muted-foreground">
-          Forneça um <code className="text-primary">topic</code> ou <code className="text-primary">questions</code> para iniciar o quiz.
+          Não conseguimos encontrar ou gerar questões para esta aula. Verifique com o administrador se os quizzes foram gerados.
         </p>
+        <button
+          onClick={loadQuestions}
+          className="px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+        >
+          Tentar Gerar Agora
+        </button>
       </motion.div>
     );
   }
@@ -496,7 +503,7 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
           <h3 className="font-display text-base font-bold text-foreground leading-snug">{q.text}</h3>
 
           <div className="space-y-3">
-            {q.options.map((opt, idx) => {
+            {q.options?.map?.((opt, idx) => {
               let state = "default";
               if (confirmed) {
                 if (idx === q.correct) state = "correct";

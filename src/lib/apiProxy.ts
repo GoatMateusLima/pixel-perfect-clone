@@ -74,7 +74,7 @@ export async function invokeApiProxy<T = unknown>(
         const aulas = payload.aulas as { nome: string; descricao: string }[];
         messages.push({ 
           role: "system", 
-          content: "Você é um gerador de quizzes em lote. Responda APENAS um objeto JSON onde a CHAVE é o nome exato da aula e o VALOR é um array de 3 questões. Sem markdown." 
+          content: "Você é um gerador de quizzes em lote. Responda APENAS um objeto JSON onde a CHAVE é o nome exato da aula e o VALOR é um array de 3 questões seguindo EXATAMENTE este formato: { \"id\": 1, \"text\": \"...\", \"options\": [\"a\",\"b\",\"c\",\"d\"], \"correct\": 0 }. Sem markdown ou backticks." 
         });
         messages.push({ 
           role: "user", 
@@ -113,11 +113,15 @@ export async function invokeApiProxy<T = unknown>(
         }
 
         if (action === "quiz_tab") {
-          return { data: { questions: JSON.parse(text) } as any as T, error: null };
+          const questions = JSON.parse(text);
+          // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
+          const valid = Array.isArray(questions) ? questions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
+          return { data: { questions: valid } as any as T, error: null };
         }
 
         if (action === "admin_bulk_quiz") {
-          return { data: { quizzes: JSON.parse(text) } as any as T, error: null };
+          const quizzes = JSON.parse(text);
+          return { data: { quizzes } as any as T, error: null };
         }
 
         return { data: { reply: text, raw: res } as any as T, error: null };
