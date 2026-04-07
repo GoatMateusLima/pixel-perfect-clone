@@ -63,7 +63,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
