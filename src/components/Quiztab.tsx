@@ -10,13 +10,9 @@ export interface QuizQuestion {
   correct: number;
 }
 
-import supabase from "../../utils/supabase";
-
 interface QuizTabProps {
   /** Tópico ou conteúdo da aula para gerar as questões */
   topic?: string;
-  /** ID da aula no banco de dados para persistência */
-  aulaId?: number | string;
   /** Questões fixas (se preferir não usar geração por IA) */
   questions?: QuizQuestion[];
   onPass?: () => void;
@@ -63,7 +59,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
@@ -71,7 +67,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
+const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -102,7 +98,7 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
         const { data, error } = await supabase
           .from("quizzes")
           .select("questions")
-          .eq("aula_id", aulaId)
+          .eq("aula_id", Number(aulaId))
           .maybeSingle();
 
         if (data?.questions && Array.isArray(data.questions)) {
@@ -127,14 +123,15 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
     // Se não encontrou no banco, gera via IA (Plano B)
     try {
       const generated = await generateQuestions(topic);
-      setQueue(generated);
+      const shuffled = [...generated].sort(() => Math.random() - 0.5);
+      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
       setGenError("Não foi possível carregar ou gerar o quiz. Tente novamente.");
       console.error("[Quiz Gen Error]:", err);
     } finally {
       setGenerating(false);
     }
-  }, [topic, aulaId, questions]);
+  }, [topic, questions]);
 
   // Resetar tudo quando a aula mudar para evitar lixo da aula anterior
   useEffect(() => {

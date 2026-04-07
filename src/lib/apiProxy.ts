@@ -54,8 +54,7 @@ export async function invokeApiProxy<T = unknown>(
       return { data: { results: data.results ?? [], next: data.next ?? null } as any as T, error: null };
     }
 
-    // ─── AÇÕES DE IA (DIRETO NO GROQ PARA EVITAR CORS) ───
-    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab" || action === "admin_bulk_quiz") {
+    if (action === "chat" || action === "admin_quiz_insert") {
       const key = import.meta.env.VITE_AI_KEY;
       const messages: ApiProxyChatMessage[] = (payload.messages as ApiProxyChatMessage[]) || [];
       
@@ -64,6 +63,7 @@ export async function invokeApiProxy<T = unknown>(
         messages.push({ role: "user", content: `Gere um quiz de 3 perguntas para a aula: "${payload.aulaNome}". Descrição: "${payload.aulaDesc}"` });
       }
 
+<<<<<<< HEAD
       if (action === "quiz_tab") {
         messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais. Responda APENAS com JSON: {\"questions\": [...]}. Sem markdown." });
         messages.push({ role: "user", content: String(payload.prompt || "") });
@@ -82,6 +82,8 @@ export async function invokeApiProxy<T = unknown>(
         });
       }
 
+=======
+>>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
       // LÓGICA DE RETRY (3 tentativas)
       let lastError: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -112,6 +114,7 @@ export async function invokeApiProxy<T = unknown>(
           return { data: { ok: true } as any as T, error: null };
         }
 
+<<<<<<< HEAD
         if (action === "quiz_tab") {
           const questions = JSON.parse(text);
           // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
@@ -125,6 +128,9 @@ export async function invokeApiProxy<T = unknown>(
         }
 
         return { data: { reply: text, raw: res } as any as T, error: null };
+=======
+        return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
+>>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
       }
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
     }
