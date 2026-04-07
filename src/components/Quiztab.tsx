@@ -91,49 +91,14 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
       return;
     }
 
-<<<<<<< HEAD
     // Sem tópico e sem questões fixas: nada a fazer
     if (!topic) return;
-=======
-    // Tenta carregar do banco de dados antes de gerar via IA
-    if (aulaId) {
-      setGenerating(true);
-      try {
-        const { data, error } = await supabase
-          .from("quizzes")
-          .select("questions")
-          .eq("aula_id", Number(aulaId))
-          .maybeSingle();
-
-        if (data?.questions && Array.isArray(data.questions)) {
-          const loadedQuestions = data.questions as QuizQuestion[];
-          const shuffled = [...loadedQuestions].sort(() => Math.random() - 0.5);
-          setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
-          setGenerating(false);
-          return;
-        }
-        if (error) console.error("[Quiz] Erro ao carregar do banco:", error);
-      } catch (err) {
-        console.error("[Quiz] Falha na consulta ao banco:", err);
-      }
-    }
-
-    if (!topic) {
-      setGenError("Conteúdo da aula não identificado para gerar o quiz.");
-      setGenerating(false);
-      return;
-    }
->>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
 
     // Se não encontrou no banco, gera via IA (Plano B)
     try {
       const generated = await generateQuestions(topic);
-<<<<<<< HEAD
       const shuffled = [...generated].sort(() => Math.random() - 0.5);
       setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
-=======
-      setQueue(generated);
->>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
     } catch (err) {
       setGenError("Não foi possível carregar ou gerar o quiz. Tente novamente.");
       console.error("[Quiz Gen Error]:", err);

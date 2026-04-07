@@ -54,12 +54,7 @@ export async function invokeApiProxy<T = unknown>(
       return { data: { results: data.results ?? [], next: data.next ?? null } as any as T, error: null };
     }
 
-<<<<<<< HEAD
     if (action === "chat" || action === "admin_quiz_insert") {
-=======
-    // ─── AÇÕES DE IA (DIRETO NO GROQ PARA EVITAR CORS) ───
-    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab" || action === "admin_bulk_quiz") {
->>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
       const key = import.meta.env.VITE_AI_KEY;
       const messages: ApiProxyChatMessage[] = (payload.messages as ApiProxyChatMessage[]) || [];
       
@@ -68,27 +63,6 @@ export async function invokeApiProxy<T = unknown>(
         messages.push({ role: "user", content: `Gere um quiz de 3 perguntas para a aula: "${payload.aulaNome}". Descrição: "${payload.aulaDesc}"` });
       }
 
-<<<<<<< HEAD
-=======
-      if (action === "quiz_tab") {
-        messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais. Responda APENAS com JSON: {\"questions\": [...]}. Sem markdown." });
-        messages.push({ role: "user", content: String(payload.prompt || "") });
-      }
-
-      if (action === "admin_bulk_quiz") {
-        const courseName = String(payload.courseName ?? "");
-        const aulas = payload.aulas as { nome: string; descricao: string }[];
-        messages.push({ 
-          role: "system", 
-          content: "Você é um gerador de quizzes em lote. Responda APENAS um objeto JSON onde a CHAVE é o nome exato da aula e o VALOR é um array de 3 questões. Sem markdown." 
-        });
-        messages.push({ 
-          role: "user", 
-          content: `Curso: "${courseName}". Aulas:\n${aulas.map(a => `- ${a.nome}`).join("\n")}` 
-        });
-      }
-
->>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
       // LÓGICA DE RETRY (3 tentativas)
       let lastError: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -119,19 +93,7 @@ export async function invokeApiProxy<T = unknown>(
           return { data: { ok: true } as any as T, error: null };
         }
 
-<<<<<<< HEAD
         return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
-=======
-        if (action === "quiz_tab") {
-          return { data: { questions: JSON.parse(text) } as any as T, error: null };
-        }
-
-        if (action === "admin_bulk_quiz") {
-          return { data: { quizzes: JSON.parse(text) } as any as T, error: null };
-        }
-
-        return { data: { reply: text, raw: res } as any as T, error: null };
->>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
       }
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
     }
