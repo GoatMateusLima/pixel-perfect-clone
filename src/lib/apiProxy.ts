@@ -63,10 +63,34 @@ export async function invokeApiProxy<T = unknown>(
         messages.push({ role: "user", content: `Gere um quiz de 3 perguntas para a aula: "${payload.aulaNome}". Descrição: "${payload.aulaDesc}"` });
       }
 
+<<<<<<< HEAD
       if (action === "quiz_tab") {
         messages.push({ role: "user", content: String(payload.prompt) });
       }
 
+=======
+<<<<<<< HEAD
+      if (action === "quiz_tab") {
+        messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais. Responda APENAS com JSON: {\"questions\": [...]}. Sem markdown." });
+        messages.push({ role: "user", content: String(payload.prompt || "") });
+      }
+
+      if (action === "admin_bulk_quiz") {
+        const courseName = String(payload.courseName ?? "");
+        const aulas = payload.aulas as { nome: string; descricao: string }[];
+        messages.push({ 
+          role: "system", 
+          content: "Você é um gerador de quizzes em lote. Responda APENAS um objeto JSON onde a CHAVE é o nome exato da aula e o VALOR é um array de 3 questões seguindo EXATAMENTE este formato: { \"id\": 1, \"text\": \"...\", \"options\": [\"a\",\"b\",\"c\",\"d\"], \"correct\": 0 }. Sem markdown ou backticks." 
+        });
+        messages.push({ 
+          role: "user", 
+          content: `Curso: "${courseName}". Aulas:\n${aulas.map(a => `- ${a.nome}`).join("\n")}` 
+        });
+      }
+
+=======
+>>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
+>>>>>>> ef590618aaacba16aa6c173ed80da8f61fb6a05e
       // LÓGICA DE RETRY (3 tentativas)
       let lastError: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -97,6 +121,7 @@ export async function invokeApiProxy<T = unknown>(
           return { data: { ok: true } as any as T, error: null };
         }
 
+<<<<<<< HEAD
         if (action === "quiz_tab") {
           try {
             const questions = JSON.parse(text || "[]");
@@ -107,7 +132,25 @@ export async function invokeApiProxy<T = unknown>(
           }
         }
 
+=======
+<<<<<<< HEAD
+        if (action === "quiz_tab") {
+          const questions = JSON.parse(text);
+          // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
+          const valid = Array.isArray(questions) ? questions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
+          return { data: { questions: valid } as any as T, error: null };
+        }
+
+        if (action === "admin_bulk_quiz") {
+          const quizzes = JSON.parse(text);
+          return { data: { quizzes } as any as T, error: null };
+        }
+
+        return { data: { reply: text, raw: res } as any as T, error: null };
+=======
+>>>>>>> ef590618aaacba16aa6c173ed80da8f61fb6a05e
         return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
+>>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
       }
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
     }
