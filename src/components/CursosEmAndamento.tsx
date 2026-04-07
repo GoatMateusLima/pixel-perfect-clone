@@ -31,7 +31,7 @@ export const CursosEmAndamento = ({ userId }: { userId: string }) => {
         // Busca cursos que o usuário começou (tabela watch)
         const { data: watchData } = await supabase
           .from("watch")
-          .select("course_id, courses!course_id(id, name, difficult)")
+          .select("course_id, courses(id, name, difficult)")
           .eq("user_id", userId);
 
         if (!watchData || watchData.length === 0) { setLoading(false); return; }

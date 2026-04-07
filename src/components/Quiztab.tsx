@@ -91,30 +91,75 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
       return;
     }
 
+<<<<<<< HEAD
     // Sem tópico e sem questões fixas: nada a fazer
     if (!topic) return;
+=======
+    // Tenta carregar do banco de dados antes de gerar via IA
+    if (aulaId) {
+      setGenerating(true);
+      try {
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select("questions")
+          .eq("aula_id", Number(aulaId))
+          .maybeSingle();
 
-    // Gera via IA
-    setGenerating(true);
-    setGenError(null);
+        if (data?.questions && Array.isArray(data.questions)) {
+          const loadedQuestions = data.questions as QuizQuestion[];
+          const shuffled = [...loadedQuestions].sort(() => Math.random() - 0.5);
+          setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
+          setGenerating(false);
+          return;
+        }
+        if (error) console.error("[Quiz] Erro ao carregar do banco:", error);
+      } catch (err) {
+        console.error("[Quiz] Falha na consulta ao banco:", err);
+      }
+    }
+
+    if (!topic) {
+      setGenError("Conteúdo da aula não identificado para gerar o quiz.");
+      setGenerating(false);
+      return;
+    }
+>>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
+
+    // Se não encontrou no banco, gera via IA (Plano B)
     try {
       const generated = await generateQuestions(topic);
+<<<<<<< HEAD
       const shuffled = [...generated].sort(() => Math.random() - 0.5);
       setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
+=======
+      setQueue(generated);
+>>>>>>> 0620fc15a0d3af69c721b95d900a37802beeaaef
     } catch (err) {
-      setGenError("Não foi possível gerar as questões. O ORION pode estar sobrecarregado ou a função não foi implantada.");
-      console.error("[QuizTab] Error generating questions:", err);
+      setGenError("Não foi possível carregar ou gerar o quiz. Tente novamente.");
+      console.error("[Quiz Gen Error]:", err);
     } finally {
       setGenerating(false);
     }
   }, [topic, questions]);
 
+  // Resetar tudo quando a aula mudar para evitar lixo da aula anterior
+  useEffect(() => {
+    setQueue([]);
+    setStarted(false);
+    setGenError(null);
+    setFinished(false);
+    setScore(0);
+    setCurrent(0);
+    setSelected(null);
+    setConfirmed(false);
+  }, [aulaId]);
+
   // Carrega na montagem apenas se o usuario iniciar
   useEffect(() => {
-    if (started && !alreadyPassed && queue.length === 0 && !genError) {
+    if (started && queue.length === 0 && !genError && !generating) {
       loadQuestions();
     }
-  }, [started, loadQuestions, alreadyPassed, queue.length, genError]);
+  }, [started, aulaId, queue.length, genError, generating, loadQuestions]);
 
   const resetState = () => {
     setCurrent(0);
@@ -122,6 +167,8 @@ const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: ex
     setConfirmed(false);
     setScore(0);
     setFinished(false);
+    setQueue([]);
+    setGenError(null);
   };
 
   const handleSelect = (idx: number) => { if (!confirmed) setSelected(idx); };
