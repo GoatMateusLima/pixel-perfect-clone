@@ -24,11 +24,19 @@ import CursosEmAndamento from "@/components/CursosEmAndamento";
 import FriendsListCard from "@/components/FriendsListCard";
 import supabase from "../../utils/supabase";
 
+import { 
+  ALL_MEDALS, 
+  RARITY_COLOR, 
+  awardCourseCompletion, 
+  type MedalStatus, 
+  type Certificate 
+} from "@/utils/rewards";
+
 export type Borda = { id: string; img_url: string; nome: string; ativa: boolean };
-export type MedalStatus = { id: number; ativa: boolean };
 export type Profile = {
   user_id?: string; name?: string; descricao?: string; perfil?: string; banner?: string;
   redes?: Partial<Record<SocialKey, string>>; bordas?: Borda[]; medalhas?: MedalStatus[];
+  certificados?: Certificate[];
   total_xp?: number; nivel?: number; pontuacao?: number;
 };
 
@@ -101,15 +109,6 @@ const SOCIAL_META: Record<SocialKey, { label: string; Icon: React.ElementType; p
 };
 const ALL_SOCIAL_KEYS = Object.keys(SOCIAL_META) as SocialKey[];
 
-const ALL_MEDALS = [
-  { id: 1, icon: Code2, title: "Primeira Linha de Código", desc: "Concluiu Fundamentos de Programação", color: "hsl(155 60% 45%)", bg: "hsl(155 60% 45% / 0.12)", border: "hsl(155 60% 45% / 0.35)", glow: "hsl(155 60% 45% / 0.3)", date: "Jan 2025", rarity: "Comum" },
-  { id: 2, icon: Brain, title: "Mente Analítica", desc: "Concluiu Python para Data Science", color: "hsl(210 70% 60%)", bg: "hsl(210 70% 60% / 0.12)", border: "hsl(210 70% 60% / 0.35)", glow: "hsl(210 70% 60% / 0.3)", date: "Mar 2025", rarity: "Rara" },
-  { id: 3, icon: Shield, title: "Guardião Digital", desc: "Concluiu Introdução a Cibersegurança", color: "hsl(0 70% 60%)", bg: "hsl(0 70% 60% / 0.12)", border: "hsl(0 70% 60% / 0.35)", glow: "hsl(0 70% 60% / 0.3)", date: "Mai 2025", rarity: "Épica" },
-  { id: 4, icon: Cloud, title: "Arquiteto de Nuvens", desc: "Concluiu Cloud Computing Basics", color: "hsl(45 90% 55%)", bg: "hsl(45 90% 55% / 0.12)", border: "hsl(45 90% 55% / 0.35)", glow: "hsl(45 90% 55% / 0.3)", date: "Jul 2025", rarity: "Rara" },
-  { id: 5, icon: Database, title: "Mestre dos Dados", desc: "Concluiu Fundamentos de SQL", color: "hsl(270 60% 65%)", bg: "hsl(270 60% 65% / 0.12)", border: "hsl(270 60% 65% / 0.35)", glow: "hsl(270 60% 65% / 0.3)", date: "Ago 2025", rarity: "Comum" },
-  { id: 6, icon: Cpu, title: "Pioneiro em IA", desc: "Concluiu Fundamentos de Inteligência Artificial", color: "hsl(25 90% 55%)", bg: "hsl(25 90% 55% / 0.12)", border: "hsl(25 90% 55% / 0.35)", glow: "hsl(25 90% 55% / 0.3)", date: "Out 2025", rarity: "Lendária" },
-];
-const RARITY_COLOR: Record<string, string> = { Comum: "hsl(215 20% 60%)", Rara: "hsl(210 70% 60%)", Épica: "hsl(270 60% 65%)", Lendária: "hsl(45 90% 55%)" };
 const JOBS_BY_DISC: Record<string, Array<{ title: string; company: string; salary: string; type: string }>> = {
   D: [{ title: "Tech Lead", company: "Nubank", salary: "R$18–25k", type: "Remoto" }, { title: "Product Owner", company: "iFood", salary: "R$14–20k", type: "Híbrido" }],
   I: [{ title: "Product Manager", company: "Hotmart", salary: "R$12–18k", type: "Remoto" }, { title: "UX Lead", company: "Conta Simples", salary: "R$10–15k", type: "Remoto" }],
@@ -1012,27 +1011,28 @@ const ProfilePage = () => {
                 </h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  { title: "Fundamentos de IA",          date: "Jan 2025", provider: "UpJobs Academy" },
-                  { title: "Python para Data Science",   date: "Mar 2025", provider: "UpJobs Academy" },
-                  { title: "Introdução a Cibersegurança", date: "Mai 2025", provider: "UpJobs Academy" },
-                  { title: "Fundamentos de SQL",          date: "Ago 2025", provider: "UpJobs Academy" },
-                ].map((cert, i) => (
-                  <motion.div key={i}
-                    whileHover={{ y: -2, boxShadow: "0 8px 24px rgba(0,0,0,0.3), 0 0 20px hsl(155 60% 45% / 0.1)" }}
-                    className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: "hsl(155 60% 45% / 0.1)", border: "1px solid hsl(155 60% 45% / 0.25)" }}>
-                      <Shield size={15} className="text-primary/70" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white/80 leading-snug truncate">{cert.title}</p>
-                      <p className="text-[10px] text-white/25 mt-0.5">{cert.provider} · {cert.date}</p>
-                    </div>
-                    <ArrowUpRight size={13} className="text-white/15 flex-shrink-0" />
-                  </motion.div>
-                ))}
+                {profile.certificados && profile.certificados.length > 0 ? (
+                  profile.certificados.map((cert) => (
+                    <motion.div key={cert.id}
+                      whileHover={{ y: -2, boxShadow: "0 8px 24px rgba(0,0,0,0.3), 0 0 20px hsl(155 60% 45% / 0.1)" }}
+                      className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200"
+                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "hsl(155 60% 45% / 0.1)", border: "1px solid hsl(155 60% 45% / 0.25)" }}>
+                        <Shield size={15} className="text-primary/70" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white/80 leading-snug truncate">{cert.title}</p>
+                        <p className="text-[10px] text-white/25 mt-0.5">{cert.provider} · {cert.date}</p>
+                      </div>
+                      <ArrowUpRight size={13} className="text-white/15 flex-shrink-0" />
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-8 text-center rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}>
+                    <p className="text-xs text-white/20 italic">Você ainda não possui certificados. Complete um curso para conquistar o seu primeiro!</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </main>
