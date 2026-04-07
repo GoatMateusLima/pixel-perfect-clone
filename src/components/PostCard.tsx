@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
@@ -27,6 +28,8 @@ export type Publication = {
   creator_id?: string;
   like_qnt?:   number;
   liked_by?:   string[];
+  comments?:   any[];
+  isCommentHit?: boolean;
 };
 
 export type Profile = {
@@ -46,6 +49,8 @@ export interface Comment {
   disc:        string;
   text:        string;
   time:        string;
+  userId?:     string;
+  isCommentHit?: boolean;
 }
 
 export interface Post extends Publication {
@@ -177,6 +182,8 @@ const PostCard = ({
   // NOVO: Estado para armazenar a quantidade de comentários
   const [commentCount, setCommentCount] = useState<number>(0);
 
+  const navigate = useNavigate();
+
   // Modo avulso: busca pelo publicationId
   useEffect(() => {
     if (!publicationId) return;
@@ -219,8 +226,9 @@ const PostCard = ({
       });
 
     // 2. Realtime — escuta INSERT e DELETE na tabela comments para este post
+    const channelName = `comments-count-${post.id}-${Math.random().toString(36).substr(2, 9)}`;
     const channel = supabase
-      .channel(`comments-count-${post.id}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "comments", filter: `publication_id=eq.${post.id}` },
@@ -322,7 +330,15 @@ const PostCard = ({
       {/* ── Descrição ── */}
       <div className="px-7 pt-5 pb-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
         <p className="text-[15px] font-body text-foreground/90 leading-[1.7] whitespace-pre-line line-clamp-6">
-          {post.description}
+          {post.description?.split(/(#\w+)/g).map((part, i) => 
+            part.startsWith('#') ? (
+              <span key={i} className="text-primary font-bold underline cursor-pointer hover:text-green-400" onClick={(e) => { e.stopPropagation(); navigate(`?tag=${encodeURIComponent(part)}`); }}>
+                {part}
+              </span>
+            ) : (
+              part
+            )
+          )}
         </p>
       </div>
 
