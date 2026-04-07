@@ -54,7 +54,7 @@ export async function invokeApiProxy<T = unknown>(
       return { data: { results: data.results ?? [], next: data.next ?? null } as any as T, error: null };
     }
 
-    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab") {
+    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab" || action === "admin_bulk_quiz") {
       const key = import.meta.env.VITE_AI_KEY;
       const messages: ApiProxyChatMessage[] = (payload.messages as ApiProxyChatMessage[]) || [];
       
@@ -63,13 +63,6 @@ export async function invokeApiProxy<T = unknown>(
         messages.push({ role: "user", content: `Gere um quiz de 3 perguntas para a aula: "${payload.aulaNome}". Descrição: "${payload.aulaDesc}"` });
       }
 
-<<<<<<< HEAD
-      if (action === "quiz_tab") {
-        messages.push({ role: "user", content: String(payload.prompt) });
-      }
-
-=======
-<<<<<<< HEAD
       if (action === "quiz_tab") {
         messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais. Responda APENAS com JSON: {\"questions\": [...]}. Sem markdown." });
         messages.push({ role: "user", content: String(payload.prompt || "") });
@@ -87,10 +80,6 @@ export async function invokeApiProxy<T = unknown>(
           content: `Curso: "${courseName}". Aulas:\n${aulas.map(a => `- ${a.nome}`).join("\n")}` 
         });
       }
-
-=======
->>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
->>>>>>> ef590618aaacba16aa6c173ed80da8f61fb6a05e
       // LÓGICA DE RETRY (3 tentativas)
       let lastError: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -121,36 +110,30 @@ export async function invokeApiProxy<T = unknown>(
           return { data: { ok: true } as any as T, error: null };
         }
 
-<<<<<<< HEAD
         if (action === "quiz_tab") {
           try {
             const questions = JSON.parse(text || "[]");
-            return { data: { questions } as any as T, error: null };
+            const parsedQuestions = Array.isArray(questions) ? questions : (questions.questions || []);
+            // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
+            const valid = Array.isArray(parsedQuestions) ? parsedQuestions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
+            return { data: { questions: valid } as any as T, error: null };
           } catch (e) {
             console.error("[apiProxy] Erro parse JSON quiz:", e, text);
             throw new Error("Resposta da IA formatada incorretamente. Tente de novo.");
           }
         }
 
-=======
-<<<<<<< HEAD
-        if (action === "quiz_tab") {
-          const questions = JSON.parse(text);
-          // Filtra apenas perguntas que têm o formato correto para não quebrar a tela
-          const valid = Array.isArray(questions) ? questions.filter((q: any) => q && q.text && Array.isArray(q.options)) : [];
-          return { data: { questions: valid } as any as T, error: null };
-        }
-
         if (action === "admin_bulk_quiz") {
-          const quizzes = JSON.parse(text);
-          return { data: { quizzes } as any as T, error: null };
+          try {
+            const quizzes = JSON.parse(text || "{}");
+            return { data: { quizzes } as any as T, error: null };
+          } catch (e) {
+            console.error("[apiProxy] Erro parse JSON bulk quiz:", e, text);
+            throw new Error("Resposta da IA formatada incorretamente.");
+          }
         }
 
-        return { data: { reply: text, raw: res } as any as T, error: null };
-=======
->>>>>>> ef590618aaacba16aa6c173ed80da8f61fb6a05e
         return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
->>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
       }
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
     }
