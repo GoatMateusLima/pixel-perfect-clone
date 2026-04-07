@@ -121,9 +121,18 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
 
     if (!topic) return;
 
-    // A geração via IA foi desativada aqui (o Admin é responsável por gerar)
-    setGenError("Este quiz ainda não foi preparado. Por favor, aguarde o instrutor ou entre em contato com o suporte.");
-    setGenerating(false);
+    // Regera via IA se não achou no banco
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const generated = await generateQuestions(topic);
+      setQueue(generated);
+    } catch (err) {
+      console.error("[Quiz] Falha ao gerar via IA:", err);
+      setGenError("Este quiz ainda não está pronto e houve um erro ao gerá-lo por Inteligência Artificial. Tente novamente mais tarde.");
+    } finally {
+      setGenerating(false);
+    }
   }, [topic, aulaId, questions]);
 
   // Resetar tudo quando a aula mudar para evitar lixo da aula anterior
