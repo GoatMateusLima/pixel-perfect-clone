@@ -54,7 +54,7 @@ export async function invokeApiProxy<T = unknown>(
       return { data: { results: data.results ?? [], next: data.next ?? null } as any as T, error: null };
     }
 
-    if (action === "chat" || action === "admin_quiz_insert") {
+    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab") {
       const key = import.meta.env.VITE_AI_KEY;
       const messages: ApiProxyChatMessage[] = (payload.messages as ApiProxyChatMessage[]) || [];
       
@@ -63,6 +63,12 @@ export async function invokeApiProxy<T = unknown>(
         messages.push({ role: "user", content: `Gere um quiz de 3 perguntas para a aula: "${payload.aulaNome}". Descrição: "${payload.aulaDesc}"` });
       }
 
+<<<<<<< HEAD
+      if (action === "quiz_tab") {
+        messages.push({ role: "user", content: String(payload.prompt) });
+      }
+
+=======
 <<<<<<< HEAD
       if (action === "quiz_tab") {
         messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais. Responda APENAS com JSON: {\"questions\": [...]}. Sem markdown." });
@@ -84,6 +90,7 @@ export async function invokeApiProxy<T = unknown>(
 
 =======
 >>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
+>>>>>>> ef590618aaacba16aa6c173ed80da8f61fb6a05e
       // LÓGICA DE RETRY (3 tentativas)
       let lastError: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -108,12 +115,24 @@ export async function invokeApiProxy<T = unknown>(
         const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "";
 
         if (action === "admin_quiz_insert") {
-          const questions = JSON.parse(text);
+          const questions = JSON.parse(text || "[]");
           const { error: insErr } = await supabase.from("quizzes").insert({ aula_id: payload.aulaId, questions });
           if (insErr) throw insErr;
           return { data: { ok: true } as any as T, error: null };
         }
 
+<<<<<<< HEAD
+        if (action === "quiz_tab") {
+          try {
+            const questions = JSON.parse(text || "[]");
+            return { data: { questions } as any as T, error: null };
+          } catch (e) {
+            console.error("[apiProxy] Erro parse JSON quiz:", e, text);
+            throw new Error("Resposta da IA formatada incorretamente. Tente de novo.");
+          }
+        }
+
+=======
 <<<<<<< HEAD
         if (action === "quiz_tab") {
           const questions = JSON.parse(text);
@@ -129,6 +148,7 @@ export async function invokeApiProxy<T = unknown>(
 
         return { data: { reply: text, raw: res } as any as T, error: null };
 =======
+>>>>>>> ef590618aaacba16aa6c173ed80da8f61fb6a05e
         return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
 >>>>>>> eddd3110b59857fb3acdcda9df27f7f61fd9a256
       }

@@ -23,6 +23,7 @@ interface QuizTabProps {
   isLast?: boolean;
   loading?: boolean;
   alreadyPassed?: boolean;
+  aulaId?: number;
 }
 
 const QUESTIONS_PER_QUIZ = 5;
@@ -70,7 +71,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
+const QuizTab = ({ topic, questions, onPass, onNext, isLast = false, loading: externalLoading = false, alreadyPassed = false }: QuizTabProps) => {
   const [queue, setQueue] = useState<QuizQuestion[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);

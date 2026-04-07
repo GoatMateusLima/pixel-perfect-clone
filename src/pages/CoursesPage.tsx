@@ -1157,6 +1157,7 @@ const CoursesPage = () => {
                     isLast={activeIndex === aulas.length - 1}
                     loading={quizLoading}
                     alreadyPassed={quizPassed}
+                    aulaId={aulaAtiva?.id}
                   />
                 )}
                 {activeTab === "duvidas" && <DuvidasTab />}

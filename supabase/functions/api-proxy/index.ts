@@ -13,6 +13,26 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+const rateLimiter = new Map<string, { count: number; reset: number }>();
+const MAX_REQUESTS_PER_MINUTE = 30;
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const entry = rateLimiter.get(userId);
+
+  if (!entry || now > entry.reset) {
+    rateLimiter.set(userId, { count: 1, reset: now + 60000 });
+    return { allowed: true };
+  }
+
+  if (entry.count >= MAX_REQUESTS_PER_MINUTE) {
+    return { allowed: false, retryAfter: Math.ceil((entry.reset - now) / 1000) };
+  }
+
+  entry.count++;
+  return { allowed: true };
+}
+
 const MODERATION_SYSTEM = `Você é o moderador da comunidade UpJobs, uma plataforma sobre carreiras do futuro, mercado de trabalho, vagas de emprego, cursos, transição de carreira e desenvolvimento profissional.
 
 Sua tarefa é avaliar conteúdo enviado por usuários (texto e/ou imagem) e decidir se deve ser APROVADO ou REPROVADO.
@@ -98,6 +118,15 @@ Deno.serve(async (req) => {
     error: authErr,
   } = await supabaseAnon.auth.getUser();
   if (authErr || !user) return json({ error: "Unauthorized" }, corsHeaders, 401);
+
+  const rlResult = checkRateLimit(user.id);
+  if (!rlResult.allowed) {
+    return json(
+      { error: "Too Many Requests" },
+      { ...corsHeaders, "Retry-After": String(rlResult.retryAfter) },
+      429
+    );
+  }
 
   let body: Record<string, unknown>;
   try {
