@@ -54,13 +54,17 @@ export async function invokeApiProxy<T = unknown>(
       return { data: { results: data.results ?? [], next: data.next ?? null } as any as T, error: null };
     }
 
-    if (action === "chat" || action === "admin_quiz_insert") {
+    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab") {
       const key = import.meta.env.VITE_AI_KEY;
       const messages: ApiProxyChatMessage[] = (payload.messages as ApiProxyChatMessage[]) || [];
       
       if (action === "admin_quiz_insert") {
         messages.push({ role: "system", content: "Você é um gerador de quizzes. Responda APENAS com um array JSON puro: [{\"id\": 1, \"text\": \"...\", \"options\": [\"a\",\"b\",\"c\",\"d\"], \"correct\": 0}]" });
         messages.push({ role: "user", content: `Gere um quiz de 3 perguntas para a aula: "${payload.aulaNome}". Descrição: "${payload.aulaDesc}"` });
+      }
+
+      if (action === "quiz_tab") {
+        messages.push({ role: "user", content: String(payload.prompt) });
       }
 
       // LÓGICA DE RETRY (3 tentativas)
@@ -87,10 +91,20 @@ export async function invokeApiProxy<T = unknown>(
         const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "";
 
         if (action === "admin_quiz_insert") {
-          const questions = JSON.parse(text);
+          const questions = JSON.parse(text || "[]");
           const { error: insErr } = await supabase.from("quizzes").insert({ aula_id: payload.aulaId, questions });
           if (insErr) throw insErr;
           return { data: { ok: true } as any as T, error: null };
+        }
+
+        if (action === "quiz_tab") {
+          try {
+            const questions = JSON.parse(text || "[]");
+            return { data: { questions } as any as T, error: null };
+          } catch (e) {
+            console.error("[apiProxy] Erro parse JSON quiz:", e, text);
+            throw new Error("Resposta da IA formatada incorretamente. Tente de novo.");
+          }
         }
 
         return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
