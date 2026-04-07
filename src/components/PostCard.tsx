@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase.ts";
 import PostMedia from "./PostMedia";
 
@@ -103,9 +103,9 @@ export const UserAvatar = ({
   const discColor = DISC_COLOR[disc ?? "S"] ?? DISC_COLOR.S;
   const initials  = toInitials(name);
   const cfg = {
-    sm: { outer: 28, inner: 20, textSize: "text-[8px]",  wh: "w-7 h-7"  },
-    md: { outer: 36, inner: 26, textSize: "text-[9px]",  wh: "w-9 h-9"  },
-    lg: { outer: 48, inner: 34, textSize: "text-xs",     wh: "w-12 h-12" },
+    sm: { outer: 32, inner: 22, textSize: "text-[9px]",  wh: "w-8 h-8"  },
+    md: { outer: 40, inner: 28, textSize: "text-[10px]", wh: "w-10 h-10" },
+    lg: { outer: 52, inner: 38, textSize: "text-[11px]", wh: "w-[52px] h-[52px]" },
   }[size];
 
   const inner = avatarUrl
@@ -115,15 +115,15 @@ export const UserAvatar = ({
 
   if (isMe && discRingImg) {
     return (
-      <div className="relative flex-shrink-0 flex items-center justify-center"
+      <div className="relative flex-shrink-0 flex items-center justify-center group/avatar"
         style={{ width: cfg.outer, height: cfg.outer }}>
         <img src={discRingImg} alt="DISC"
-          className="absolute inset-0 w-full h-full rounded-full object-cover" style={{ zIndex: 1 }} />
+          className="absolute inset-0 w-full h-full rounded-full object-cover shadow-lg transition-transform duration-300 group-hover/avatar:scale-110" style={{ zIndex: 1 }} />
         <div className={`absolute rounded-full overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize} z-10`}
           style={{ width: cfg.inner, height: cfg.inner, top: "50%", left: "50%",
             transform: "translate(-50%, -50%)",
             background: avatarUrl ? undefined : "hsl(var(--secondary))",
-            border: "2px solid hsl(var(--background))", color: discColor }}>
+            border: "1.5px solid hsl(var(--background))", color: discColor }}>
           {inner}
         </div>
       </div>
@@ -131,11 +131,16 @@ export const UserAvatar = ({
   }
 
   return (
-    <div className={`${cfg.wh} rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-bold ${cfg.textSize}`}
-      style={{ border: `2px solid ${discColor}60`, boxShadow: `0 0 10px ${discColor}25`,
-        background: avatarUrl ? undefined : `linear-gradient(135deg, ${discColor}33, ${discColor}15)`,
-        color: discColor }}>
-      {inner}
+    <div className={`${cfg.wh} rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center font-display font-black ${cfg.textSize} group/avatar transition-all duration-500`}
+      style={{ 
+        border: `1px solid rgba(16, 185, 129, 0.4)`, 
+        boxShadow: `0 0 20px rgba(16, 185, 129, 0.1)`,
+        background: avatarUrl ? "rgba(0,0,0,0.4)" : `linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))`,
+        color: "hsl(142 72% 50%)" 
+      }}>
+      <div className="w-full h-full transition-transform duration-700 group-hover/avatar:scale-110 flex items-center justify-center">
+        {inner}
+      </div>
     </div>
   );
 };
@@ -165,7 +170,7 @@ const PostCard = ({
 }: PostCardProps) => {
 
   const [fetchedPost, setFetchedPost] = useState<Post | null>(null);
-  const [loading,     setLoading]     = useState(false);
+  const [internalLoading, setLoading]     = useState(false);
   const [fetchError,  setFetchError]  = useState<string | null>(null);
   const [showMenu,    setShowMenu]    = useState(false);
   
@@ -200,32 +205,49 @@ const PostCard = ({
 
   const post = postProp ?? fetchedPost;
 
-  // NOVO: Busca apenas a quantidade de comentários desse post (super leve e rápido)
+  // Busca count inicial e escuta novos comentários em realtime
   useEffect(() => {
     if (!post?.id) return;
 
-    const fetchCommentCount = async () => {
-      const { count, error } = await supabase
-        .from("comments")
-        .select("*", { count: "exact", head: true }) // head: true evita baixar os dados, pega só o número
-        .eq("publication_id", post.id);
+    // 1. Busca count inicial
+    supabase
+      .from("comments")
+      .select("*", { count: "exact", head: true })
+      .eq("publication_id", post.id)
+      .then(({ count, error }) => {
+        if (!error && count !== null) setCommentCount(count);
+      });
 
-      if (!error && count !== null) {
-        setCommentCount(count);
-      }
-    };
+    // 2. Realtime — escuta INSERT e DELETE na tabela comments para este post
+    const channel = supabase
+      .channel(`comments-count-${post.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments", filter: `publication_id=eq.${post.id}` },
+        () => setCommentCount((prev) => prev + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments", filter: `publication_id=eq.${post.id}` },
+        () => setCommentCount((prev) => Math.max(0, prev - 1))
+      )
+      .subscribe();
 
-    fetchCommentCount();
+    return () => { supabase.removeChannel(channel); };
   }, [post?.id]);
 
-  if (loading) return (
-    <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
-      <span className="text-xs text-muted-foreground font-body animate-pulse">Carregando…</span>
+  // Se estiver carregando por conta do publicationId
+  if (internalLoading) return (
+    <div className="glass-card mb-6 rounded-3xl border-white/5 shadow-2xl p-7 flex items-center justify-center min-h-[200px]">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        <span className="text-xs text-muted-foreground font-body animate-pulse">Buscando publicação…</span>
+      </div>
     </div>
   );
 
   if (fetchError || !post) return (
-    <div className="hologram-panel rounded-sm p-6 flex items-center justify-center">
+    <div className="glass-card mb-6 rounded-3xl border-white/5 shadow-2xl p-7 flex items-center justify-center min-h-[120px]">
       <span className="text-xs text-muted-foreground font-body">{fetchError ?? "Publicação não disponível."}</span>
     </div>
   );
@@ -243,14 +265,12 @@ const PostCard = ({
   };
 
   return (
-    <motion.div layout
-      initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12, scale: 0.97 }} transition={{ duration: 0.35 }}
-      className="bg-transparent border-b border-border/20 overflow-hidden">
+    <motion.div
+      className="glass-card relative mb-6 last:mb-0 group/card rounded-3xl border-white/5 shadow-2xl overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="px-4 pt-4 pb-0 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
+      <div className="px-7 pt-7 pb-0 flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 cursor-pointer group/avatar" onClick={() => post && onOpenModal?.(post)}>
           <UserAvatar
             avatarUrl={authorAvatarUrl}
             name={authorName}
@@ -259,18 +279,21 @@ const PostCard = ({
             isMe={isMe}
             discRingImg={isMe ? myDiscRingImg : post.profile?.disc_ring_img}
           />
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-accent font-semibold text-sm text-foreground">
+          <div className="pt-0.5">
+            <div className="flex items-center gap-2.5">
+              <p className="font-display font-black text-lg text-white group-hover/avatar:text-primary transition-colors duration-300 tracking-tight">
                 {authorName}
               </p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-accent font-semibold"
-                style={{ background: `${DISC_COLOR[authorDisc]}18`, color: DISC_COLOR[authorDisc], border: `1px solid ${DISC_COLOR[authorDisc]}40` }}>
-                {authorDisc} · {DISC_LABEL[authorDisc]}
-              </span>
+              <div className="px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 border"
+                style={{ background: `${DISC_COLOR[authorDisc]}08`, color: DISC_COLOR[authorDisc], borderColor: `${DISC_COLOR[authorDisc]}15` }}>
+                <span className="text-[10px] font-accent font-black uppercase tracking-widest leading-none">{authorDisc}</span>
+              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground font-body mt-0.5">{authorRole}</p>
-            <p className="text-[10px] text-muted-foreground font-body opacity-60">{formatRelativeTime(post.date)}</p>
+            <div className="flex items-center gap-2 mt-0.5 text-white/30">
+               <p className="text-[12px] font-body font-bold uppercase tracking-tighter">{authorRole}</p>
+               <span className="w-1 h-1 rounded-full bg-white/20" />
+               <p className="text-[11px] font-body tracking-tight">{formatRelativeTime(post.date)}</p>
+            </div>
           </div>
         </div>
 
@@ -281,7 +304,8 @@ const PostCard = ({
           </button>
           <AnimatePresence>
             {showMenu && (
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              <motion.div initial={{ opacity: 1, scale: 0.98, y: -2 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute right-0 top-8 z-20 hologram-panel rounded-sm py-1 min-w-[140px] text-xs font-body">
                 <button className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition">
                   Denunciar post
@@ -296,42 +320,99 @@ const PostCard = ({
       </div>
 
       {/* ── Descrição ── */}
-      <div className="px-4 pt-3 pb-2 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
-        <p className="text-sm font-body text-foreground leading-relaxed whitespace-pre-line line-clamp-4">
+      <div className="px-7 pt-5 pb-3 cursor-pointer" onClick={() => post && onOpenModal?.(post)}>
+        <p className="text-[15px] font-body text-foreground/90 leading-[1.7] whitespace-pre-line line-clamp-6">
           {post.description}
         </p>
       </div>
 
-      {/* ── Mídia — borda-a-borda, max-height controlado como Twitter ── */}
+      {/* ── Mídia ── */}
       {post.midia && post.midia !== "EMPTY" && (
-        <div className="mt-2 cursor-pointer overflow-hidden w-full rounded-xl mx-4"
-          style={{ width: "calc(100% - 2rem)" }}
+        <div className="mt-3 px-7 cursor-pointer"
           onClick={() => post && onOpenModal?.(post)}>
-          <PostMedia midia={post.midia} maxHeight={400} />
+          <div className="rounded-2xl overflow-hidden border border-white/5 shadow-2xl transition-transform duration-700 group-hover/card:scale-[1.005]">
+            <PostMedia midia={post.midia} maxHeight={520} />
+          </div>
         </div>
       )}
 
       {/* ── Contadores ── */}
-      <div className="px-4 py-1.5 flex items-center justify-between text-[11px] text-muted-foreground font-body">
-        <span>{post.like_qnt ?? 0} curtidas</span>
-        <button onClick={() => post && onOpenModal?.(post)} className="hover:text-foreground transition">
-          {commentCount} {commentCount === 1 ? "comentário" : "comentários"} · Ver todos
+      <div className="px-7 py-2.5 flex items-center justify-between text-[12px] text-muted-foreground font-body">
+        <span className="tabular-nums">{post.like_qnt ?? 0} curtidas</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            post && onOpenModal?.(post);
+          }}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {commentCount} {commentCount === 1 ? "comentário" : "comentários"}
         </button>
       </div>
 
-      {/* ── Ações ── */}
-      <div className="px-2 py-1 flex items-center gap-1 border-t border-border/10">
-        {[
-          { label: "Curtir",      el: <Heart size={14} className={post.liked ? "fill-rose-400" : ""} />,    active: post.liked,  color: "text-rose-400", fn: () => post.id && onLike?.(post.id) },
-          { label: "Comentar",    el: <MessageCircle size={14} />,                                          active: false,       color: "",             fn: () => post && onOpenModal?.(post) },
-          { label: "Salvar",      el: <Bookmark size={14} className={post.saved ? "fill-primary" : ""} />,  active: post.saved,  color: "text-primary", fn: () => post.id && onSave?.(post.id) },
-          { label: "Copiar link", el: <Share2 size={14} />,                                                 active: false,       color: "",             fn: copyLink },
-        ].map(({ label, el, active, color, fn }) => (
-          <button key={label} onClick={fn}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-sm text-xs font-accent font-semibold transition hover:bg-secondary/40 ${active ? color : "text-muted-foreground hover:text-foreground"}`}>
-            {el} {label}
-          </button>
-        ))}
+      {/* ── Ações (barra leve, legível) ── */}
+      <div className="px-7 pb-6">
+        <div className="flex items-center rounded-2xl border border-white/[0.08] bg-black/20 px-1 py-1 backdrop-blur-sm">
+          {[
+            {
+              label: "Curtir",
+              icon: (
+                <Heart
+                  size={18}
+                  strokeWidth={1.75}
+                  className={post.liked ? "fill-primary text-primary" : "text-current"}
+                />
+              ),
+              active: post.liked,
+              fn: () => post.id && onLike?.(post.id),
+            },
+            {
+              label: "Comentar",
+              icon: <MessageCircle size={18} strokeWidth={1.75} className="text-current" />,
+              active: false,
+              fn: () => post && onOpenModal?.(post),
+            },
+            {
+              label: "Salvar",
+              icon: (
+                <Bookmark
+                  size={18}
+                  strokeWidth={1.75}
+                  className={post.saved ? "fill-primary text-primary" : "text-current"}
+                />
+              ),
+              active: post.saved,
+              fn: () => post.id && onSave?.(post.id),
+            },
+            {
+              label: "Copiar link",
+              icon: <Share2 size={18} strokeWidth={1.75} className="text-current" />,
+              active: false,
+              fn: copyLink,
+            },
+          ].map(({ label, icon, active, fn }) => (
+            <button
+              key={label}
+              type="button"
+              title={label}
+              onClick={(e) => {
+                e.stopPropagation();
+                fn();
+              }}
+              className={
+                active
+                  ? "flex flex-1 flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-2 px-1 rounded-xl text-primary bg-primary/[0.12] transition-colors hover:bg-primary/[0.16]"
+                  : "flex flex-1 flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-2 px-1 rounded-xl text-foreground/70 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              }
+            >
+              {icon}
+              <span className="text-[10px] sm:text-[11px] font-body font-medium leading-none sm:leading-tight">
+                {label === "Copiar link" ? "Link" : label}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </motion.div>
   );

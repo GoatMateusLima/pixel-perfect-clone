@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, LogIn, LogOut, User, LifeBuoy, Home, Globe } from "lucide-react";
+import { LogIn, LogOut, User, LifeBuoy, Home, Globe, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import supabase from "../../utils/supabase.ts";
+import NotificationBell from "./NotificationBell";
+import { AccessibilityTrigger } from "@/components/AccessibilityPanel";
+import logoUrl from "@/assets/logo/logo.png";
 
 const NAV_ITEMS = [
   { label: "Início",     href: "/roadmap",    icon: Home     },
@@ -17,11 +20,25 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled,   setScrolled]   = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  /** Mesma fonte que LeftSidebar/Community: `profiles.perfil` quando o contexto ainda não sincronizou */
+  const [perfilFromDb, setPerfilFromDb] = useState<string | null>(null);
 
-  // profilePhoto vem do AuthContext — buscado uma única vez ao logar,
-  // sem nenhum fetch aqui no Header, sem piscar.
+  const avatarUrl = profilePhoto || perfilFromDb;
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPerfilFromDb(null);
+      return;
+    }
+    supabase
+      .from("profiles")
+      .select("perfil")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setPerfilFromDb(data?.perfil ?? null));
+  }, [user?.id]);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 10);
@@ -29,8 +46,14 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
+  // Sincroniza o contador de mensagens não lidas
+  useEffect(() => {
+    const syncUnread = (e: any) => setUnreadCount(e.detail?.count || 0);
+    window.addEventListener('unread-sync', syncUnread);
+    return () => window.removeEventListener('unread-sync', syncUnread);
+  }, []);
+
   const handleLogout = async () => {
-    setMobileOpen(false);
     const { error } = await supabase.auth.signOut();
     if (error) console.error("Erro ao fazer logout:", error.message);
     logout();
@@ -40,148 +63,181 @@ const Header = () => {
   const isActive = (href: string) =>
     href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
 
+  // Configuração especial para a Bottom Nav no Mobile (com Mensagens no meio)
+  const MOBILE_NAV = [
+    { label: "Início",     href: "/roadmap",    icon: Home },
+    { label: "Comunidade", href: "/comunidade", icon: Globe },
+    { label: "Mensagens",  href: "#messenger",  icon: MessageCircle, isAction: true },
+    { label: "Notificações", href: "#notifications", icon: NotificationBell, isCustom: true },
+    { label: "Perfil",     href: "/perfil",     icon: User },
+  ];
+
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      style={{
-        background:     scrolled ? "hsl(200 30% 8% / 0.95)" : "hsl(200 30% 8% / 0.7)",
-        borderBottom:   scrolled ? "1px solid hsl(155 60% 35% / 0.25)" : "1px solid transparent",
-        backdropFilter: "blur(12px)",
-        boxShadow:      scrolled ? "0 4px 24px hsl(0 0% 0% / 0.3)" : "none",
-      }}>
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+    <>
+      {/* ── Header Topo (Desktop sempre, Mobile apenas Logo) ── */}
+      <header
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        style={{
+          background: scrolled ? "rgba(10, 10, 10, 0.95)" : "rgba(10, 10, 10, 0.7)",
+          borderBottom: "1px solid rgba(16, 185, 129, 0.15)",
+          backdropFilter: "blur(20px)",
+          boxShadow: scrolled ? "0 4px 30px rgba(0,0,0,0.5)" : "none",
+        }}>
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
+            <img 
+              src={logoUrl} 
+              alt="Logo UpJobs" 
+              className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform duration-300" 
+            />
+            <span className="font-display text-xl font-bold tracking-[0.2em] text-white group-hover:text-primary transition-colors">UPJOBS</span>
+          </Link>
 
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-          <span className="font-display text-xl font-bold text-glow tracking-widest">UPJOBS</span>
-          <span className="hidden sm:inline text-[9px] font-accent font-bold px-1.5 py-0.5 rounded-sm"
-            style={{ background: "hsl(25 90% 55% / 0.15)", color: "hsl(25 90% 55%)", border: "1px solid hsl(25 90% 55% / 0.3)" }}>
-            BETA
-          </span>
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
-            <Link key={href} to={href}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold transition-all ${
-                isActive(href) ? "text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}
-              style={isActive(href)
-                ? { background: "hsl(155 60% 35% / 0.12)", border: "1px solid hsl(155 60% 35% / 0.3)", textShadow: "0 0 8px hsl(155 60% 45% / 0.4)" }
-                : { border: "1px solid transparent" }}>
-              <Icon size={13} />{label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Right: auth + avatar */}
-        <div className="hidden md:flex items-center gap-3">
-          {user ? (
-            <>
-              <Link to="/perfil"
-                className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center transition hover:brightness-110"
-                style={{ border: "2px solid hsl(155 60% 45% / 0.6)", boxShadow: "0 0 10px hsl(155 60% 45% / 0.25)", background: "hsl(155 60% 45% / 0.15)" }}
-                title="Meu Perfil">
-                {profilePhoto
-                  ? <img src={profilePhoto} alt="Foto" className="w-full h-full object-cover" />
-                  : <span className="font-display font-bold text-[11px] text-primary">
-                      {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
-                    </span>
-                }
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-2">
+            {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
+              <Link key={href} to={href}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-accent font-black uppercase tracking-widest transition-all duration-300 ${
+                  isActive(href) ? "text-primary border-primary/20 bg-primary/5" : "text-white/40 hover:text-white border-transparent"
+                } border`}
+                style={isActive(href) ? { boxShadow: "inset 0 0 10px rgba(16, 185, 129, 0.05)" } : {}}>
+                <Icon size={14} />{label}
               </Link>
+            ))}
+          </nav>
 
-              <button onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-destructive hover:border-destructive/50 transition">
-                <LogOut size={13} /> Sair
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-accent font-semibold text-muted-foreground border border-border hover:text-foreground hover:border-primary/40 transition">
-                <LogIn size={13} /> Entrar
-              </Link>
-              <Link to="/cadastro"
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-sm text-xs font-accent font-bold text-primary-foreground transition hover:brightness-110 box-glow-accent"
-                style={{ background: "hsl(25 90% 55%)" }}>
-                Começar grátis
-              </Link>
-            </>
-          )}
-        </div>
-
-        {/* Mobile burger */}
-        <button className="md:hidden text-muted-foreground hover:text-foreground transition p-1"
-          onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
-
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
-            className="md:hidden overflow-hidden border-t border-border/30"
-            style={{ background: "hsl(200 30% 8% / 0.98)" }}>
-            <div className="px-4 py-4 space-y-1">
-              {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
-                <Link key={href} to={href} onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-sm text-sm font-accent font-semibold transition ${
-                    isActive(href)
-                      ? "text-primary bg-primary/10 border border-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/30 border border-transparent"
-                  }`}>
-                  <Icon size={15} />{label}
-                </Link>
-              ))}
-
-              <div className="pt-3 border-t border-border/30 flex flex-col gap-2">
-                {user ? (
-                  <>
-                    <div className="flex items-center gap-3 px-3 py-2">
-                      <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-                        style={{ border: "2px solid hsl(155 60% 45% / 0.6)", background: "hsl(155 60% 45% / 0.15)" }}>
-                        {profilePhoto
-                          ? <img src={profilePhoto} alt="Foto" className="w-full h-full object-cover" />
-                          : <span className="font-display font-bold text-xs text-primary">
-                              {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
-                            </span>
+          {/* Right: auth + avatar (Desktop) */}
+          <div className="hidden md:flex items-center gap-4">
+            {user ? (
+              <>
+                {location.pathname !== "/" && <AccessibilityTrigger variant="header" />}
+                <NotificationBell />
+                <Link to="/perfil"
+                  className="flex-shrink-0 w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] bg-primary/5"
+                  title="Meu Perfil">
+                  {avatarUrl ? (
+                    <img 
+                      src={avatarUrl} 
+                      alt="Foto de Perfil" 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.avatar-fallback')) {
+                          const fallback = document.createElement('div');
+                          fallback.className = "avatar-fallback w-full h-full bg-primary/20 flex items-center justify-center font-display font-black text-xs text-primary uppercase";
+                          fallback.innerText = user?.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU";
+                          parent.appendChild(fallback);
                         }
-                      </div>
-                      <div>
-                        <p className="text-xs font-accent font-semibold text-foreground">
-                          {user.user_metadata?.name ?? user.email}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground font-body">{user.email}</p>
-                      </div>
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-primary/20 flex items-center justify-center font-display font-black text-xs text-primary uppercase">
+                      {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? user.email?.slice(0, 2).toUpperCase() ?? "EU"}
                     </div>
-                    <button onClick={handleLogout}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-sm text-sm font-accent font-semibold text-muted-foreground hover:text-destructive transition">
-                      <LogOut size={15} /> Sair
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/login" onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-sm text-sm font-accent font-semibold text-muted-foreground hover:text-foreground transition">
-                      <LogIn size={15} /> Entrar
-                    </Link>
-                    <Link to="/cadastro" onClick={() => setMobileOpen(false)}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm text-sm font-accent font-bold text-primary-foreground transition hover:brightness-110"
-                      style={{ background: "hsl(25 90% 55%)" }}>
-                      Começar grátis
-                    </Link>
-                  </>
+                  )}
+                </Link>
+                <button onClick={handleLogout}
+                  className="p-2 rounded-xl text-white/20 hover:text-rose-500 hover:bg-rose-500/5 border border-transparent hover:border-rose-500/20 transition-all duration-300"
+                  title="Sair">
+                  <LogOut size={18} />
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                {location.pathname !== "/" && <AccessibilityTrigger variant="header" />}
+                <Link to="/login" className="text-[11px] font-accent font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
+                  Entrar
+                </Link>
+                <Link to="/cadastro" className="px-5 py-2 rounded-xl bg-primary text-black text-[11px] font-accent font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                  Começar
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Right (Título apenas, navegação foi para baixo) */}
+          <div className="flex md:hidden items-center gap-2">
+            {location.pathname !== "/" && <AccessibilityTrigger variant="header" className="h-9 w-9" />}
+            <span className="text-[10px] font-accent font-black text-primary uppercase tracking-[0.2em]">UpJobs Hub</span>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Bottom Nav (Apenas Mobile) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pointer-events-none">
+        <div className="max-w-md mx-auto h-20 glass-card border-primary/20 backdrop-blur-2xl flex items-center justify-around px-2 pointer-events-auto shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+          {MOBILE_NAV.map(({ label, href, icon: Icon, isAction, isCustom }) => {
+            const active = !isAction && !isCustom && isActive(href);
+            const isProfile = label === "Perfil";
+            const isMessages = label === "Mensagens";
+
+            const content = (
+              <div className={`flex flex-col items-center justify-center transition-all duration-300 relative group ${
+                active ? "text-primary" : "text-white/30"
+              }`}>
+                {active && (
+                  <motion.div layoutId="nav-glow" className="absolute -top-2 w-12 h-1 rounded-full bg-primary shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
+                )}
+
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                  active ? "bg-primary/10" : "group-hover:bg-white/5"
+                }`}>
+                  {isProfile && user ? (
+                    <div className={`w-8 h-8 rounded-lg overflow-hidden border-2 transition-all flex items-center justify-center ${active ? "border-primary shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "border-white/10 opacity-60"}`}>
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-display font-black text-[10px] text-primary">
+                           {user.user_metadata?.name?.slice(0, 2).toUpperCase() ?? "EU"}
+                        </span>
+                      )}
+                    </div>
+                  ) : isCustom ? (
+                    <NotificationBell />
+                  ) : (
+                    <div className="relative">
+                      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+                      {isMessages && unreadCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-600 rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-[0_0_8px_rgba(225,29,72,0.6)]">
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {!isCustom && (
+                  <span className={`text-[8px] font-accent font-black uppercase tracking-[0.2em] mt-1 transition-opacity ${active ? "opacity-100" : "opacity-40"}`}>
+                    {label}
+                  </span>
                 )}
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </header>
+            );
+
+            if (isAction) {
+              return (
+                <button key={label} onClick={() => window.dispatchEvent(new CustomEvent('toggle-messenger'))} className="focus:outline-none">
+                  {content}
+                </button>
+              );
+            }
+
+            if (isCustom) {
+              return <div key={label}>{content}</div>;
+            }
+
+            return (
+              <Link key={href} to={href}>
+                {content}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 };
 

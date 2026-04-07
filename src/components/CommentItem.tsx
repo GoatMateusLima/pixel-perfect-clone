@@ -148,9 +148,9 @@ const CommentItem = ({
 
         <div className="flex-1 min-w-0">
           {/* Balão do Comentário */}
-          <div className="bg-secondary/30 rounded-sm px-3 py-2 relative">
-            <div className="flex items-center justify-between gap-2 mb-0.5">
-              <p className="text-[11px] font-accent font-semibold text-foreground">
+          <div className="bg-white/5 rounded-2xl px-4 py-3 relative border border-white/5">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[13px] font-display font-bold text-white">
                 {comment.authorName}
               </p>
               {isMyComment && (
@@ -165,26 +165,26 @@ const CommentItem = ({
             
             {/* Texto do comentário */}
             {comment.comment && (
-              <p className="text-xs font-body text-muted-foreground leading-relaxed">
+              <p className="text-[14px] font-body text-foreground/80 leading-relaxed">
                 {comment.comment}
               </p>
             )}
 
             {/* Renderização da Mídia do Comentário */}
             {comment.midia && comment.midia !== "EMPTY" && (
-              <div className="mt-2 rounded-sm overflow-hidden">
-                <PostMedia midia={comment.midia} maxHeight={200} inModal />
+              <div className="mt-3 rounded-xl overflow-hidden border border-white/10">
+                <PostMedia midia={comment.midia} maxHeight={250} inModal />
               </div>
             )}
           </div>
 
           {/* Ações abaixo do balão */}
-          <div className="flex items-center gap-3 mt-1 px-1">
+          <div className="flex items-center gap-4 mt-1.5 px-1">
             {depth === 0 && (
               <button
                 onClick={() => setShowReplyInput((v) => !v)}
-                className="text-[10px] font-accent text-muted-foreground hover:text-primary transition flex items-center gap-1">
-                <CornerDownRight size={10} />
+                className="text-[11px] font-accent font-bold text-muted-foreground hover:text-primary transition flex items-center gap-1.5 uppercase tracking-wider">
+                <CornerDownRight size={12} />
                 Responder
               </button>
             )}
@@ -192,7 +192,7 @@ const CommentItem = ({
             {depth === 0 && comment.replies.length > 0 && (
               <button
                 onClick={() => setShowReplies((v) => !v)}
-                className="text-[10px] font-accent text-muted-foreground hover:text-foreground transition">
+                className="text-[11px] font-accent font-bold text-muted-foreground hover:text-white transition uppercase tracking-wider">
                 {showReplies
                   ? `Ocultar ${comment.replies.length} resposta${comment.replies.length > 1 ? "s" : ""}`
                   : `Ver ${comment.replies.length} resposta${comment.replies.length > 1 ? "s" : ""}`
@@ -240,7 +240,7 @@ const CommentItem = ({
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmitReply()}
                         placeholder={`Responder ${comment.authorName}…`}
                         disabled={submitting}
-                        className="flex-1 bg-secondary/30 border border-border/50 rounded-sm px-2.5 py-1.5 text-xs font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition disabled:opacity-50"
+                        className="flex-1 bg-white/[0.03] border border-white/10 rounded-full px-4 py-2 text-xs font-body text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:bg-white/[0.05] transition-all disabled:opacity-50"
                       />
 
                       {/* Botões de anexo */}
@@ -259,9 +259,9 @@ const CommentItem = ({
                       <button
                         onClick={handleSubmitReply}
                         disabled={(!replyText.trim() && !hasMediaInput) || submitting}
-                        className="px-2.5 py-1.5 rounded-sm text-primary-foreground transition hover:brightness-110 disabled:opacity-40"
-                        style={{ background: "hsl(155 60% 35%)" }}>
-                        <Send size={11} />
+                        className="px-4 py-2 rounded-full text-primary-foreground transition-all duration-300 hover:brightness-110 active:scale-95 disabled:opacity-40"
+                        style={{ background: "linear-gradient(135deg, hsl(155 60% 45%), hsl(155 60% 35%))" }}>
+                        <Send size={12} />
                       </button>
                       
                       <button onClick={() => { setShowReplyInput(false); setReplyText(""); clearMedia(); }} className="text-[10px] font-accent text-muted-foreground hover:text-foreground transition px-1">

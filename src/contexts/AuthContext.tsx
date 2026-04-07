@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import supabase from "../../utils/supabase";
@@ -21,6 +21,8 @@ type AuthContextType = {
   loading:            boolean;
   assessment:         AssessmentData;
   profilePhoto:       string | null;
+  role:               "user" | "admin" | null;
+  type:               string | null;
   updateAssessment:   (partial: Partial<AssessmentData>) => void;
   saveAssessmentToDb: (data: AssessmentData) => Promise<void>;
   refreshPhoto:       () => void;
@@ -36,89 +38,133 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,         setUser]         = useState<User | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [role,         setRole]         = useState<"user" | "admin" | null>(null);
+  const [type,         setType]         = useState<string | null>(null);
 
   const [assessment, setAssessment] = useState<AssessmentData>(() => {
     try { return JSON.parse(localStorage.getItem(ASSESSMENT_KEY) ?? "{}"); }
     catch { return {}; }
   });
 
-  // ── Busca foto do perfil em background ───────────────────────────────────────
-  const fetchProfilePhoto = (userId: string) => {
+  // ── Busca foto do perfil em background (mantida para refresh explícito) ────
+  const fetchProfilePhoto = (currentUser: User) => {
     supabase
       .from("profiles")
       .select("perfil")
-      .eq("user_id", userId)
+      .eq("user_id", currentUser.id)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (!error && data?.perfil) setProfilePhoto(data.perfil);
+        const photo = data?.perfil || 
+                      currentUser.user_metadata?.avatar_url || 
+                      currentUser.user_metadata?.picture || 
+                      currentUser.user_metadata?.photoURL || 
+                      currentUser.user_metadata?.photo || 
+                      null;
+        setProfilePhoto(photo);
       });
   };
 
-  // ── Busca assessment do banco e mescla com localStorage ──────────────────────
-  // O banco é fonte de verdade — sobrescreve o localStorage
-  const fetchAssessmentFromDb = (userId: string) => {
-    supabase
+  // ── Busca todos os dados iniciais do usuário numa única requisição ─────────
+  const fetchUserData = useCallback(async (currentUser: User): Promise<void> => {
+    const { data, error } = await supabase
       .from("profiles")
-      .select("calculo_marcius, disc_profile, disc_scores, areas_interesse, assessment_completed")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error || !data) return;
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
 
-        // Só atualiza se tiver pelo menos algum dado de assessment no banco
-        const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
-        if (!hasDbData) return;
+    if (error || !data) {
+      // Mesmo sem dados no profile, ainda pegamos a foto do metadata
+      const fallbackPhoto = currentUser.user_metadata?.avatar_url || 
+                           currentUser.user_metadata?.picture || 
+                           currentUser.user_metadata?.photoURL || 
+                           currentUser.user_metadata?.photo || 
+                           null;
+      setProfilePhoto(fallbackPhoto);
+      return;
+    }
 
-        const fromDb: AssessmentData = {
-          // calculo_marcius guarda os dados do Cálculo Marcius
-          ...(data.calculo_marcius as AssessmentData ?? {}),
-          // colunas dedicadas têm prioridade
-          ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
-          ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
-          ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
-          completed: data.assessment_completed ?? false,
-        };
+    const finalPhoto = data?.perfil || 
+                       currentUser.user_metadata?.avatar_url || 
+                       currentUser.user_metadata?.picture || 
+                       currentUser.user_metadata?.photoURL ||
+                       currentUser.user_metadata?.photo ||
+                       null;
+    
+    setProfilePhoto(finalPhoto);
+    if (data?.role) setRole(data.role as "user" | "admin");
+    if (data?.type) setType(data.type);
 
-        setAssessment((prev) => {
-          const merged = { ...prev, ...fromDb };
-          localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
-          return merged;
-        });
+    // Assessment
+    const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
+    if (hasDbData) {
+      const fromDb: AssessmentData = {
+        ...(data.calculo_marcius as AssessmentData ?? {}),
+        ...(data.disc_profile   ? { discProfile:    data.disc_profile as "D" | "I" | "S" | "C" } : {}),
+        ...(data.disc_scores    ? { discScores:     data.disc_scores  as { D: number; I: number; S: number; C: number } } : {}),
+        ...(data.areas_interesse ? { areasInteresse: data.areas_interesse as string[] } : {}),
+        completed: data.assessment_completed ?? false,
+      };
+
+      setAssessment((prev) => {
+        const merged = { ...prev, ...fromDb };
+        localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(merged));
+        return merged;
       });
-  };
+    }
+  }, []);
 
   const refreshPhoto = () => {
-    if (user?.id) fetchProfilePhoto(user.id);
+    if (user) fetchProfilePhoto(user);
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!error && data.session?.user) {
-        setSession(data.session);
-        setUser(data.session.user);
-        fetchProfilePhoto(data.session.user.id);
-        fetchAssessmentFromDb(data.session.user.id); // banco tem prioridade
+    let mounted = true;
+
+    const bootstrap = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (error) {
+          console.error("[AuthContext] getSession:", error.message);
+          return;
+        }
+        if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+          await fetchUserData(session.user);
+        } else {
+          setSession(null);
+          setUser(null);
+        }
+      } catch (e) {
+        console.error("[AuthContext] bootstrap:", e);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    bootstrap();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session ?? null);
       setUser(session?.user ?? null);
-      setLoading(false);
 
       if (session?.user) {
-        fetchProfilePhoto(session.user.id);
-        fetchAssessmentFromDb(session.user.id);
+        fetchUserData(session.user);
       } else {
         setProfilePhoto(null);
+        setRole(null);
+        setType(null);
         setAssessment({});
         localStorage.removeItem(ASSESSMENT_KEY);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserData]);
 
   // ── updateAssessment — apenas estado + localStorage (durante o fluxo) ────────
   function updateAssessment(partial: Partial<AssessmentData>) {
@@ -229,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      session, user, loading,
+      session, user, loading, role, type,
       assessment, updateAssessment, saveAssessmentToDb,
       profilePhoto, refreshPhoto,
       signOutUser,

@@ -1,10 +1,13 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Compass, ArrowLeft, MonitorPlay } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { Search, Compass, ArrowLeft, MonitorPlay, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "@/components/Header";
-import supabase from "../../utils/supabase.ts";
+import { MainLandmark } from "@/components/MainLandmark";
+import supabase from "../../utils/supabase";
 import { TemaCard } from "@/components/TemaCard"; 
 import { CourseCard } from "@/components/CourseCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { getRecommendedTemasIA } from "../../utils/APIrecomendacao";
 
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -35,9 +38,10 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: 20 }} 
+      initial={{ opacity: 1, x: 12 }} 
       animate={{ opacity: 1, x: 0 }} 
-      exit={{ opacity: 0, x: -20 }} 
+      exit={{ opacity: 0, x: -12 }} 
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-5xl mx-auto min-h-[70vh]"
     >
       <button onClick={onBack} className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary font-accent text-sm font-bold transition-colors mb-8">
@@ -67,7 +71,7 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-6">
         {cursos.length > 0 ? (
           cursos.map((course) => (
             <CourseCard 
@@ -88,12 +92,129 @@ const TemaCoursesView = ({ tema, onBack }: { tema: Tema; onBack: () => void }) =
 
 // ─── Componente Principal ───────────────────────────────────────────────────
 const RoadmapSection = () => {
+  const { assessment, user } = useAuth();
   const [temasBrutos, setTemasBrutos] = useState<Tema[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("Todos");
   const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
+  
+  const [aiRecommendedIds, setAiRecommendedIds] = useState<string[]>([]);
+  const [isAILoading, setIsAILoading] = useState(false);
+  const aiAttemptedRef = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Estados para o formulário de sugestão
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    temaNome: "",
+    cursoNome: "",
+    playlistUrl: "",
+    cursoDesc: "",
+    temaDesc: "",
+    dificuldade: "Iniciante",
+    responsavelNome: "",
+    responsavelEmail: ""
+  });
+
+  const handleSubmitRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('course_requests')
+        .insert({
+          tema_nome: formData.temaNome,
+          curso_nome: formData.cursoNome,
+          playlist_url: formData.playlistUrl,
+          curso_descricao: formData.cursoDesc,
+          tema_descricao: formData.temaDesc,
+          dificuldade: formData.dificuldade,
+          responsavel_nome: formData.responsavelNome,
+          responsavel_email: formData.responsavelEmail,
+          user_id: user?.id
+        });
+
+      if (error) throw error;
+
+      alert("Sugestão enviada com sucesso! Nossa equipe entrará em contato.");
+      setIsSubmitModalOpen(false);
+      setFormData({
+        temaNome: "",
+        cursoNome: "",
+        playlistUrl: "",
+        cursoDesc: "",
+        temaDesc: "",
+        dificuldade: "Iniciante",
+        responsavelNome: "",
+        responsavelEmail: ""
+      });
+    } catch (err: any) {
+      console.error("Erro ao enviar sugestão:", err.message);
+      alert("Houve um erro ao enviar. Tente novamente mais tarde.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 340;
+      scrollContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  useEffect(() => {
+    async function fetchAiRecommendations() {
+      let interests = assessment?.areasInteresse || [];
+      let disc = assessment?.discProfile;
+
+      if (!assessment?.completed && interests.length === 0) {
+        // Se não tiver no contexto, tenta buscar do banco uma última vez
+        const { data: prof } = await supabase.from("profiles").select("areas_interesse, disc_profile").eq("user_id", user?.id || "").maybeSingle();
+        if (prof?.areas_interesse) {
+             interests = prof.areas_interesse as string[];
+        }
+        if (prof?.disc_profile) {
+             disc = prof.disc_profile as "D" | "I" | "S" | "C";
+        }
+        
+        if (interests.length === 0 && !disc) {
+             return; // Nem interesses nem DISC, nada a recomendar por agora
+        }
+      }
+      
+      if (temasBrutos.length === 0) return;
+
+      setIsAILoading(true);
+      try {
+        // Enriquecemos o prompt enviando interesses E perfil DISC se disponível
+        const profileContext = disc ? [ ...interests, `Perfil DISC: ${disc}` ] : interests;
+        
+        const ids = await getRecommendedTemasIA(profileContext, temasBrutos);
+        if (ids.length > 0) {
+          // Deduplicamos os IDs e garantimos que são strings para evitar repetições na UI
+          const uniqueIds = Array.from(new Set(ids.map(id => String(id))));
+          setAiRecommendedIds(uniqueIds);
+        }
+      } catch(e) {
+        console.error("Erro AI Roadmap:", e);
+      } finally {
+        setIsAILoading(false);
+      }
+    }
+
+    if (!aiAttemptedRef.current && !isAILoading && !loading && temasBrutos.length > 0) {
+      aiAttemptedRef.current = true;
+      fetchAiRecommendations();
+    }
+  }, [temasBrutos, assessment, isAILoading, loading, user?.id]);
 
   useEffect(() => {
     async function loadData() {
@@ -120,7 +241,9 @@ const RoadmapSection = () => {
   const temasProntos = useMemo(() => {
     return temasBrutos.map((tema) => ({
       ...tema,
-      courses: allCourses.filter((c) => c.courses_id === tema.id)
+      courses: allCourses
+        .filter((c) => String(c.courses_id) === String(tema.id))
+        .filter((c, index, self) => self.findIndex(s => s.id === c.id) === index) // Garantia anti-duplicação
     }));
   }, [temasBrutos, allCourses]);
 
@@ -138,18 +261,42 @@ const RoadmapSection = () => {
     });
   }, [temasProntos, search, activeType]);
 
+  const recommendedTemas = useMemo(() => {
+    if (aiRecommendedIds.length > 0) {
+      // Remove IDs duplicados que a IA possa ter retornado por engano
+      const uniqueAIIds = Array.from(new Set(aiRecommendedIds));
+      
+      const validTemas = uniqueAIIds
+        .map(id => temasProntos.find(t => String(t.id) === String(id)))
+        .filter(Boolean) as Tema[];
+      
+      if (validTemas.length > 0) {
+        const remaining = [...temasProntos]
+          .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
+          .filter(t => !uniqueAIIds.includes(String(t.id)));
+        return [...validTemas, ...remaining].slice(0, 5);
+      }
+    }
+    // Fallback: temas com mais cursos
+    return [...temasProntos]
+      .sort((a, b) => (b.courses?.length || 0) - (a.courses?.length || 0))
+      .slice(0, 5);
+  }, [temasProntos, aiRecommendedIds]);
+
   return (
     <section className="relative min-h-screen bg-background scanline overflow-x-hidden">
       <Header />
-      <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
-      
+      <MainLandmark className="relative z-10 block min-h-0">
+        <div className="absolute inset-0 pointer-events-none opacity-50" style={gridBg} />
+
       <AnimatePresence mode="wait">
         {!selectedTema ? (
           <motion.div 
             key="grid-view"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 1, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 pt-32 pb-20 px-4 sm:px-6 max-w-7xl mx-auto"
           >
             <div className="max-w-3xl mx-auto text-center mb-16">
@@ -169,6 +316,52 @@ const RoadmapSection = () => {
                 />
               </div>
             </div>
+
+            {!loading && recommendedTemas.length > 0 && search === "" && activeType === "Todos" && (
+              <div className="mb-12 relative group/section">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">Recomendações</h2>
+                  <span className="text-xs font-accent font-bold text-primary tracking-widest uppercase">
+                    {isAILoading ? 'Consultando ORION...' : (aiRecommendedIds.length > 0 ? 'Sugestões do ORION' : 'Em Alta')}
+                  </span>
+                </div>
+                
+                <div className="relative">
+                  {/* Scroll Buttons */}
+                  <button 
+                    onClick={() => scroll('left')}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 p-2 rounded-full bg-secondary/80 border border-border/50 text-foreground opacity-0 group-hover/section:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground backdrop-blur-sm hidden md:flex items-center justify-center"
+                    aria-label="Scroll left"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <button 
+                    onClick={() => scroll('right')}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 p-2 rounded-full bg-secondary/80 border border-border/50 text-foreground opacity-0 group-hover/section:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground backdrop-blur-sm hidden md:flex items-center justify-center"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+
+                  <div 
+                    ref={scrollContainerRef}
+                    className="flex gap-4 md:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x scroll-smooth" 
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {recommendedTemas.map((tema, i) => (
+                      <div key={tema.id} className="snap-start shrink-0 w-[280px] md:w-[320px]">
+                        <TemaCard 
+                          tema={tema} 
+                          index={i}
+                          onClick={() => setSelectedTema(tema)} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mb-10">
               <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">
@@ -209,9 +402,198 @@ const RoadmapSection = () => {
                       onClick={() => setSelectedTema(tema)} 
                     />
                   ))}
+
+                  {/* Card de Sugestão - Sempre ao final da grid filtrada */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    onClick={() => setIsSubmitModalOpen(true)}
+                    className="group relative h-full min-h-[320px] rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 hover:border-primary transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative z-10">
+                      <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform">
+                        <Search className="text-primary w-8 h-8" />
+                      </div>
+                      <h3 className="text-xl font-display font-bold text-foreground mb-4">Quer ver seu curso aqui?</h3>
+                      <p className="text-sm text-muted-foreground font-body leading-relaxed max-w-[240px] mb-8">
+                        Colabore com a plataforma e ajude a expandir nossa base de conhecimento.
+                      </p>
+                      <button className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-accent font-bold text-xs shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all">
+                        Enviar Sugestão
+                      </button>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </div>
+
+            {/* Popup / Modal de Sugestão */}
+            {isSubmitModalOpen && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8">
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSubmitModalOpen(false)}
+                  className="absolute inset-0 bg-background/90 backdrop-blur-xl"
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="relative z-10 w-full max-w-xl bg-secondary/95 border border-white/10 p-6 sm:p-10 rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] backdrop-blur-2xl max-h-[82vh] flex flex-col overflow-hidden"
+                >
+                  <button 
+                    onClick={() => setIsSubmitModalOpen(false)}
+                    className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all z-20"
+                    aria-label="Fechar"
+                  >
+                    <X size={20} />
+                  </button>
+
+                  <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide">
+                    <div className="mb-6 sm:mb-10 text-center sm:text-left pr-10 sm:pr-0">
+                      <h2 className="text-2xl sm:text-4xl font-display font-bold text-foreground mb-3 tracking-tight">Envie seu conteúdo</h2>
+                      <p className="text-sm sm:text-base text-muted-foreground font-body leading-relaxed max-w-md">Contribua com a biblioteca da comunidade sugerindo novos temas e cursos.</p>
+                    </div>
+
+                    <form onSubmit={handleSubmitRequest} className="space-y-5 sm:space-y-8">
+                      <div className="space-y-5 sm:space-y-8">
+                        <div className="grid grid-cols-1 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Nome do Tema</label>
+                            <input
+                              required
+                              value={formData.temaNome}
+                              onChange={e => setFormData({...formData, temaNome: e.target.value})}
+                              placeholder="Ex: Desenvolvimento Web"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Nome do Curso</label>
+                            <input
+                              required
+                              value={formData.cursoNome}
+                              onChange={e => setFormData({...formData, cursoNome: e.target.value})}
+                              placeholder="Ex: React para Iniciantes"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Playlist do YouTube</label>
+                            <input
+                              required
+                              type="url"
+                              value={formData.playlistUrl}
+                              onChange={e => setFormData({...formData, playlistUrl: e.target.value})}
+                              placeholder="https://youtube.com/playlist?list=..."
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Descrição do Curso</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={formData.cursoDesc}
+                              onChange={e => setFormData({...formData, cursoDesc: e.target.value})}
+                              placeholder="O que aprenderão?"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Descrição do Tema</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={formData.temaDesc}
+                              onChange={e => setFormData({...formData, temaDesc: e.target.value})}
+                              placeholder="Sobre a área..."
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all resize-none placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-[0.2em] uppercase ml-1 opacity-70">Dificuldade</label>
+                            <div className="relative">
+                              <select
+                                value={formData.dificuldade}
+                                onChange={e => setFormData({...formData, dificuldade: e.target.value})}
+                                className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                              >
+                                <option value="Iniciante">Iniciante</option>
+                                <option value="Intermediário">Intermediário</option>
+                                <option value="Avançado">Avançado</option>
+                              </select>
+                              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
+                                <ChevronRight size={18} className="rotate-90" />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-widest uppercase ml-1 opacity-70">Seu Nome</label>
+                            <input
+                              required
+                              value={formData.responsavelNome}
+                              onChange={e => setFormData({...formData, responsavelNome: e.target.value})}
+                              placeholder="Nome completo"
+                              className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 pb-2">
+                          <label className="text-[0.65rem] sm:text-xs font-accent font-bold text-primary tracking-widest uppercase ml-1 opacity-70">Email de Contato</label>
+                          <input
+                            required
+                            type="email"
+                            value={formData.responsavelEmail}
+                            onChange={e => setFormData({...formData, responsavelEmail: e.target.value})}
+                            placeholder="seu@email.com"
+                            className="w-full bg-background/40 border border-white/5 rounded-2xl px-5 py-3.5 sm:py-5 text-sm sm:text-base font-body focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-8 border-t border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => setIsSubmitModalOpen(false)}
+                          className="w-full sm:w-auto px-10 py-4 rounded-2xl hover:bg-white/5 text-sm sm:text-base font-body font-bold transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full sm:w-auto px-12 py-5 rounded-2xl bg-primary text-primary-foreground text-sm sm:text-base font-body font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              Enviar Sugestão
+                              <ChevronRight size={18} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </motion.div>
+              </div>
+            )}
           </motion.div>
         ) : (
           <TemaCoursesView 
@@ -221,6 +603,7 @@ const RoadmapSection = () => {
           />
         )}
       </AnimatePresence>
+      </MainLandmark>
     </section>
   );
 };
