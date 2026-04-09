@@ -30,6 +30,7 @@ export type Profile = {
   user_id?: string; name?: string; descricao?: string; perfil?: string; banner?: string;
   redes?: Partial<Record<SocialKey, string>>; bordas?: Borda[]; medalhas?: MedalStatus[];
   total_xp?: number; nivel?: number; pontuacao?: number;
+  last_seen_at?: string; current_streak?: number;
 };
 
 interface CourseProgress {
@@ -561,7 +562,7 @@ const ProfilePage = () => {
   const xpNextLevel = xpForNextLevel(currentLevel);
   const xpInCurrentLevel = currentXP - ((currentLevel - 1) * 10);
   const xpProgress = Math.min((xpInCurrentLevel / 10) * 100, 100);
-  const currentStreak = 12;
+  const currentStreak = profile.current_streak ?? 1;
   const currentRank = myRank ?? "—";
 
   const handleStartEdit = () => {
