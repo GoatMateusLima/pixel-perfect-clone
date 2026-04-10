@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { PlayCircle, ChevronRight, Loader2 } from "lucide-react";
+import { PlayCircle, ChevronRight, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import supabase from "../../utils/supabase";
 
 export interface CourseProgress {
@@ -23,6 +23,7 @@ const DIFF_COLOR: Record<string, string> = {
 export const CursosEmAndamento = ({ userId }: { userId: string }) => {
   const [cursos, setCursos] = useState<CourseProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -125,7 +126,7 @@ export const CursosEmAndamento = ({ userId }: { userId: string }) => {
       </div>
 
       <div className="space-y-3">
-        {cursos.map((curso, i) => {
+        {cursos.slice(0, showAll ? cursos.length : 5).map((curso, i) => {
           const diffColor = DIFF_COLOR[curso.difficult] ?? "hsl(155 60% 45%)";
           const isConcluido = curso.pct === 100;
           return (
@@ -175,6 +176,19 @@ export const CursosEmAndamento = ({ userId }: { userId: string }) => {
           );
         })}
       </div>
+
+      {cursos.length > 5 && (
+        <div className="mt-5 text-center">
+          <button 
+            type="button"
+            onClick={() => setShowAll(!showAll)}
+            className="text-sm font-accent font-bold text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 cursor-pointer"
+          >
+            {showAll ? "Ver menos" : "Ver todos os cursos"}
+            {showAll ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 };

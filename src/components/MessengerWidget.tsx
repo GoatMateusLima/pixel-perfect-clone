@@ -408,13 +408,6 @@ const ChatWindow = ({ chat, myId, onBack }: { chat: ActiveChat; myId: string; on
 
   return (
     <div className="flex flex-col h-full">
-      <div className="shrink-0 flex items-center gap-3 px-3 py-2.5 border-b border-border/30" style={{ background: "hsl(215 28% 11%)" }}>
-        <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition p-1"><ArrowLeft size={15} /></button>
-        <Avatar src={chat.avatar} name={chat.name} size={32} />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-accent font-semibold text-foreground truncate">{chat.name}</p>
-        </div>
-      </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(155 60% 45% / 0.2) transparent" }}>
         {loading ? (

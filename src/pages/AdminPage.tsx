@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus, BookOpen, Layers, CheckCircle2, XCircle, ChevronDown, Loader2,
   LayoutDashboard, GraduationCap, Tag, AlignLeft, Zap, Pencil, Trash2,
-  Check, X, ChevronRight, Link,
+  Check, X, ChevronRight, Link, Sparkles
 } from "lucide-react";
 import Header from "@/components/Header";
 import { MainLandmark } from "@/components/MainLandmark";
@@ -176,12 +176,25 @@ const TemaRow = ({ tema, onSave, onDelete }: { tema: Tema; onSave: (t: Tema) => 
 };
 
 // ─── CourseRow ────────────────────────────────────────────────────────────────
-const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas: Tema[]; onSave: (c: Course) => Promise<void>; onDelete: (id: string) => Promise<void> }) => {
+const CourseRow = ({ 
+  course, 
+  temas, 
+  onSave, 
+  onDelete,
+  onRegenerateQuizzes
+}: { 
+  course: Course; 
+  temas: Tema[]; 
+  onSave: (c: Course) => Promise<void>; 
+  onDelete: (id: string) => Promise<void>;
+  onRegenerateQuizzes: (c: Course) => Promise<void>;
+}) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(course);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const temaName = temas.find(t => t.id === course.courses_id)?.name ?? "—";
   const diffColor = DIFF_COLOR[course.difficult] ?? "hsl(155 60% 45%)";
@@ -189,6 +202,12 @@ const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas:
   const handleSave = async () => { setSaving(true); await onSave(draft); setSaving(false); setEditing(false); };
   const handleDelete = async () => { setDeleting(true); await onDelete(course.id); };
   const handleCancel = () => { setDraft(course); setEditing(false); setConfirmDelete(false); };
+  
+  const handleRegen = async () => {
+    setRegenerating(true);
+    await onRegenerateQuizzes(course);
+    setRegenerating(false);
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -227,6 +246,14 @@ const CourseRow = ({ course, temas, onSave, onDelete }: { course: Course; temas:
               </>
             ) : (
               <>
+                <button 
+                  onClick={handleRegen} 
+                  disabled={regenerating}
+                  title="Gerar / Refazer Quizzes via ORION"
+                  className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs font-accent font-bold border border-primary/20 text-primary hover:bg-primary/5 transition-all disabled:opacity-50"
+                >
+                  {regenerating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} {regenerating ? "Gerando..." : "Quizzes"}
+                </button>
                 <button onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs font-accent font-bold border border-border/30 text-muted-foreground hover:text-blue-400 hover:border-blue-500/30 transition-all"><Pencil size={11} /> Editar</button>
                 <button onClick={() => setConfirmDelete(true)} className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs font-accent font-bold border border-border/30 text-muted-foreground hover:text-rose-400 hover:border-rose-500/30 transition-all"><Trash2 size={11} /></button>
               </>
@@ -346,22 +373,48 @@ const AdminPage = () => {
           if (savedAulas && savedAulas.length > 0) {
             setSaveStatus(`ORION gerando quizzes para ${savedAulas.length} aulas (Bulk)...`);
             
-            const { data: bulkData, error: bulkError } = await invokeApiProxy<{ quizzes: Record<string, any[]> }>("admin_bulk_quiz", {
-              courseName: courseForm.name,
-              aulas: videos.map(v => ({ nome: v.nome, descricao: v.descricao }))
-            });
+            const CHUNK_SIZE = 5;
+            let allQuizzes: Record<string, any[]> = {};
+            let hasError = false;
 
-            if (bulkError || !bulkData?.quizzes) {
-              console.error("[Bulk Quiz Error]:", bulkError);
+            for (let i = 0; i < videos.length; i += CHUNK_SIZE) {
+              const chunk = videos.slice(i, i + CHUNK_SIZE);
+              setSaveStatus(`Gerando quizzes para aulas ${i + 1} a ${Math.min(i + CHUNK_SIZE, videos.length)}...`);
+              
+              try {
+                const { data: bulkData, error: bulkError } = await invokeApiProxy<{ quizzes: Record<string, any[]> }>("admin_bulk_quiz", {
+                  courseName: courseForm.name,
+                  aulas: chunk.map(v => ({ nome: v.nome, descricao: v.descricao }))
+                });
+
+                if (bulkError || !bulkData?.quizzes) {
+                  console.error("[Bulk Quiz Chunk Error]:", bulkError);
+                  hasError = true;
+                } else {
+                  allQuizzes = { ...allQuizzes, ...bulkData.quizzes };
+                }
+              } catch (e) {
+                console.error("[Bulk Quiz Fetch Error]:", e);
+                hasError = true;
+              }
+            }
+
+            if (hasError && Object.keys(allQuizzes).length === 0) {
               notify("error", "Curso e aulas criados, mas houve um erro ao gerar os quizzes em massa.");
             } else {
+              if (hasError) notify("error", "Alguns quizzes falharam, mas os que puderam ser gerados serão salvos.");
               setSaveStatus("Processando e salvando quizzes no banco...");
               
               // Mapeia o nome da aula salva para o seu ID e as questões geradas
               const quizzesParaInserir = savedAulas.map(a => {
-                const questions = bulkData.quizzes[a.nome ?? ""] || bulkData.quizzes[Object.keys(bulkData.quizzes).find(k => k.includes(a.nome ?? "")) || ""];
-                if (questions) {
-                  return { aula_id: a.id, questions };
+                const rawQuestions = allQuizzes[a.nome ?? ""] || allQuizzes[Object.keys(allQuizzes).find(k => k.includes(a.nome ?? "")) || ""];
+                
+                // Valida se as questões existem e têm o formato correto (array com opções)
+                if (Array.isArray(rawQuestions)) {
+                  const validQuestions = rawQuestions.filter(q => q && q.text && Array.isArray(q.options) && q.options.length > 0);
+                  if (validQuestions.length > 0) {
+                    return { aula_id: a.id, questions: validQuestions };
+                  }
                 }
                 return null;
               }).filter(q => q !== null);
@@ -398,6 +451,74 @@ const AdminPage = () => {
   const handleUpdateCourse = async (c: Course) => {
     const { error } = await supabase.from("courses").update({ name: c.name, difficult: c.difficult, courses_id: c.courses_id }).eq("id", c.id);
     if (error) { notify("error", error.message); } else { notify("success", "Curso atualizado!"); loadCourses(); }
+  };
+
+  const handleRegenerateQuizzes = async (c: Course) => {
+    try {
+      // 1. Busca as aulas do curso
+      const { data: aulas, error: aulasErr } = await supabase
+        .from("aulas")
+        .select("id, nome, descricao")
+        .eq("course_id", c.id);
+
+      if (aulasErr || !aulas || aulas.length === 0) {
+        throw new Error("Não foi possível encontrar as aulas deste curso.");
+      }
+
+      // 2. Chama o ORION para gerar quizzes em massa (em pedaços)
+      const CHUNK_SIZE = 5;
+      let allQuizzes: Record<string, any[]> = {};
+      let hasError = false;
+
+      for (let i = 0; i < aulas.length; i += CHUNK_SIZE) {
+        const chunk = aulas.slice(i, i + CHUNK_SIZE);
+        notify("success", `ORION gerando quizzes para aulas ${i + 1} a ${Math.min(i + CHUNK_SIZE, aulas.length)}...`);
+        
+        try {
+          const { data: bulkData, error: bulkError } = await invokeApiProxy<{ quizzes: Record<string, any[]> }>("admin_bulk_quiz", {
+            courseName: c.name,
+            aulas: chunk.map(a => ({ nome: a.nome, descricao: a.descricao }))
+          });
+
+          if (bulkError || !bulkData?.quizzes) {
+             hasError = true;
+          } else {
+             allQuizzes = { ...allQuizzes, ...bulkData.quizzes };
+          }
+        } catch (e) {
+          hasError = true;
+        }
+      }
+
+      if (hasError && Object.keys(allQuizzes).length === 0) {
+        throw new Error("Erro contínuo na geração da IA. Nenhum quiz gerado.");
+      }
+
+      // 3. Mapeia e valida
+      const quizzesParaInserir = aulas.map(a => {
+        const rawQuestions = allQuizzes[a.nome ?? ""] || allQuizzes[Object.keys(allQuizzes).find(k => k.includes(a.nome ?? "")) || ""];
+        if (Array.isArray(rawQuestions)) {
+          const validQuestions = rawQuestions.filter(q => q && q.text && Array.isArray(q.options) && q.options.length > 0);
+          if (validQuestions.length > 0) return { aula_id: a.id, questions: validQuestions };
+        }
+        return null;
+      }).filter(q => q !== null);
+
+      if (quizzesParaInserir.length === 0) {
+        throw new Error("Nenhum quiz válido foi gerado pela IA.");
+      }
+
+      // 4. Salva (upsert para substituir existentes)
+      const { error: finalError } = await supabase
+        .from("quizzes")
+        .upsert(quizzesParaInserir, { onConflict: "aula_id" });
+
+      if (finalError) throw finalError;
+
+      notify("success", `Sucesso! ${quizzesParaInserir.length} quizzes atualizados.`);
+    } catch (err: any) {
+      notify("error", err.message);
+    }
   };
   const handleDeleteCourse = async (id: string) => {
     const { error } = await supabase.from("courses").delete().eq("id", id);
@@ -572,7 +693,16 @@ const AdminPage = () => {
                   <div className="py-12 border border-dashed border-border/30 rounded-sm text-center"><p className="text-sm font-body text-muted-foreground">Nenhum curso cadastrado ainda.</p></div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {courses.map(course => <CourseRow key={course.id} course={course} temas={temas} onSave={handleUpdateCourse} onDelete={handleDeleteCourse} />)}
+                    {courses.map(course => (
+                      <CourseRow 
+                        key={course.id} 
+                        course={course} 
+                        temas={temas} 
+                        onSave={handleUpdateCourse} 
+                        onDelete={handleDeleteCourse}
+                        onRegenerateQuizzes={handleRegenerateQuizzes}
+                      />
+                    ))}
                   </div>
                 )}
               </motion.div>

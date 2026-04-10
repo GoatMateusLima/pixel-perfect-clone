@@ -1,4 +1,7 @@
-import { invokeApiProxy as invokeRemoteProxy } from "@/lib/apiProxy";
+/** 
+ * Proxy de chamadas para APIs externas.
+ * Agora realizando requisições DIRETAS do cliente com lógica de RETRY para o Groq.
+ */
 import supabase from "../../utils/supabase";
 
 export type ApiProxyChatMessage = {
@@ -14,6 +17,7 @@ export async function invokeApiProxy<T = unknown>(
   payload: Record<string, unknown> = {}
 ): Promise<{ data: T | null; error: Error | null }> {
   try {
+    // ─── AÇÕES LOCAIS (YOUTUBE / GIFS) ───
     if (action === "youtube_playlist") {
       const key = import.meta.env.VITE_YOUTUBE_API_KEY;
       const params = new URLSearchParams({
@@ -23,12 +27,9 @@ export async function invokeApiProxy<T = unknown>(
         key: key?.trim() || "",
       });
       if (payload.pageToken) params.set("pageToken", String(payload.pageToken));
-      
       const r = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?${params}`);
       const data = await r.json();
-      
       if (data.error) throw new Error(data.error.message);
-
       const videos = (data.items ?? []).map((item: any) => ({
         id: item.snippet.resourceId.videoId,
         nome: item.snippet.title,
@@ -36,7 +37,6 @@ export async function invokeApiProxy<T = unknown>(
         thumb: item.snippet.thumbnails?.medium?.url ?? "",
         descricao: item.snippet.description ?? "",
       }));
-      
       return { data: { videos, nextPageToken: data.nextPageToken ?? null } as any as T, error: null };
     }
 
@@ -49,13 +49,12 @@ export async function invokeApiProxy<T = unknown>(
         limit: "20",
       });
       if (payload.pos) params.set("pos", String(payload.pos));
-      
       const r = await fetch(`https://api.klipy.com/v2/${endpoint}?${params}`);
       const data = await r.json();
       return { data: { results: data.results ?? [], next: data.next ?? null } as any as T, error: null };
     }
 
-    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab") {
+    if (action === "chat" || action === "admin_quiz_insert" || action === "quiz_tab" || action === "admin_bulk_quiz") {
       const key = import.meta.env.VITE_AI_KEY;
       const messages: ApiProxyChatMessage[] = (payload.messages as ApiProxyChatMessage[]) || [];
       
@@ -65,8 +64,21 @@ export async function invokeApiProxy<T = unknown>(
       }
 
       if (action === "quiz_tab") {
-        messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais." });
+        messages.push({ role: "system", content: "Você é um professor especialista em gerar quizzes educacionais. Responda APENAS com JSON: {\"questions\": [...]}. Sem markdown." });
         messages.push({ role: "user", content: String(payload.prompt || "") });
+      }
+
+      if (action === "admin_bulk_quiz") {
+        const courseName = String(payload.courseName ?? "");
+        const aulas = payload.aulas as { nome: string; descricao: string }[];
+        messages.push({ 
+          role: "system", 
+          content: "Você é um gerador de quizzes em lote. Responda APENAS um objeto JSON onde a CHAVE é o nome exato da aula e o VALOR é um array de 3 questões seguindo EXATAMENTE este formato: { \"id\": 1, \"text\": \"...\", \"options\": [\"a\",\"b\",\"c\",\"d\"], \"correct\": 0 }. Sem markdown ou backticks." 
+        });
+        messages.push({ 
+          role: "user", 
+          content: `Curso: "${courseName}". Aulas:\n${aulas.map(a => `- ${a.nome}`).join("\n")}` 
+        });
       }
 
       // LÓGICA DE RETRY (3 tentativas)
@@ -76,52 +88,59 @@ export async function invokeApiProxy<T = unknown>(
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${key?.trim()}` },
           body: JSON.stringify({ 
-            model: payload.model ?? "llama-3.1-8b-instant",
+            model: payload.model ?? (action === "admin_bulk_quiz" ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant"),
             messages: messages,
-            temperature: payload.temperature ?? 0.3,
+            temperature: 0.2,
             stream: false 
           }),
         });
 
         if (r.status === 429) {
-          console.warn(`[apiProxy] Groq 429 (Rate Limit). Tentativa ${attempt}/3. Esperando 3s...`);
-          await delay(3000 * attempt); // Espera 3s, depois 6s...
+          console.warn(`[apiProxy] Groq 429 (Rate Limit). Tentativa ${attempt}/3...`);
+          await delay(3000 * attempt);
           continue;
         }
 
         const res = await r.json();
-        if (res.error) {
-          lastError = new Error(res.error.message);
-          if (r.status === 400) break; // Erro de sintaxe não adianta tentar de novo
-          continue;
+        const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "";
+
+        if (action === "admin_quiz_insert") {
+          const questions = JSON.parse(text || "[]");
+          const { error: insErr } = await supabase.from("quizzes").insert({ aula_id: payload.aulaId, questions });
+          if (insErr) throw insErr;
+          return { data: { ok: true } as any as T, error: null };
         }
-        
-          if (action === "admin_quiz_insert") {
-            const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "[]";
-            const questions = JSON.parse(text);
-            const { error: insErr } = await supabase.from("quizzes").insert({ aula_id: payload.aulaId, questions });
-            if (insErr) throw insErr;
-            return { data: { ok: true } as any as T, error: null };
-          }
 
         if (action === "quiz_tab") {
-          const text = res.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "[]";
           try {
-            const questions = JSON.parse(text);
-            return { data: { questions } as any as T, error: null };
+            const rawParsed = JSON.parse(text || "{\n  \"questions\": []\n}");
+            // Handle both { questions: [...] } and direct array [...] responses just in case
+            const questionsArray = Array.isArray(rawParsed) ? rawParsed : (Array.isArray(rawParsed.questions) ? rawParsed.questions : []);
+            const valid = questionsArray.filter((q: any) => q && q.text && Array.isArray(q.options));
+            return { data: { questions: valid } as any as T, error: null };
           } catch (e) {
             console.error("[apiProxy] Erro parse JSON quiz:", e, text);
             throw new Error("Resposta da IA formatada incorretamente. Tente de novo.");
           }
         }
 
-        return { data: { reply: res.choices?.[0]?.message?.content || "", raw: res } as any as T, error: null };
+        if (action === "admin_bulk_quiz") {
+          try {
+             const quizzes = JSON.parse(text);
+             return { data: { quizzes } as any as T, error: null };
+          } catch (e) {
+             console.error("[apiProxy] Erro parse JSON bulk_quiz:", e, text);
+             throw new Error("Resposta da IA para geração em lote formatada incorretamente.");
+          }
+        }
+
+        return { data: { reply: text || (res.choices?.[0]?.message?.content || ""), raw: res } as any as T, error: null };
       }
-      
       throw lastError || new Error("Falha após várias tentativas com o Groq.");
     }
 
-    if (action === "quiz_tab" || action === "moderate_text" || action === "moderate_vision" || action === "admin_bulk_quiz") {
+    // ─── AÇÕES QUE AINDA USAM EDGE FUNCTION (MODERAÇÃO) ───
+    if (action === "moderate_text" || action === "moderate_vision") {
       const { data, error } = await supabase.functions.invoke("api-proxy", {
         body: { action, ...payload },
       });
@@ -136,7 +155,7 @@ export async function invokeApiProxy<T = unknown>(
   }
 }
 
-/** Chat genérico Groq (Orion, tutor de cursos, recomendações, etc.) */
+/** Chat genérico Groq */
 export async function groqChatCompletion(params: {
   model?: string;
   messages: ApiProxyChatMessage[];

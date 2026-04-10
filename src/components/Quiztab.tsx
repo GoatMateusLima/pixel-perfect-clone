@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, CheckCircle2, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { invokeApiProxy } from "@/lib/apiProxy";
+import supabase from "../../utils/supabase";
 
 export interface QuizQuestion {
   id: number;
@@ -9,8 +10,6 @@ export interface QuizQuestion {
   options: string[];
   correct: number;
 }
-
-import supabase from "../../utils/supabase";
 
 interface QuizTabProps {
   /** Tópico ou conteúdo da aula para gerar as questões */
@@ -24,6 +23,7 @@ interface QuizTabProps {
   isLast?: boolean;
   loading?: boolean;
   alreadyPassed?: boolean;
+  aulaId?: number;
 }
 
 const QUESTIONS_PER_QUIZ = 5;
@@ -63,7 +63,7 @@ O campo "correct" é o índice (0-3) da opção correta no array "options".`;
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   const { data, error } = await invokeApiProxy<{ questions?: QuizQuestion[] }>("quiz_tab", { prompt });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const parsed = data?.questions;
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Resposta inválida da API");
   return parsed;
@@ -116,20 +116,22 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
       } catch (err) {
         console.error("[Quiz] Falha na consulta ao banco:", err);
       }
-      setGenerating(false);
     }
 
-    if (!topic) return;
+    if (!topic) {
+      setGenError("Conteúdo da aula não identificado para gerar o quiz.");
+      setGenerating(false);
+      return;
+    }
 
-    // Regera via IA se não achou no banco
-    setGenerating(true);
-    setGenError(null);
+    // Se não encontrou no banco, gera via IA (Plano B)
     try {
       const generated = await generateQuestions(topic);
-      setQueue(generated);
+      const shuffled = [...generated].sort(() => Math.random() - 0.5);
+      setQueue(shuffled.slice(0, Math.min(QUESTIONS_PER_QUIZ, shuffled.length)));
     } catch (err) {
-      console.error("[Quiz] Falha ao gerar via IA:", err);
-      setGenError("Este quiz ainda não está pronto e houve um erro ao gerá-lo por Inteligência Artificial. Tente novamente mais tarde.");
+      setGenError("Não foi possível carregar ou gerar o quiz. Tente novamente.");
+      console.error("[Quiz Gen Error]:", err);
     } finally {
       setGenerating(false);
     }
@@ -149,10 +151,10 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
 
   // Carrega na montagem apenas se o usuario iniciar
   useEffect(() => {
-    if (started && !alreadyPassed && queue.length === 0 && !genError && !generating) {
+    if (started && queue.length === 0 && !genError && !generating) {
       loadQuestions();
     }
-  }, [started, loadQuestions, alreadyPassed, queue.length, genError, generating]);
+  }, [started, aulaId, queue.length, genError, generating, loadQuestions]);
 
   const resetState = () => {
     setCurrent(0);
@@ -311,19 +313,26 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
     );
   }
 
-  // ── Sem tópico e sem questões ──
-  if (!topic && (!questions || questions.length === 0)) {
+  // ─── Sem questões encontradas ───
+  if (!isLoading && !genError && queue.length === 0 && (started || alreadyPassed)) {
     return (
       <motion.div
         initial={{ opacity: 1, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-3 text-center"
+        className="hologram-panel rounded-sm p-10 max-w-lg mx-auto flex flex-col items-center gap-4 text-center"
       >
         <ClipboardList size={40} className="text-muted-foreground/40" />
+        <h3 className="text-lg font-display font-bold text-foreground">Quiz indisponível</h3>
         <p className="text-sm font-body text-muted-foreground">
-          Forneça um <code className="text-primary">topic</code> ou <code className="text-primary">questions</code> para iniciar o quiz.
+          Não conseguimos encontrar ou gerar questões para esta aula. Verifique com o administrador se os quizzes foram gerados.
         </p>
+        <button
+          onClick={loadQuestions}
+          className="px-6 py-2.5 rounded-sm bg-primary text-primary-foreground text-sm font-accent font-bold hover:brightness-110 transition"
+        >
+          Tentar Gerar Agora
+        </button>
       </motion.div>
     );
   }
@@ -495,7 +504,7 @@ const QuizTab = ({ topic, aulaId, questions, onPass, onNext, isLast = false, loa
           <h3 className="font-display text-base font-bold text-foreground leading-snug">{q.text}</h3>
 
           <div className="space-y-3">
-            {q.options.map((opt, idx) => {
+            {q.options?.map?.((opt, idx) => {
               let state = "default";
               if (confirmed) {
                 if (idx === q.correct) state = "correct";

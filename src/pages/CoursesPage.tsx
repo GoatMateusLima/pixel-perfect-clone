@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { groqChatCompletion } from "@/lib/apiProxy";
 import supabase from "../../utils/supabase.ts";
 import PostModal from "../components/PostModal";
-import { awardCourseCompletion } from "@/utils/rewards";
 import {
   PlayCircle,
   ClipboardList,
@@ -894,6 +893,8 @@ const CoursesPage = () => {
   const [courseInfo, setCourseInfo] = useState<CourseInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizLoading, setQuizLoading] = useState(false);
   const [passedIndexes, setPassedIndexes] = useState<Set<number>>(new Set());
 
   // --- LÓGICA DE PROGRESSO AUTOMÁTICO ---
@@ -985,6 +986,20 @@ const CoursesPage = () => {
     load();
   }, [courseId, user]);
 
+  useEffect(() => {
+    const aula = aulas[activeIndex];
+    if (!aula) return;
+    (async () => {
+      setQuizLoading(true);
+      const { data } = await supabase.from("quizzes").select("questions").eq("aula_id", aula.id).maybeSingle();
+      if (data?.questions && Array.isArray(data.questions)) {
+        setQuizQuestions(data.questions as QuizQuestion[]);
+      } else {
+        setQuizQuestions([]);
+      }
+      setQuizLoading(false);
+    })();
+  }, [aulas, activeIndex]);
 
   const handleQuizPass = async () => {
     setPassedIndexes(prev => new Set([...prev, activeIndex]));
@@ -1026,13 +1041,6 @@ const CoursesPage = () => {
         await supabase.from('profiles').update({ total_xp: novoXP, pontuacao: novoXP }).eq('user_id', user.id);
         
         console.log(`[ORION] XP atribuído: +${xpGanho} pela aula ${aulaAtual.nome}`);
-
-        // 4. Verificação de Conclusão de Curso (100%)
-        const nextPassedLocal = new Set([...passedIndexes, activeIndex]);
-        if (nextPassedLocal.size === aulas.length && aulas.length > 0) {
-          console.log("[ORION] Curso concluído! Gerando medalha e certificado...");
-          await awardCourseCompletion(user.id, courseId!, courseName);
-        }
       }
     } catch (err) {
       console.error("Erro ao salvar finalização da aula:", err);
@@ -1132,7 +1140,6 @@ const CoursesPage = () => {
                 {activeTab === "quiz" && (
                   <QuizTab
                     key={`quiz-${activeIndex}`}
-                    aulaId={aulaAtiva?.id}
                     topic={
                       aulaAtiva
                         ? [
@@ -1144,10 +1151,13 @@ const CoursesPage = () => {
                             .join("\n")
                         : courseName
                     }
+                    questions={quizQuestions.length > 0 ? quizQuestions : undefined}
                     onPass={handleQuizPass}
                     onNext={handleNext}
                     isLast={activeIndex === aulas.length - 1}
+                    loading={quizLoading}
                     alreadyPassed={quizPassed}
+                    aulaId={aulaAtiva?.id}
                   />
                 )}
                 {activeTab === "duvidas" && <DuvidasTab />}

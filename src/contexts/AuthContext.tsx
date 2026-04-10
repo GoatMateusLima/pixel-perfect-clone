@@ -94,6 +94,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data?.role) setRole(data.role as "user" | "admin");
     if (data?.type) setType(data.type);
 
+    // ── Streak: calcula dias seguidos e aplica penalidade de XP ────────────
+    await (async () => {
+      try {
+        const now = new Date();
+        const todayStr = now.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+        const lastSeenRaw: string | null = data.last_seen_at ?? null;
+        const currentStreak: number = Number(data.current_streak) || 0;
+        const currentXP: number = Number(data.total_xp) || 0;
+
+        if (!lastSeenRaw) {
+          // Primeiro acesso — inicializa streak
+          await supabase
+            .from("profiles")
+            .update({ last_seen_at: now.toISOString(), current_streak: 1 })
+            .eq("user_id", currentUser.id);
+        } else {
+          const lastSeenDate = new Date(lastSeenRaw);
+          const lastSeenStr = lastSeenDate.toISOString().slice(0, 10);
+
+          if (lastSeenStr === todayStr) {
+            // Mesmo dia — nada a fazer
+          } else {
+            // Calcular diferença de dias pelo calendário
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const todayMidnight = new Date(todayStr + "T00:00:00");
+            const lastMidnight = new Date(lastSeenStr + "T00:00:00");
+            const diffDays = Math.round((todayMidnight.getTime() - lastMidnight.getTime()) / msPerDay);
+
+            if (diffDays === 1) {
+              // Dia seguinte — incrementa streak
+              const newStreak = currentStreak + 1;
+              await supabase
+                .from("profiles")
+                .update({ last_seen_at: now.toISOString(), current_streak: newStreak })
+                .eq("user_id", currentUser.id);
+            } else if (diffDays > 1) {
+              // Perdeu dias — penalidade de 1.5 XP por dia perdido
+              const diasPerdidos = diffDays - 1; // ex: faltou 2 dias = diffDays 3, perdeu 2
+              const penalidade = diasPerdidos * 1.5;
+              const novoXP = Math.max(0, currentXP - penalidade);
+
+              await supabase
+                .from("profiles")
+                .update({
+                  last_seen_at: now.toISOString(),
+                  current_streak: 1,
+                  total_xp: novoXP,
+                })
+                .eq("user_id", currentUser.id);
+            }
+          }
+        }
+      } catch (streakErr) {
+        console.error("[AuthContext] Erro ao processar streak:", streakErr);
+      }
+    })();
+
     // Assessment
     const hasDbData = data.assessment_completed || data.disc_profile || data.calculo_marcius;
     if (hasDbData) {

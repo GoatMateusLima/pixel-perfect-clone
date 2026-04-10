@@ -222,7 +222,7 @@ const CommunityPage = () => {
       
       const commQuery = supabase
         .from("comments")
-        .select("*")
+        .select("*, profiles!comments_user_id_fkey(user_id, name, perfil, descricao, bordas)")
         .ilike("comment", `%${tagFilter}%`)
         .order("created_at", { ascending: false })
         .limit(PAGE_SIZE);
@@ -238,20 +238,6 @@ const CommunityPage = () => {
       const mixedRows: any[] = [];
       if (pubRes.data) mixedRows.push(...pubRes.data);
       if (commRes.data && commRes.data.length > 0) {
-        const userIds = [...new Set(commRes.data.map((c: any) => c.user_id).filter(Boolean))];
-        let profilesMap: Record<string, any> = {};
-
-        if (userIds.length > 0) {
-          const { data: profilesData } = await supabase
-            .from("profiles")
-            .select("user_id, name, perfil, descricao, bordas")
-            .in("user_id", userIds);
-
-          if (profilesData) {
-            profilesMap = Object.fromEntries(profilesData.map((p: any) => [p.user_id, p]));
-          }
-        }
-
         mixedRows.push(
           ...commRes.data.map((c: any) => ({
             id: c.publication_id,
@@ -261,7 +247,7 @@ const CommunityPage = () => {
             midia: c.midia,
             creator_id: c.user_id,
             liked_by: [],
-            profiles: profilesMap[c.user_id] ?? null,
+            profiles: c.profiles ?? null,
             isCommentHit: true
           }))
         );
